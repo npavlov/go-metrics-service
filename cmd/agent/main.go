@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"github.com/npavlov/go-metrics-service/internal/agent/metrics"
+	"github.com/npavlov/go-metrics-service/internal/storage"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
 
+const addr = "http://localhost:8080"
+
 func main() {
-	var service metrics.Service = metrics.NewMetricService()
+	var memStorage storage.Repository = storage.NewMemStorage()
+	var service metrics.Service = metrics.NewMetricService(memStorage, addr)
 
 	pollInterval := 2 * time.Second
 	reportInterval := 10 * time.Second

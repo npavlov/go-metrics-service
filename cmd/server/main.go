@@ -11,8 +11,6 @@ import (
 func main() {
 	var memStorage storage.Repository = storage.NewMemStorage()
 
-	fmt.Println(memStorage)
-
 	updateHandler := handler.GetUpdateHandler(memStorage)
 
 	// Маршрутизация

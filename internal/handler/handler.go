@@ -9,7 +9,7 @@ import (
 
 func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Пример: /update/gauge/metric_name/123.4
+		// Example: /update/gauge/metric_name/123.4
 		parts := splitURL(r.URL.Path)
 		if len(parts) != 4 {
 			http.Error(w, "invalid URL format", http.StatusNotFound)
@@ -19,17 +19,6 @@ func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Req
 		metricType := types.MetricType(parts[1])
 		metricName := types.MetricName(parts[2])
 		metricValue := parts[3]
-
-		// metric name not found
-		if len(metricName) < 1 {
-			http.Error(w, "no metric id", http.StatusBadRequest)
-			return
-		}
-		// metric value not found TODO: improve
-		if len(metricValue) == 0 {
-			http.Error(w, "no value", http.StatusBadRequest)
-			return
-		}
 
 		switch metricType {
 		case types.Gauge:
@@ -55,12 +44,12 @@ func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Req
 	}
 }
 
-// Разделение пути URL
+// Split the URL
 func splitURL(url string) []string {
 	return filterEmptyStrings(splitString(url, '/'))
 }
 
-// Вспомогательная функция для разделения строки
+// Helper function for splitting a string
 func splitString(s string, sep rune) []string {
 	var result []string
 	current := ""
@@ -76,7 +65,7 @@ func splitString(s string, sep rune) []string {
 	return result
 }
 
-// Фильтрация пустых строк
+// Filtering empty lines
 func filterEmptyStrings(s []string) []string {
 	var result []string
 	for _, v := range s {

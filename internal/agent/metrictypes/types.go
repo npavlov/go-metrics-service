@@ -1,7 +1,5 @@
 package metrictypes
 
-import "errors"
-
 type MetricName string
 
 type MetricType string
@@ -42,17 +40,3 @@ const (
 	RandomValue   MetricName = "RandomValue"
 	PollCount     MetricName = "PollCount"
 )
-
-func Validate(stat MetricName) error {
-	switch stat {
-	case Alloc, BuckHashSys, Frees, GCCPUFraction, GCSys,
-		HeapAlloc, HeapIdle, HeapInuse, HeapObjects, HeapReleased,
-		HeapSys, LastGC, Lookups, MCacheInuse, MCacheSys,
-		MSpanInuse, MSpanSys, Mallocs, NextGC, NumForcedGC,
-		NumGC, OtherSys, PauseTotalNs, StackInuse, StackSys,
-		Sys, TotalAlloc, RandomValue, PollCount:
-		return nil // valid value
-	default:
-		return errors.New("invalid MetricName value") // invalid value
-	}
-}

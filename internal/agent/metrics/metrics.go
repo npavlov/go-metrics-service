@@ -9,75 +9,75 @@ import (
 	"runtime"
 )
 
-const addr = "http://localhost:8080"
-
 type Service interface {
 	SendMetrics()
 	UpdateMetrics()
 }
 
 type MetricService struct {
-	storage storage.Repository
+	Storage storage.Repository
+	addr    string
 }
 
-func NewMetricService() *MetricService {
+func NewMetricService(storage storage.Repository, addr string) *MetricService {
 	return &MetricService{
-		storage: storage.NewMemStorage(),
+		Storage: storage,
+		addr:    addr,
 	}
 }
 
-func (m MetricService) SendMetrics() {
-	for name, value := range m.storage.GetGauges() {
-		url := fmt.Sprintf("%s/update/gauge/%s/%f", addr, name, value)
-		sendPostRequest(url)
-	}
-
-	for name, value := range m.storage.GetCounters() {
-		url := fmt.Sprintf("%s/update/counter/%s/%d", addr, name, value)
-		sendPostRequest(url)
-	}
-}
-
-func (m MetricService) UpdateMetrics() {
+func (m *MetricService) UpdateMetrics() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
-	m.storage.UpdateGauge(metrictypes.Alloc, float64(memStats.Alloc))
-	m.storage.UpdateGauge(metrictypes.BuckHashSys, float64(memStats.BuckHashSys))
-	m.storage.UpdateGauge(metrictypes.Frees, float64(memStats.Frees))
-	m.storage.UpdateGauge(metrictypes.GCCPUFraction, memStats.GCCPUFraction)
-	m.storage.UpdateGauge(metrictypes.GCSys, float64(memStats.GCSys))
-	m.storage.UpdateGauge(metrictypes.HeapAlloc, float64(memStats.HeapAlloc))
-	m.storage.UpdateGauge(metrictypes.HeapIdle, float64(memStats.HeapIdle))
-	m.storage.UpdateGauge(metrictypes.HeapInuse, float64(memStats.HeapInuse))
-	m.storage.UpdateGauge(metrictypes.HeapObjects, float64(memStats.HeapObjects))
-	m.storage.UpdateGauge(metrictypes.HeapReleased, float64(memStats.HeapReleased))
-	m.storage.UpdateGauge(metrictypes.HeapSys, float64(memStats.HeapSys))
-	m.storage.UpdateGauge(metrictypes.LastGC, float64(memStats.LastGC))
-	m.storage.UpdateGauge(metrictypes.Lookups, float64(memStats.Lookups))
-	m.storage.UpdateGauge(metrictypes.MCacheInuse, float64(memStats.MCacheInuse))
-	m.storage.UpdateGauge(metrictypes.MCacheSys, float64(memStats.MCacheSys))
-	m.storage.UpdateGauge(metrictypes.MSpanInuse, float64(memStats.MSpanInuse))
-	m.storage.UpdateGauge(metrictypes.MSpanSys, float64(memStats.MSpanSys))
-	m.storage.UpdateGauge(metrictypes.Mallocs, float64(memStats.Mallocs))
-	m.storage.UpdateGauge(metrictypes.NextGC, float64(memStats.NextGC))
-	m.storage.UpdateGauge(metrictypes.NumForcedGC, float64(memStats.NumForcedGC))
-	m.storage.UpdateGauge(metrictypes.NumGC, float64(memStats.NumGC))
-	m.storage.UpdateGauge(metrictypes.PauseTotalNs, float64(memStats.PauseTotalNs))
-	m.storage.UpdateGauge(metrictypes.StackInuse, float64(memStats.StackInuse))
-	m.storage.UpdateGauge(metrictypes.StackSys, float64(memStats.StackSys))
-	m.storage.UpdateGauge(metrictypes.OtherSys, float64(memStats.OtherSys))
-	m.storage.UpdateGauge(metrictypes.Sys, float64(memStats.Sys))
-	m.storage.UpdateGauge(metrictypes.TotalAlloc, float64(memStats.TotalAlloc))
-	m.storage.UpdateGauge(metrictypes.RandomValue, rand.Float64())
-	m.storage.IncCounter(metrictypes.PollCount)
+	m.Storage.UpdateGauge(metrictypes.Alloc, float64(memStats.Alloc))
+	m.Storage.UpdateGauge(metrictypes.BuckHashSys, float64(memStats.BuckHashSys))
+	m.Storage.UpdateGauge(metrictypes.Frees, float64(memStats.Frees))
+	m.Storage.UpdateGauge(metrictypes.GCCPUFraction, memStats.GCCPUFraction)
+	m.Storage.UpdateGauge(metrictypes.GCSys, float64(memStats.GCSys))
+	m.Storage.UpdateGauge(metrictypes.HeapAlloc, float64(memStats.HeapAlloc))
+	m.Storage.UpdateGauge(metrictypes.HeapIdle, float64(memStats.HeapIdle))
+	m.Storage.UpdateGauge(metrictypes.HeapInuse, float64(memStats.HeapInuse))
+	m.Storage.UpdateGauge(metrictypes.HeapObjects, float64(memStats.HeapObjects))
+	m.Storage.UpdateGauge(metrictypes.HeapReleased, float64(memStats.HeapReleased))
+	m.Storage.UpdateGauge(metrictypes.HeapSys, float64(memStats.HeapSys))
+	m.Storage.UpdateGauge(metrictypes.LastGC, float64(memStats.LastGC))
+	m.Storage.UpdateGauge(metrictypes.Lookups, float64(memStats.Lookups))
+	m.Storage.UpdateGauge(metrictypes.MCacheInuse, float64(memStats.MCacheInuse))
+	m.Storage.UpdateGauge(metrictypes.MCacheSys, float64(memStats.MCacheSys))
+	m.Storage.UpdateGauge(metrictypes.MSpanInuse, float64(memStats.MSpanInuse))
+	m.Storage.UpdateGauge(metrictypes.MSpanSys, float64(memStats.MSpanSys))
+	m.Storage.UpdateGauge(metrictypes.Mallocs, float64(memStats.Mallocs))
+	m.Storage.UpdateGauge(metrictypes.NextGC, float64(memStats.NextGC))
+	m.Storage.UpdateGauge(metrictypes.NumForcedGC, float64(memStats.NumForcedGC))
+	m.Storage.UpdateGauge(metrictypes.NumGC, float64(memStats.NumGC))
+	m.Storage.UpdateGauge(metrictypes.PauseTotalNs, float64(memStats.PauseTotalNs))
+	m.Storage.UpdateGauge(metrictypes.StackInuse, float64(memStats.StackInuse))
+	m.Storage.UpdateGauge(metrictypes.StackSys, float64(memStats.StackSys))
+	m.Storage.UpdateGauge(metrictypes.OtherSys, float64(memStats.OtherSys))
+	m.Storage.UpdateGauge(metrictypes.Sys, float64(memStats.Sys))
+	m.Storage.UpdateGauge(metrictypes.TotalAlloc, float64(memStats.TotalAlloc))
+	m.Storage.UpdateGauge(metrictypes.RandomValue, rand.Float64())
+	m.Storage.IncCounter(metrictypes.PollCount)
+}
+
+func (m *MetricService) SendMetrics() {
+	for name, value := range m.Storage.GetGauges() {
+		url := fmt.Sprintf("%s/update/gauge/%s/%f", m.addr, name, value)
+		m.sendPostRequest(url)
+	}
+
+	for name, value := range m.Storage.GetCounters() {
+		url := fmt.Sprintf("%s/update/counter/%s/%d", m.addr, name, value)
+		m.sendPostRequest(url)
+	}
 }
 
 // Функция отправки POST-запроса
-func sendPostRequest(url string) {
+func (m *MetricService) sendPostRequest(url string) {
 	req, err := http.NewRequest(http.MethodPost, url, nil)
 	if err != nil {
-		fmt.Println("Ошибка при создании запроса:", err)
+		fmt.Println("Error in creating a request:", err)
 		return
 	}
 	req.Header.Set("Content-Type", "text/plain")
@@ -85,10 +85,10 @@ func sendPostRequest(url string) {
 	client := &http.Client{}
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Ошибка при отправке запроса:", err)
+		fmt.Println("Error when sending a request:", err)
 		return
 	}
 	defer resp.Body.Close()
 
-	fmt.Printf("Метрика отправлена на %s, статус: %s\n", url, resp.Status)
+	fmt.Printf("Metric is sent to %s, status: %s\n", url, resp.Status)
 }
