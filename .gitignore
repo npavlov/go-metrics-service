@@ -23,3 +23,5 @@ vendor/
 # IDEs directories
 .idea
 .vscode
+
+metricstest

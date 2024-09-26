@@ -11,7 +11,7 @@ func GetUpdateHandler(ms *storage.MemStorage) func(http.ResponseWriter, *http.Re
 		// Пример: /update/gauge/metric_name/123.4
 		parts := splitURL(r.URL.Path)
 		if len(parts) != 4 {
-			http.Error(w, "invalid URL format", http.StatusBadRequest)
+			http.Error(w, "invalid URL format", http.StatusNotFound)
 			return
 		}
 
@@ -19,8 +19,14 @@ func GetUpdateHandler(ms *storage.MemStorage) func(http.ResponseWriter, *http.Re
 		metricName := parts[2]
 		metricValue := parts[3]
 
+		// metric name not found TODO: improve
 		if len(metricName) < 2 {
 			http.Error(w, "unknown metric id", http.StatusBadRequest)
+			return
+		}
+		// metric value not found TODO: improve
+		if len(metricValue) == 0 {
+			http.Error(w, "no value", http.StatusBadRequest)
 			return
 		}
 
