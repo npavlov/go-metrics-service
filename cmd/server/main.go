@@ -9,7 +9,7 @@ import (
 )
 
 func main() {
-	memStorage := storage.NewMemStorage()
+	var memStorage storage.Repository = storage.NewMemStorage()
 
 	fmt.Println(memStorage)
 

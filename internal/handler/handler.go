@@ -1,12 +1,13 @@
 package handler
 
 import (
+	. "github.com/npavlov/go-metrics-service/internal/metric-types"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"net/http"
 	"strconv"
 )
 
-func GetUpdateHandler(ms *storage.MemStorage) func(http.ResponseWriter, *http.Request) {
+func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Пример: /update/gauge/metric_name/123.4
 		parts := splitURL(r.URL.Path)
@@ -15,13 +16,13 @@ func GetUpdateHandler(ms *storage.MemStorage) func(http.ResponseWriter, *http.Re
 			return
 		}
 
-		metricType := storage.MetricType(parts[1])
-		metricName := parts[2]
+		metricType := MetricType(parts[1])
+		metricName := MetricName(parts[2])
 		metricValue := parts[3]
 
-		// metric name not found TODO: improve
-		if len(metricName) < 2 {
-			http.Error(w, "unknown metric id", http.StatusBadRequest)
+		// metric name not found
+		if len(metricName) < 1 {
+			http.Error(w, "no metric id", http.StatusBadRequest)
 			return
 		}
 		// metric value not found TODO: improve
@@ -31,14 +32,14 @@ func GetUpdateHandler(ms *storage.MemStorage) func(http.ResponseWriter, *http.Re
 		}
 
 		switch metricType {
-		case storage.Gauge:
+		case Gauge:
 			value, err := strconv.ParseFloat(metricValue, 64)
 			if err != nil {
 				http.Error(w, "invalid gauge value", http.StatusBadRequest)
 				return
 			}
 			ms.UpdateGauge(metricName, value)
-		case storage.Counter:
+		case Counter:
 			value, err := strconv.ParseInt(metricValue, 10, 64)
 			if err != nil {
 				http.Error(w, "invalid counter value", http.StatusBadRequest)
