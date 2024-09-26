@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	metrics "github.com/npavlov/go-metrics-service/internal/agent/metrics-service"
+	"github.com/npavlov/go-metrics-service/internal/agent/metrics"
 	"os"
 	"os/signal"
 	"syscall"
@@ -12,8 +12,6 @@ import (
 
 func main() {
 	var service metrics.Service = metrics.NewMetricService()
-
-	fmt.Println(service)
 
 	pollInterval := 2 * time.Second
 	reportInterval := 10 * time.Second

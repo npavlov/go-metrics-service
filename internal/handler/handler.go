@@ -1,7 +1,7 @@
 package handler
 
 import (
-	. "github.com/npavlov/go-metrics-service/internal/metric-types"
+	types "github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"net/http"
 	"strconv"
@@ -16,8 +16,8 @@ func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Req
 			return
 		}
 
-		metricType := MetricType(parts[1])
-		metricName := MetricName(parts[2])
+		metricType := types.MetricType(parts[1])
+		metricName := types.MetricName(parts[2])
 		metricValue := parts[3]
 
 		// metric name not found
@@ -32,14 +32,14 @@ func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Req
 		}
 
 		switch metricType {
-		case Gauge:
+		case types.Gauge:
 			value, err := strconv.ParseFloat(metricValue, 64)
 			if err != nil {
 				http.Error(w, "invalid gauge value", http.StatusBadRequest)
 				return
 			}
 			ms.UpdateGauge(metricName, value)
-		case Counter:
+		case types.Counter:
 			value, err := strconv.ParseInt(metricValue, 10, 64)
 			if err != nil {
 				http.Error(w, "invalid counter value", http.StatusBadRequest)

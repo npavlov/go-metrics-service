@@ -1,4 +1,4 @@
-package metric_types
+package metrictypes
 
 import "errors"
 

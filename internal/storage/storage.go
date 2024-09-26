@@ -1,42 +1,42 @@
 package storage
 
 import (
-	. "github.com/npavlov/go-metrics-service/internal/metric-types"
+	types "github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
 	"sync"
 )
 
 type Repository interface {
-	UpdateGauge(name MetricName, value float64)
-	UpdateCounter(name MetricName, value int64)
-	IncCounter(name MetricName)
-	GetGauge(name MetricName) (float64, bool)
-	GetCounter(name MetricName) (int64, bool)
-	GetGauges() map[MetricName]float64
-	GetCounters() map[MetricName]int64
+	UpdateGauge(name types.MetricName, value float64)
+	UpdateCounter(name types.MetricName, value int64)
+	IncCounter(name types.MetricName)
+	GetGauge(name types.MetricName) (float64, bool)
+	GetCounter(name types.MetricName) (int64, bool)
+	GetGauges() map[types.MetricName]float64
+	GetCounters() map[types.MetricName]int64
 }
 
 type MemStorage struct {
 	mu       sync.RWMutex
-	gauges   map[MetricName]float64
-	counters map[MetricName]int64
+	gauges   map[types.MetricName]float64
+	counters map[types.MetricName]int64
 }
 
 // NewMemStorage - конструктор для MemStorage
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
-		gauges:   make(map[MetricName]float64),
-		counters: make(map[MetricName]int64),
+		gauges:   make(map[types.MetricName]float64),
+		counters: make(map[types.MetricName]int64),
 	}
 }
 
-func (ms *MemStorage) GetGauges() map[MetricName]float64 {
+func (ms *MemStorage) GetGauges() map[types.MetricName]float64 {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
 	return cloneMap(ms.gauges)
 }
 
-func (ms *MemStorage) GetCounters() map[MetricName]int64 {
+func (ms *MemStorage) GetCounters() map[types.MetricName]int64 {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -44,21 +44,21 @@ func (ms *MemStorage) GetCounters() map[MetricName]int64 {
 }
 
 // UpdateGauge - обновление значения gauge
-func (ms *MemStorage) UpdateGauge(name MetricName, value float64) {
+func (ms *MemStorage) UpdateGauge(name types.MetricName, value float64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.gauges[name] = value
 }
 
 // UpdateCounter - обновление значения counter
-func (ms *MemStorage) UpdateCounter(name MetricName, value int64) {
+func (ms *MemStorage) UpdateCounter(name types.MetricName, value int64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.counters[name] += value
 }
 
 // GetGauge - retrieves the value of a gauge
-func (ms *MemStorage) GetGauge(name MetricName) (float64, bool) {
+func (ms *MemStorage) GetGauge(name types.MetricName) (float64, bool) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	value, exists := ms.gauges[name]
@@ -66,14 +66,14 @@ func (ms *MemStorage) GetGauge(name MetricName) (float64, bool) {
 }
 
 // GetCounter - retrieves the value of a counter
-func (ms *MemStorage) GetCounter(name MetricName) (int64, bool) {
+func (ms *MemStorage) GetCounter(name types.MetricName) (int64, bool) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	value, exists := ms.counters[name]
 	return value, exists
 }
 
-func (ms *MemStorage) IncCounter(name MetricName) {
+func (ms *MemStorage) IncCounter(name types.MetricName) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.counters[name]++
