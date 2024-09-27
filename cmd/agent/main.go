@@ -39,7 +39,7 @@ func main() {
 				return
 			default:
 				service.UpdateMetrics()
-				time.Sleep(pollInterval * time.Second)
+				time.Sleep(time.Duration(pollInterval) * time.Second)
 			}
 		}
 	}()
@@ -53,7 +53,7 @@ func main() {
 				return
 			default:
 				service.SendMetrics()
-				time.Sleep(reportInterval * time.Second)
+				time.Sleep(time.Duration(reportInterval) * time.Second)
 			}
 		}
 	}()

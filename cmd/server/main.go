@@ -28,6 +28,6 @@ func main() {
 	r := router.GetRouter(handlers)
 
 	// Launching server at :8080
-	fmt.Printf("Server started at %s", flagRunAddr)
+	fmt.Printf("Server started at %s\n", flagRunAddr)
 	log.Fatal(http.ListenAndServe(flagRunAddr, r))
 }
