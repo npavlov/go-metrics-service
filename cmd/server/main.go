@@ -2,11 +2,12 @@ package main
 
 import (
 	"fmt"
-	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/npavlov/go-metrics-service/internal/server/handler"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers/render"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers/retrieve"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers/update"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
+	"github.com/npavlov/go-metrics-service/internal/types"
 	"log"
 	"net/http"
 )
@@ -14,16 +15,13 @@ import (
 func main() {
 	var memStorage storage.Repository = storage.NewMemStorage()
 
-	serverHandler := handler.GetUpdateHandler(memStorage)
+	handlers := types.Handlers{
+		UpdateHandler:   update.GetUpdateHandler(memStorage),
+		RetrieveHandler: retrieve.GetRetrieveHandler(memStorage),
+		RenderHandler:   render.GetRenderHandler(memStorage),
+	}
 
-	// Create a new chi router
-	r := chi.NewRouter()
-
-	// Useful middlewares, extra logging
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-
-	router.SetRoutes(r, serverHandler)
+	r := router.GetRouter(handlers)
 
 	// Launching server at :8080
 	fmt.Println("Server started at :8080")

@@ -1,11 +1,10 @@
 package metrics
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
-	"github.com/npavlov/go-metrics-service/internal/server/handler"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers/update"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
+	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"testing"
@@ -26,7 +25,7 @@ func TestMetricService_UpdateMetrics(t *testing.T) {
 
 	metricService.UpdateMetrics()
 
-	value, ok := metricService.Storage.GetCounter(metrictypes.PollCount)
+	value, ok := metricService.Storage.GetCounter(types.PollCount)
 
 	assert.True(t, ok)
 	assert.Equal(t, int64(2), value)
@@ -34,11 +33,15 @@ func TestMetricService_UpdateMetrics(t *testing.T) {
 
 // Test for SendMetrics function
 func TestMetricService_SendMetrics(t *testing.T) {
-	var serverStorage storage.Repository = storage.NewMemStorage()
-	r := chi.NewRouter()
 
-	updateHandler := handler.GetUpdateHandler(serverStorage)
-	router.SetRoutes(r, updateHandler)
+	var serverStorage storage.Repository = storage.NewMemStorage()
+	handlers := types.Handlers{
+		UpdateHandler:   update.GetUpdateHandler(serverStorage),
+		RetrieveHandler: nil,
+		RenderHandler:   nil,
+	}
+
+	r := router.GetRouter(handlers)
 
 	server := httptest.NewServer(r)
 	defer server.Close()

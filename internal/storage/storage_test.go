@@ -1,9 +1,9 @@
 package storage
 
 import (
+	"github.com/npavlov/go-metrics-service/internal/types"
 	"testing"
 
-	types "github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
 	"github.com/stretchr/testify/assert"
 )
 

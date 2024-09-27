@@ -1,4 +1,4 @@
-package metrictypes
+package types
 
 type MetricName string
 

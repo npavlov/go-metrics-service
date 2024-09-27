@@ -1,11 +1,10 @@
-package handler
+package update
 
 import (
-	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
-	types "github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
+	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -15,7 +14,16 @@ import (
 func TestUpdateHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
 
-	handler := GetUpdateHandler(memStorage)
+	handlers := types.Handlers{
+		UpdateHandler:   GetUpdateHandler(memStorage),
+		RetrieveHandler: nil,
+		RenderHandler:   nil,
+	}
+
+	r := router.GetRouter(handlers)
+
+	server := httptest.NewServer(r)
+	defer server.Close()
 
 	type metric struct {
 		name       types.MetricName
@@ -101,21 +109,7 @@ func TestUpdateHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			r := chi.NewRouter()
-
-			router.SetRoutes(r, handler)
-
-			server := httptest.NewServer(r)
-			defer server.Close()
-
-			req := resty.New().R()
-			req.Method = http.MethodPost
-			req.URL = server.URL + tt.request
-
-			res, err := req.Send()
-
-			assert.NoError(t, err, "error making HTTP request")
-			assert.Equal(t, tt.want.statusCode, res.StatusCode())
+			testRequest(t, server, tt.request, tt.want.statusCode)
 
 			if tt.want.result != nil {
 				switch tt.want.result.metricType {
@@ -134,4 +128,14 @@ func TestUpdateHandler(t *testing.T) {
 
 		})
 	}
+}
+func testRequest(t *testing.T, ts *httptest.Server, route string, statusCode int) {
+	req := resty.New().R()
+	req.Method = http.MethodPost
+	req.URL = ts.URL + route
+
+	res, err := req.Send()
+
+	assert.NoError(t, err, "error making HTTP request")
+	assert.Equal(t, statusCode, res.StatusCode())
 }

@@ -2,17 +2,17 @@ package metrics
 
 import (
 	"errors"
-	"github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
+	"github.com/npavlov/go-metrics-service/internal/types"
 )
 
-func Validate(stat metrictypes.MetricName) error {
+func Validate(stat types.MetricName) error {
 	switch stat {
-	case metrictypes.Alloc, metrictypes.BuckHashSys, metrictypes.Frees, metrictypes.GCCPUFraction, metrictypes.GCSys,
-		metrictypes.HeapAlloc, metrictypes.HeapIdle, metrictypes.HeapInuse, metrictypes.HeapObjects, metrictypes.HeapReleased,
-		metrictypes.HeapSys, metrictypes.LastGC, metrictypes.Lookups, metrictypes.MCacheInuse, metrictypes.MCacheSys,
-		metrictypes.MSpanInuse, metrictypes.MSpanSys, metrictypes.Mallocs, metrictypes.NextGC, metrictypes.NumForcedGC,
-		metrictypes.NumGC, metrictypes.OtherSys, metrictypes.PauseTotalNs, metrictypes.StackInuse, metrictypes.StackSys,
-		metrictypes.Sys, metrictypes.TotalAlloc, metrictypes.RandomValue, metrictypes.PollCount:
+	case types.Alloc, types.BuckHashSys, types.Frees, types.GCCPUFraction, types.GCSys,
+		types.HeapAlloc, types.HeapIdle, types.HeapInuse, types.HeapObjects, types.HeapReleased,
+		types.HeapSys, types.LastGC, types.Lookups, types.MCacheInuse, types.MCacheSys,
+		types.MSpanInuse, types.MSpanSys, types.Mallocs, types.NextGC, types.NumForcedGC,
+		types.NumGC, types.OtherSys, types.PauseTotalNs, types.StackInuse, types.StackSys,
+		types.Sys, types.TotalAlloc, types.RandomValue, types.PollCount:
 		return nil // valid value
 	default:
 		return errors.New("invalid MetricName value") // invalid value

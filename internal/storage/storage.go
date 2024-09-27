@@ -1,7 +1,7 @@
 package storage
 
 import (
-	types "github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
+	"github.com/npavlov/go-metrics-service/internal/types"
 	"sync"
 )
 
@@ -21,7 +21,7 @@ type MemStorage struct {
 	counters map[types.MetricName]int64
 }
 
-// NewMemStorage - конструктор для MemStorage
+// NewMemStorage - constructor for MemStorage
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		gauges:   make(map[types.MetricName]float64),
@@ -43,14 +43,14 @@ func (ms *MemStorage) GetCounters() map[types.MetricName]int64 {
 	return cloneMap(ms.counters)
 }
 
-// UpdateGauge - обновление значения gauge
+// UpdateGauge - update Gauge values
 func (ms *MemStorage) UpdateGauge(name types.MetricName, value float64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 	ms.gauges[name] = value
 }
 
-// UpdateCounter - обновление значения counter
+// UpdateCounter - update Counter values
 func (ms *MemStorage) UpdateCounter(name types.MetricName, value int64) {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
