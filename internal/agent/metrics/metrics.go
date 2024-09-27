@@ -2,10 +2,10 @@ package metrics
 
 import (
 	"fmt"
+	"github.com/go-resty/resty/v2"
 	"github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"math/rand"
-	"net/http"
 	"runtime"
 )
 
@@ -73,22 +73,14 @@ func (m *MetricService) SendMetrics() {
 	}
 }
 
-// Функция отправки POST-запроса
+// Send Metrics to server
 func (m *MetricService) sendPostRequest(url string) {
-	req, err := http.NewRequest(http.MethodPost, url, nil)
-	if err != nil {
-		fmt.Println("Error in creating a request:", err)
-		return
-	}
-	req.Header.Set("Content-Type", "text/plain")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
+	client := resty.New()
+	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
 	if err != nil {
 		fmt.Println("Error when sending a request:", err)
 		return
 	}
-	defer resp.Body.Close()
 
-	fmt.Printf("Metric is sent to %s, status: %s\n", url, resp.Status)
+	fmt.Printf("Metric is sent to %s, status: %s\n", url, resp.Status())
 }
