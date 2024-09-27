@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/npavlov/go-metrics-service/internal/flags"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers/render"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers/retrieve"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers/update"
@@ -13,6 +14,9 @@ import (
 )
 
 func main() {
+	parseFlags()
+	flags.VerifyFlags()
+
 	var memStorage storage.Repository = storage.NewMemStorage()
 
 	handlers := types.Handlers{
@@ -24,6 +28,6 @@ func main() {
 	r := router.GetRouter(handlers)
 
 	// Launching server at :8080
-	fmt.Println("Server started at :8080")
-	log.Fatal(http.ListenAndServe(":8080", r))
+	fmt.Printf("Server started at %s", flagRunAddr)
+	log.Fatal(http.ListenAndServe(flagRunAddr, r))
 }

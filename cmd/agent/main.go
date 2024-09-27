@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/npavlov/go-metrics-service/internal/agent/metrics"
+	"github.com/npavlov/go-metrics-service/internal/flags"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"os"
 	"os/signal"
@@ -11,14 +12,16 @@ import (
 	"time"
 )
 
-const addr = "http://localhost:8080"
-
 func main() {
-	var memStorage storage.Repository = storage.NewMemStorage()
-	var service metrics.Service = metrics.NewMetricService(memStorage, addr)
+	parseFlags()
+	flags.VerifyFlags()
 
-	pollInterval := 2 * time.Second
-	reportInterval := 10 * time.Second
+	var memStorage storage.Repository = storage.NewMemStorage()
+
+	fmt.Printf("Enpoint address set as %s\n", flagRunAddr)
+	var service metrics.Service = metrics.NewMetricService(memStorage, "http://"+flagRunAddr)
+
+	fmt.Printf("Polling time time %d, reporint time %d\n", pollInterval, reportInterval)
 
 	// Create a context that will be canceled when a shutdown signal is received
 	ctx, cancel := context.WithCancel(context.Background())
@@ -36,7 +39,7 @@ func main() {
 				return
 			default:
 				service.UpdateMetrics()
-				time.Sleep(pollInterval)
+				time.Sleep(pollInterval * time.Second)
 			}
 		}
 	}()
@@ -50,7 +53,7 @@ func main() {
 				return
 			default:
 				service.SendMetrics()
-				time.Sleep(reportInterval)
+				time.Sleep(reportInterval * time.Second)
 			}
 		}
 	}()
