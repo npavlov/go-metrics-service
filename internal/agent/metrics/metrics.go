@@ -63,7 +63,7 @@ func (m *MetricService) UpdateMetrics() {
 
 func (m *MetricService) SendMetrics() {
 	for name, value := range m.Storage.GetGauges() {
-		url := fmt.Sprintf("%s/update/gauge/%s/%f", m.addr, name, value)
+		url := fmt.Sprintf("%s/update/gauge/%s/%g", m.addr, name, value)
 		m.sendPostRequest(url)
 	}
 

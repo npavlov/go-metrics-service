@@ -1,7 +1,10 @@
 package handler
 
 import (
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
 	types "github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"github.com/stretchr/testify/assert"
 	"net/http"
@@ -98,15 +101,21 @@ func TestUpdateHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodPost, tt.request, nil)
-			w := httptest.NewRecorder()
-			h := http.HandlerFunc(handler)
-			h(w, request)
+			r := chi.NewRouter()
 
-			result := w.Result()
-			defer result.Body.Close()
+			router.SetRoutes(r, handler)
 
-			assert.Equal(t, tt.want.statusCode, result.StatusCode)
+			server := httptest.NewServer(r)
+			defer server.Close()
+
+			req := resty.New().R()
+			req.Method = http.MethodPost
+			req.URL = server.URL + tt.request
+
+			res, err := req.Send()
+
+			assert.NoError(t, err, "error making HTTP request")
+			assert.Equal(t, tt.want.statusCode, res.StatusCode())
 
 			if tt.want.result != nil {
 				switch tt.want.result.metricType {

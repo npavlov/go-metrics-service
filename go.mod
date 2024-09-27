@@ -3,6 +3,7 @@ module github.com/npavlov/go-metrics-service
 go 1.20
 
 require (
+	github.com/go-chi/chi/v5 v5.1.0
 	github.com/go-resty/resty/v2 v2.15.3
 	github.com/stretchr/testify v1.9.0
 )

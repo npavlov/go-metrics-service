@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"fmt"
+	"github.com/go-chi/chi/v5"
 	types "github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"net/http"
@@ -9,16 +11,11 @@ import (
 
 func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Request) {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Example: /update/gauge/metric_name/123.4
-		parts := splitURL(r.URL.Path)
-		if len(parts) != 4 {
-			http.Error(w, "invalid URL format", http.StatusNotFound)
-			return
-		}
+		metricType := types.MetricType(chi.URLParam(r, "metricType"))
+		metricName := types.MetricName(chi.URLParam(r, "metricName"))
+		metricValue := chi.URLParam(r, "value")
 
-		metricType := types.MetricType(parts[1])
-		metricName := types.MetricName(parts[2])
-		metricValue := parts[3]
+		fmt.Println(metricValue, metricType, metricName)
 
 		switch metricType {
 		case types.Gauge:
@@ -42,36 +39,4 @@ func GetUpdateHandler(ms storage.Repository) func(http.ResponseWriter, *http.Req
 
 		w.WriteHeader(http.StatusOK)
 	}
-}
-
-// Split the URL
-func splitURL(url string) []string {
-	return filterEmptyStrings(splitString(url, '/'))
-}
-
-// Helper function for splitting a string
-func splitString(s string, sep rune) []string {
-	var result []string
-	current := ""
-	for _, char := range s {
-		if char == sep {
-			result = append(result, current)
-			current = ""
-		} else {
-			current += string(char)
-		}
-	}
-	result = append(result, current)
-	return result
-}
-
-// Filtering empty lines
-func filterEmptyStrings(s []string) []string {
-	var result []string
-	for _, v := range s {
-		if v != "" {
-			result = append(result, v)
-		}
-	}
-	return result
 }

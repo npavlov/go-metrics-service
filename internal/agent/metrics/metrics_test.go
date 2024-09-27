@@ -1,11 +1,12 @@
 package metrics
 
 import (
+	"github.com/go-chi/chi/v5"
 	"github.com/npavlov/go-metrics-service/internal/agent/metrictypes"
-	"github.com/npavlov/go-metrics-service/internal/handler"
+	"github.com/npavlov/go-metrics-service/internal/server/handler"
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"github.com/stretchr/testify/assert"
-	"net/http"
 	"net/http/httptest"
 	"testing"
 )
@@ -34,11 +35,12 @@ func TestMetricService_UpdateMetrics(t *testing.T) {
 // Test for SendMetrics function
 func TestMetricService_SendMetrics(t *testing.T) {
 	var serverStorage storage.Repository = storage.NewMemStorage()
+	r := chi.NewRouter()
 
 	updateHandler := handler.GetUpdateHandler(serverStorage)
+	router.SetRoutes(r, updateHandler)
 
-	// Create a test server to mock external HTTP requests
-	server := httptest.NewServer(http.HandlerFunc(updateHandler))
+	server := httptest.NewServer(r)
 	defer server.Close()
 
 	// Create an instance of MetricService
@@ -49,4 +51,10 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	// Run the SendMetrics function
 	service.SendMetrics()
 
+	serverGauges := serverStorage.GetGauges()
+	serverCounters := serverStorage.GetCounters()
+
+	// Compare values on client and on server
+	assert.Equal(t, clientStorage.GetGauges(), serverGauges)
+	assert.Equal(t, clientStorage.GetCounters(), serverCounters)
 }
