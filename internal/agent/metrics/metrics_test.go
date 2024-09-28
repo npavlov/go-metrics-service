@@ -60,4 +60,10 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	// Compare values on client and on server
 	assert.Equal(t, clientStorage.GetGauges(), serverGauges)
 	assert.Equal(t, clientStorage.GetCounters(), serverCounters)
+
+	service.SendMetrics()
+	service.SendMetrics()
+	counter, ok := serverStorage.GetCounter(types.PollCount)
+	assert.True(t, ok)
+	assert.Equal(t, int64(3), counter)
 }
