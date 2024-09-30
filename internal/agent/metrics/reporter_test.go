@@ -10,27 +10,6 @@ import (
 	"testing"
 )
 
-func TestMetricService_UpdateMetrics(t *testing.T) {
-	st := storage.NewMemStorage()
-	metricService := NewMetricService(st, "")
-
-	// Call the method to test
-	metricService.UpdateMetrics()
-
-	counters := metricService.Storage.GetCounters()
-	gauges := metricService.Storage.GetGauges()
-
-	assert.Equal(t, 1, len(counters))
-	assert.Equal(t, 28, len(gauges))
-
-	metricService.UpdateMetrics()
-
-	value, ok := metricService.Storage.GetCounter(types.PollCount)
-
-	assert.True(t, ok)
-	assert.Equal(t, int64(2), value)
-}
-
 // Test for SendMetrics function
 func TestMetricService_SendMetrics(t *testing.T) {
 
@@ -48,11 +27,12 @@ func TestMetricService_SendMetrics(t *testing.T) {
 
 	// Create an instance of MetricService
 	var clientStorage storage.Repository = storage.NewMemStorage()
-	service := NewMetricService(clientStorage, server.URL)
-	service.UpdateMetrics()
+	var collector = NewMetricCollector(clientStorage)
+	var reporter = NewMetricReporter(clientStorage, server.URL)
+	collector.UpdateMetrics()
 
 	// Run the SendMetrics function
-	service.SendMetrics()
+	reporter.SendMetrics()
 
 	serverGauges := serverStorage.GetGauges()
 	serverCounters := serverStorage.GetCounters()
@@ -61,8 +41,8 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	assert.Equal(t, clientStorage.GetGauges(), serverGauges)
 	assert.Equal(t, clientStorage.GetCounters(), serverCounters)
 
-	service.SendMetrics()
-	service.SendMetrics()
+	reporter.SendMetrics()
+	reporter.SendMetrics()
 	counter, ok := serverStorage.GetCounter(types.PollCount)
 	assert.True(t, ok)
 	assert.Equal(t, int64(3), counter)

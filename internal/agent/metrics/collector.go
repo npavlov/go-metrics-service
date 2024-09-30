@@ -1,32 +1,50 @@
 package metrics
 
 import (
+	"context"
 	"fmt"
-	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"github.com/npavlov/go-metrics-service/internal/types"
 	"math/rand"
 	"runtime"
+	"time"
 )
 
-type Service interface {
-	SendMetrics()
+// Collector interface defines the contract for updating metrics
+type Collector interface {
 	UpdateMetrics()
+	StartCollector(ctx context.Context, cfg *config.Config)
 }
 
-type MetricService struct {
+// MetricCollector implements the Collector interface
+type MetricCollector struct {
 	Storage storage.Repository
-	addr    string
 }
 
-func NewMetricService(storage storage.Repository, addr string) *MetricService {
-	return &MetricService{
-		Storage: storage,
-		addr:    addr,
+func (m *MetricCollector) StartCollector(ctx context.Context, cfg *config.Config) {
+	for {
+		select {
+		case <-ctx.Done():
+			fmt.Println("Stopping metrics collection")
+			return
+		default:
+			// Add your metrics collection logic here
+			m.UpdateMetrics()
+			time.Sleep(time.Duration(cfg.PollInterval) * time.Second)
+		}
 	}
 }
 
-func (m *MetricService) UpdateMetrics() {
+// NewMetricCollector creates a new instance of MetricCollector
+func NewMetricCollector(storage storage.Repository) *MetricCollector {
+	return &MetricCollector{
+		Storage: storage,
+	}
+}
+
+// UpdateMetrics updates runtime metrics using the runtime package
+func (m *MetricCollector) UpdateMetrics() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
 
@@ -59,28 +77,4 @@ func (m *MetricService) UpdateMetrics() {
 	m.Storage.UpdateGauge(types.TotalAlloc, float64(memStats.TotalAlloc))
 	m.Storage.UpdateGauge(types.RandomValue, rand.Float64())
 	m.Storage.IncCounter(types.PollCount)
-}
-
-func (m *MetricService) SendMetrics() {
-	for name, value := range m.Storage.GetGauges() {
-		url := fmt.Sprintf("%s/update/gauge/%s/%g", m.addr, name, value)
-		m.sendPostRequest(url)
-	}
-
-	for name, value := range m.Storage.GetCounters() {
-		url := fmt.Sprintf("%s/update/counter/%s/%d", m.addr, name, value)
-		m.sendPostRequest(url)
-	}
-}
-
-// Send Metrics to server
-func (m *MetricService) sendPostRequest(url string) {
-	client := resty.New()
-	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
-	if err != nil {
-		fmt.Println("Error when sending a request:", err)
-		return
-	}
-
-	fmt.Printf("Metric is sent to %s, status: %s\n", url, resp.Status())
 }

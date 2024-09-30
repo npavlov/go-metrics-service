@@ -9,7 +9,7 @@ import (
 
 func TestMetricService_UpdateMetrics(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
-	metricService := metrics.NewMetricService(memStorage, "")
+	metricService := metrics.NewMetricCollector(memStorage)
 
 	// Call the method to test
 	metricService.UpdateMetrics()

@@ -4,37 +4,19 @@ import (
 	"flag"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
 )
 
-var flagRunAddr string
-var pollInterval int64
-var reportInterval int64
+func parseFlags() *config.Config {
+	var cfg config.Config
+	if err := env.Parse(&cfg); err != nil {
+		fmt.Printf("Error parsing environment variables: %+v\n", err)
+	}
 
-// Config Only starting with upper case
-type Config struct {
-	Address        string `env:"ADDRESS"`
-	ReportInterval int64  `env:"REPORT_INTERVAL"`
-	PollInterval   int64  `env:"POLL_INTERVAL"`
-}
-
-func parseFlags() {
-	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.Int64Var(&reportInterval, "r", 10, "report interval to send metrics")
-	flag.Int64Var(&pollInterval, "p", 2, "poll interval to update metrics")
+	flag.StringVar(&cfg.Address, "a", cfg.Address, "address and port to run server")
+	flag.Int64Var(&cfg.ReportInterval, "r", cfg.ReportInterval, "report interval to send metrics")
+	flag.Int64Var(&cfg.PollInterval, "p", cfg.PollInterval, "poll interval to update metrics")
 	flag.Parse()
 
-	var cfg Config
-	if err := env.Parse(&cfg); err != nil {
-		fmt.Printf("%+v\n", err)
-	}
-
-	if len(cfg.Address) > 0 {
-		flagRunAddr = cfg.Address
-	}
-	if cfg.ReportInterval > 0 {
-		reportInterval = cfg.ReportInterval
-	}
-	if cfg.PollInterval > 0 {
-		pollInterval = cfg.PollInterval
-	}
+	return &config.Config{Address: cfg.Address, ReportInterval: cfg.ReportInterval, PollInterval: cfg.PollInterval}
 }

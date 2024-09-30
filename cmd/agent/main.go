@@ -5,66 +5,30 @@ import (
 	"fmt"
 	"github.com/npavlov/go-metrics-service/internal/agent/metrics"
 	"github.com/npavlov/go-metrics-service/internal/flags"
+	"github.com/npavlov/go-metrics-service/internal/shutdown"
 	"github.com/npavlov/go-metrics-service/internal/storage"
-	"os"
-	"os/signal"
-	"syscall"
-	"time"
 )
 
 func main() {
-	parseFlags()
+	cfg := parseFlags()
 	flags.VerifyFlags()
 
 	var memStorage storage.Repository = storage.NewMemStorage()
 
-	fmt.Printf("Enpoint address set as %s\n", flagRunAddr)
-	var service metrics.Service = metrics.NewMetricService(memStorage, "http://"+flagRunAddr)
+	fmt.Printf("Enpoint address set as %s\n", cfg.Address)
+	var collector metrics.Collector = metrics.NewMetricCollector(memStorage)
+	var reporter metrics.Reporter = metrics.NewMetricReporter(memStorage, "http://"+cfg.Address)
 
-	fmt.Printf("Polling time time %d, reporint time %d\n", pollInterval, reportInterval)
+	fmt.Printf("Polling time time %d, reporint time %d\n", cfg.PollInterval, cfg.ReportInterval)
 
-	// Create a context that will be canceled when a shutdown signal is received
-	ctx, cancel := context.WithCancel(context.Background())
-
-	// Channel to listen for OS signals
-	sigChan := make(chan os.Signal, 1)
-	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
+	ctx, cancel, sigChan := shutdown.WithSignalCancel(context.Background())
 
 	// Start metrics collection
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				fmt.Println("Stopping metrics collection")
-				return
-			default:
-				service.UpdateMetrics()
-				time.Sleep(time.Duration(pollInterval) * time.Second)
-			}
-		}
-	}()
+	go collector.StartCollector(ctx, cfg)
 
 	// Start metrics reporting
-	go func() {
-		for {
-			select {
-			case <-ctx.Done():
-				fmt.Println("Stopping metrics reporting")
-				return
-			default:
-				service.SendMetrics()
-				time.Sleep(time.Duration(reportInterval) * time.Second)
-			}
-		}
-	}()
+	go reporter.StartReporter(ctx, cfg)
 
-	// Wait for shutdown signal
-	<-sigChan
-	fmt.Println("Shutdown signal received")
-
-	// Cancel the context to stop goroutines
-	cancel()
-
-	// Optionally, you can add cleanup logic here
-	fmt.Println("Shutting down gracefully")
+	shutdown.WaitForShutdown(sigChan, cancel)
+	fmt.Println("Application stopped gracefully")
 }

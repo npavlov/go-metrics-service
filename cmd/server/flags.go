@@ -8,21 +8,19 @@ import (
 
 // Config Only starting with upper case
 type Config struct {
-	Address string `env:"ADDRESS"`
+	Address string `env:"ADDRESS" envDefault:"localhost:8080"`
 }
 
-var flagRunAddr string
-
-func parseFlags() {
-	flag.StringVar(&flagRunAddr, "a", "localhost:8080", "address and port to run server")
-	flag.Parse()
+func parseFlags() *Config {
+	var flagRunAddr string
 
 	var cfg Config
 	if err := env.Parse(&cfg); err != nil {
-		fmt.Printf("%+v\n", err)
+		fmt.Printf("Error parsing environment variables: %+v\n", err)
 	}
 
-	if len(cfg.Address) > 0 {
-		flagRunAddr = cfg.Address
-	}
+	flag.StringVar(&flagRunAddr, "a", cfg.Address, "address and port to run server")
+	flag.Parse()
+
+	return &Config{flagRunAddr}
 }

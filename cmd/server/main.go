@@ -14,7 +14,7 @@ import (
 )
 
 func main() {
-	parseFlags()
+	cfg := parseFlags()
 	flags.VerifyFlags()
 
 	var memStorage storage.Repository = storage.NewMemStorage()
@@ -28,6 +28,6 @@ func main() {
 	r := router.GetRouter(handlers)
 
 	// Launching server at :8080
-	fmt.Printf("Server started at %s\n", flagRunAddr)
-	log.Fatal(http.ListenAndServe(flagRunAddr, r))
+	fmt.Printf("Server started at %s\n", cfg.Address)
+	log.Fatal(http.ListenAndServe(cfg.Address, r))
 }
