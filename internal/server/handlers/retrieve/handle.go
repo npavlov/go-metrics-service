@@ -22,13 +22,13 @@ func GetRetrieveHandler(ms storage.Repository) func(http.ResponseWriter, *http.R
 		switch metricType {
 		case types.Gauge:
 			if value, found := ms.GetGauge(metricName); found {
-				w.Write([]byte(strconv.FormatFloat(value, 'f', -1, 64)))
+				_, _ = w.Write([]byte(strconv.FormatFloat(value, 'f', -1, 64)))
 				return
 			}
 			sendErrorResponse(w, "unknown metric name", http.StatusNotFound)
 		case types.Counter:
 			if value, found := ms.GetCounter(metricName); found {
-				w.Write([]byte(strconv.FormatInt(value, 10)))
+				_, _ = w.Write([]byte(strconv.FormatInt(value, 10)))
 				return
 			}
 			sendErrorResponse(w, "unknown metric name", http.StatusNotFound)

@@ -25,3 +25,5 @@ vendor/
 .vscode
 
 metricstest
+
+bin
