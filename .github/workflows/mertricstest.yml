@@ -1,5 +1,9 @@
 name: autotests
 
+env:
+  AGENT_BINARY_PATH: bin/agent
+  SERVER_BINARY_PATH: bin/server
+
 on:
   pull_request:
   push:
@@ -58,122 +62,56 @@ jobs:
 
 
       - name: Build server binary
-        run: |
-          cd cmd/server
-          go build -buildvcs=false -o server
+        run: make build-server
+
+      - name: Build server binary
+        run: make build-server
 
       - name: "Code increment #1"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter1' ||
-          github.head_ref == 'iter2' ||
-          github.head_ref == 'iter3' ||
-          github.head_ref == 'iter4' ||
-          github.head_ref == 'iter5' ||
-          github.head_ref == 'iter6' ||
-          github.head_ref == 'iter7' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
+        if: github.event_name == 'pull_request'
         run: |
           metricstest -test.v -test.run=^TestIteration1$ \
-            -binary-path=cmd/server/server
+            -binary-path=$SERVER_BINARY_PATH
 
       - name: Build agent binary
-        run: |
-          cd cmd/agent
-          go build -buildvcs=false  -o agent
+        run: make build-agent
 
       - name: "Code increment #2"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter2' ||
-          github.head_ref == 'iter3' ||
-          github.head_ref == 'iter4' ||
-          github.head_ref == 'iter5' ||
-          github.head_ref == 'iter6' ||
-          github.head_ref == 'iter7' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
+        if: github.event_name == 'pull_request'
         run: |
           metricstest -test.v -test.run=^TestIteration2[AB]*$ \
             -source-path=. \
-            -agent-binary-path=cmd/agent/agent
+            -agent-binary-path=$AGENT_BINARY_PATH
 
       - name: "Code increment #3"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter3' ||
-          github.head_ref == 'iter4' ||
-          github.head_ref == 'iter5' ||
-          github.head_ref == 'iter6' ||
-          github.head_ref == 'iter7' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
+        if: github.event_name == 'pull_request'
         run: |
           metricstest -test.v -test.run=^TestIteration3[AB]*$ \
             -source-path=. \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH
 
       - name: "Code increment #4"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter4' ||
-          github.head_ref == 'iter5' ||
-          github.head_ref == 'iter6' ||
-          github.head_ref == 'iter7' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
+        if: github.event_name == 'pull_request'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration4$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -server-port=$SERVER_PORT \
             -source-path=.
 
       - name: "Code increment #5"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter5' ||
-          github.head_ref == 'iter6' ||
-          github.head_ref == 'iter7' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
+        if: github.event_name == 'pull_request'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration5$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -server-port=$SERVER_PORT \
             -source-path=.
 

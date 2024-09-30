@@ -25,11 +25,12 @@ clean:
 
 # Run the server directly from the Go source files in the cmd/server directory
 run-server:
-	$(GO) run ./cmd/server/*.go
+	$(GO) run ${CURDIR}/cmd/server/*.go
 
 # Run the client directly from the Go source files in the cmd/client directory
+# Why CURDIR - https://stackoverflow.com/questions/52437728/bash-what-is-the-difference-between-pwd-and-curdir
 run-client:
-	$(GO) run ./cmd/client/*.go
+	$(GO) run ${CURDIR}/cmd/client/*.go
 
 # Run the linter (golangci-lint) on all Go files in the project to check for coding issues
 lint:
