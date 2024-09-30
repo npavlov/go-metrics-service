@@ -1,39 +1,47 @@
+.PHONY: build-server build-agent test clean run-server run-client lint fmt deps
+
 # Define Go command, which can be overridden
 GO ?= go
 
+# Build the server binary from the Go source files in the cmd/server directory
 build-server:
-	$(GO) build -o bin/server ./cmd/agent/*.go
+	$(GO) build -o bin/server ./cmd/server/*.go
 
+# Build the agent binary from the Go source files in the cmd/agent directory
 build-agent:
 	$(GO) build -o bin/agent ./cmd/agent/*.go
 
-# Run tests
+# Run all tests and generate a coverage profile (cover.out)
 test:
 	$(GO) test ./... -coverprofile cover.out
 
+# View the test coverage report in HTML format
 check-coverage:
 	$(GO) tool cover -html cover.out
 
-# Clean the binary
+# Clean the bin directory by removing all generated binaries
 clean:
 	rm -rf bin/
 
+# Run the server directly from the Go source files in the cmd/server directory
 run-server:
 	$(GO) run ./cmd/server/*.go
 
+# Run the client directly from the Go source files in the cmd/client directory
 run-client:
-	$(GO) run ./cmd/server/*.go
+	$(GO) run ./cmd/client/*.go
 
+# Run the linter (golangci-lint) on all Go files in the project to check for coding issues
 lint:
 	golangci-lint run ./...
 
-# Format the code
+# Format all Go files in the project using the built-in Go formatting tool
 fmt:
 	$(GO) fmt ./...
 
-# Check for updates on Go dependencies
+# Check for updates on Go module dependencies and update them if necessary
 deps:
 	$(GO) get -u ./...
 
-# Default target when just 'make' is run
+# Default target when 'make' is run, it formats code, runs the linter, and builds both the agent and server binaries
 all: fmt lint build-agent build-server
