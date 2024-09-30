@@ -13,11 +13,11 @@ build-agent:
 
 # Run all tests and generate a coverage profile (cover.out)
 test:
-	$(GO) test ./... -coverprofile cover.out
+	$(GO) test ./... -race -coverprofile=coverage.out -covermode=atomic
 
 # View the test coverage report in HTML format
 check-coverage:
-	$(GO) tool cover -html cover.out
+	$(GO) tool cover -html coverage.out
 
 # Clean the bin directory by removing all generated binaries
 clean:
