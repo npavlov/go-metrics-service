@@ -2,7 +2,15 @@ package storage
 
 import (
 	"github.com/npavlov/go-metrics-service/internal/types"
+	"github.com/pkg/errors"
+	"strconv"
 	"sync"
+)
+
+const (
+	errInvalidGauge   = "invalid gauge value"
+	errInvalidCounter = "invalid counter value"
+	errUnknownMetric  = "unknown metric type"
 )
 
 type Repository interface {
@@ -13,6 +21,7 @@ type Repository interface {
 	GetCounter(name types.MetricName) (int64, bool)
 	GetGauges() map[types.MetricName]float64
 	GetCounters() map[types.MetricName]int64
+	UpdateMetric(metricType types.MetricType, metricName types.MetricName, metricValue string) error
 }
 
 type MemStorage struct {
@@ -86,4 +95,24 @@ func cloneMap[K comparable, V int64 | float64](original map[K]V) map[K]V {
 		cloned[key] = value
 	}
 	return cloned
+}
+
+func (ms *MemStorage) UpdateMetric(metricType types.MetricType, metricName types.MetricName, metricValue string) error {
+	switch metricType {
+	case types.Gauge:
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			return errors.Wrap(err, errInvalidGauge)
+		}
+		ms.UpdateGauge(metricName, value)
+	case types.Counter:
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			return errors.Wrap(err, errInvalidCounter)
+		}
+		ms.UpdateCounter(metricName, value)
+	default:
+		return errors.New(errUnknownMetric)
+	}
+	return nil
 }
