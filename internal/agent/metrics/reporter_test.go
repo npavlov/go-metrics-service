@@ -1,8 +1,8 @@
 package metrics
 
 import (
-	"github.com/npavlov/go-metrics-service/internal/server/handlers/update"
-	"github.com/npavlov/go-metrics-service/internal/server/router"
+	"github.com/go-chi/chi/v5"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
@@ -14,13 +14,9 @@ import (
 func TestMetricService_SendMetrics(t *testing.T) {
 
 	var serverStorage storage.Repository = storage.NewMemStorage()
-	handlers := types.Handlers{
-		UpdateHandler:   update.GetUpdateHandler(serverStorage),
-		RetrieveHandler: nil,
-		RenderHandler:   nil,
-	}
-
-	r := router.GetRouter(handlers)
+	var r = chi.NewRouter()
+	var metricHandler = handlers.NewMetricsHandler(serverStorage, r)
+	metricHandler.SetRouter()
 
 	server := httptest.NewServer(r)
 	defer server.Close()

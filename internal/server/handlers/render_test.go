@@ -1,8 +1,8 @@
-package render
+package handlers
 
 import (
+	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
-	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
@@ -14,6 +14,9 @@ import (
 
 func TestGetRenderHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
+	var r = chi.NewRouter()
+	var metricHandler = NewMetricsHandler(memStorage, r)
+	metricHandler.SetRouter()
 
 	// Sample data to return from the mock repository
 	gauges := map[types.MetricName]float64{
@@ -32,14 +35,6 @@ func TestGetRenderHandler(t *testing.T) {
 	for k, v := range counters {
 		memStorage.UpdateCounter(k, v)
 	}
-
-	handlers := types.Handlers{
-		UpdateHandler:   nil,
-		RetrieveHandler: nil,
-		RenderHandler:   GetRenderHandler(memStorage),
-	}
-
-	r := router.GetRouter(handlers)
 
 	server := httptest.NewServer(r)
 	defer server.Close()

@@ -1,8 +1,8 @@
-package update
+package handlers
 
 import (
+	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
-	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
@@ -13,14 +13,9 @@ import (
 
 func TestUpdateHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
-
-	handlers := types.Handlers{
-		UpdateHandler:   GetUpdateHandler(memStorage),
-		RetrieveHandler: nil,
-		RenderHandler:   nil,
-	}
-
-	r := router.GetRouter(handlers)
+	var r = chi.NewRouter()
+	var metricHandler = NewMetricsHandler(memStorage, r)
+	metricHandler.SetRouter()
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -109,7 +104,7 @@ func TestUpdateHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			testRequest(t, server, tt.request, tt.want.statusCode)
+			testUpdateRequest(t, server, tt.request, tt.want.statusCode)
 
 			if tt.want.result != nil {
 				switch tt.want.result.metricType {
@@ -129,7 +124,7 @@ func TestUpdateHandler(t *testing.T) {
 		})
 	}
 }
-func testRequest(t *testing.T, ts *httptest.Server, route string, statusCode int) {
+func testUpdateRequest(t *testing.T, ts *httptest.Server, route string, statusCode int) {
 	req := resty.New().R()
 	req.Method = http.MethodPost
 	req.URL = ts.URL + route

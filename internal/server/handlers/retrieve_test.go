@@ -1,8 +1,8 @@
-package retrieve
+package handlers
 
 import (
+	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
-	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
@@ -18,14 +18,9 @@ type want struct {
 
 func TestRetrieveHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
-
-	handlers := types.Handlers{
-		UpdateHandler:   nil,
-		RetrieveHandler: GetRetrieveHandler(memStorage),
-		RenderHandler:   nil,
-	}
-
-	r := router.GetRouter(handlers)
+	var r = chi.NewRouter()
+	var metricHandler = NewMetricsHandler(memStorage, r)
+	metricHandler.SetRouter()
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -100,12 +95,12 @@ func TestRetrieveHandler(t *testing.T) {
 				}
 			}
 
-			testRequest(t, server, tt.request, tt.want)
+			testRetrieveRequest(t, server, tt.request, tt.want)
 
 		})
 	}
 }
-func testRequest(t *testing.T, ts *httptest.Server, route string, tt want) {
+func testRetrieveRequest(t *testing.T, ts *httptest.Server, route string, tt want) {
 	req := resty.New().R()
 	req.Method = http.MethodGet
 	req.URL = ts.URL + route
