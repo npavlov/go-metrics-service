@@ -4,23 +4,39 @@ import (
 	"flag"
 	"fmt"
 	"github.com/caarlos0/env/v6"
+	"github.com/npavlov/go-metrics-service/internal/flags"
+	"github.com/npavlov/go-metrics-service/internal/server/config"
 )
 
-// Config Only starting with upper case
-type Config struct {
-	Address string `env:"ADDRESS" envDefault:"localhost:8080"`
+// ConfigBuilder defines the builder for the Config struct
+type ConfigBuilder struct {
+	cfg *config.Config
 }
 
-func parseFlags() *Config {
-	var flagRunAddr string
+// NewConfigBuilder initializes the ConfigBuilder with default values
+func NewConfigBuilder() *ConfigBuilder {
+	return &ConfigBuilder{
+		cfg: &config.Config{},
+	}
+}
 
-	var cfg Config
-	if err := env.Parse(&cfg); err != nil {
+// FromEnv parses environment variables into the ConfigBuilder
+func (b *ConfigBuilder) FromEnv() *ConfigBuilder {
+	if err := env.Parse(b.cfg); err != nil {
 		fmt.Printf("Error parsing environment variables: %+v\n", err)
 	}
+	return b
+}
 
-	flag.StringVar(&flagRunAddr, "a", cfg.Address, "address and port to run server")
+// FromFlags parses command line flags into the ConfigBuilder
+func (b *ConfigBuilder) FromFlags() *ConfigBuilder {
+	flag.StringVar(&b.cfg.Address, "a", b.cfg.Address, "address and port to run server")
 	flag.Parse()
+	flags.VerifyFlags()
+	return b
+}
 
-	return &Config{flagRunAddr}
+// Build returns the final configuration
+func (b *ConfigBuilder) Build() *config.Config {
+	return b.cfg
 }

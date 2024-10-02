@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
-	"github.com/npavlov/go-metrics-service/internal/flags"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"log"
@@ -11,8 +10,9 @@ import (
 )
 
 func main() {
-	cfg := parseFlags()
-	flags.VerifyFlags()
+	cfg := NewConfigBuilder().
+		FromEnv().
+		FromFlags().Build()
 
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()

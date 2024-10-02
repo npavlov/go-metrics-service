@@ -5,14 +5,14 @@ import (
 	"fmt"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
-	"github.com/npavlov/go-metrics-service/internal/flags"
 	"github.com/npavlov/go-metrics-service/internal/shutdown"
 	"sync"
 )
 
 func main() {
-	cfg := parseFlags()
-	flags.VerifyFlags()
+	cfg := NewConfigBuilder().
+		FromEnv().
+		FromFlags().Build()
 
 	st := stats.Stats{}
 	metrics := st.StatsToMetrics()
