@@ -14,9 +14,6 @@ const (
 )
 
 type Repository interface {
-	UpdateGauge(name types.MetricName, value float64)
-	UpdateCounter(name types.MetricName, value int64)
-	IncCounter(name types.MetricName)
 	GetGauge(name types.MetricName) (float64, bool)
 	GetCounter(name types.MetricName) (int64, bool)
 	GetGauges() map[types.MetricName]float64
@@ -52,20 +49,6 @@ func (ms *MemStorage) GetCounters() map[types.MetricName]int64 {
 	return cloneMap(ms.counters)
 }
 
-// UpdateGauge - update Gauge values
-func (ms *MemStorage) UpdateGauge(name types.MetricName, value float64) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-	ms.gauges[name] = value
-}
-
-// UpdateCounter - update Counter values
-func (ms *MemStorage) UpdateCounter(name types.MetricName, value int64) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-	ms.counters[name] += value
-}
-
 // GetGauge - retrieves the value of a gauge
 func (ms *MemStorage) GetGauge(name types.MetricName) (float64, bool) {
 	ms.mu.RLock()
@@ -82,12 +65,6 @@ func (ms *MemStorage) GetCounter(name types.MetricName) (int64, bool) {
 	return value, exists
 }
 
-func (ms *MemStorage) IncCounter(name types.MetricName) {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-	ms.counters[name]++
-}
-
 // Generic function to clone a map with either int64 or float64 values
 func cloneMap[K comparable, V int64 | float64](original map[K]V) map[K]V {
 	cloned := make(map[K]V)
@@ -98,19 +75,22 @@ func cloneMap[K comparable, V int64 | float64](original map[K]V) map[K]V {
 }
 
 func (ms *MemStorage) UpdateMetric(metricType types.MetricType, metricName types.MetricName, metricValue string) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
 	switch metricType {
 	case types.Gauge:
 		value, err := strconv.ParseFloat(metricValue, 64)
 		if err != nil {
 			return errors.Wrap(err, errInvalidGauge)
 		}
-		ms.UpdateGauge(metricName, value)
+		ms.gauges[metricName] = value
 	case types.Counter:
 		value, err := strconv.ParseInt(metricValue, 10, 64)
 		if err != nil {
 			return errors.Wrap(err, errInvalidCounter)
 		}
-		ms.UpdateCounter(metricName, value)
+		ms.counters[metricName] += value
 	default:
 		return errors.New(errUnknownMetric)
 	}

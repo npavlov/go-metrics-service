@@ -19,21 +19,23 @@ func TestGetRenderHandler(t *testing.T) {
 	metricHandler.SetRouter()
 
 	// Sample data to return from the mock repository
-	gauges := map[types.MetricName]float64{
-		"GaugeMetric1": 123.45,
-		"GaugeMetric2": 678.90,
+	gauges := map[types.MetricName]string{
+		"GaugeMetric1": "123.45",
+		"GaugeMetric2": "678.90",
 	}
-	counters := map[types.MetricName]int64{
-		"CounterMetric1": 100,
-		"CounterMetric2": 200,
+	counters := map[types.MetricName]string{
+		"CounterMetric1": "100",
+		"CounterMetric2": "200",
 	}
 
 	for k, v := range gauges {
-		memStorage.UpdateGauge(k, v)
+		err := memStorage.UpdateMetric(types.Gauge, k, v)
+		assert.Nil(t, err)
 	}
 
 	for k, v := range counters {
-		memStorage.UpdateCounter(k, v)
+		err := memStorage.UpdateMetric(types.Counter, k, v)
+		assert.Nil(t, err)
 	}
 
 	server := httptest.NewServer(r)

@@ -4,9 +4,16 @@ type MetricName string
 
 type MetricType string
 
+type MetricSource string
+
 const (
 	Gauge   MetricType = "gauge"
 	Counter MetricType = "counter"
+)
+
+const (
+	Runtime MetricSource = "runtime"
+	Custom  MetricSource = "custom"
 )
 
 const (

@@ -2,7 +2,6 @@ package handlers
 
 import (
 	"embed"
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/npavlov/go-metrics-service/internal/storage"
@@ -40,8 +39,6 @@ func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
 	metricType := types.MetricType(chi.URLParam(r, "metricType"))
 	metricName := types.MetricName(chi.URLParam(r, "metricName"))
 	metricValue := chi.URLParam(r, "value")
-
-	fmt.Println(metricValue, metricName, metricValue)
 
 	if err := mh.st.UpdateMetric(metricType, metricName, metricValue); err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)

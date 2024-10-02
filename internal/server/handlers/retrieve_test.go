@@ -28,8 +28,8 @@ func TestRetrieveHandler(t *testing.T) {
 	type metric struct {
 		name       types.MetricName
 		metricType types.MetricType
-		gauge      float64
-		counter    int64
+		gauge      string
+		counter    string
 	}
 
 	tests := []struct {
@@ -44,7 +44,7 @@ func TestRetrieveHandler(t *testing.T) {
 			data: &metric{
 				name:       "MSpanInuse",
 				metricType: "gauge",
-				gauge:      23360,
+				gauge:      "23360",
 			},
 			want: want{
 				statusCode: http.StatusOK,
@@ -57,7 +57,7 @@ func TestRetrieveHandler(t *testing.T) {
 			data: &metric{
 				name:       "PollCount",
 				metricType: "counter",
-				counter:    100,
+				counter:    "100",
 			},
 			want: want{
 				statusCode: http.StatusOK,
@@ -87,9 +87,11 @@ func TestRetrieveHandler(t *testing.T) {
 			if tt.data != nil {
 				switch tt.data.metricType {
 				case types.Counter:
-					memStorage.UpdateCounter(tt.data.name, tt.data.counter)
+					err := memStorage.UpdateMetric(types.Counter, tt.data.name, tt.data.counter)
+					assert.Nil(t, err)
 				case types.Gauge:
-					memStorage.UpdateGauge(tt.data.name, tt.data.gauge)
+					err := memStorage.UpdateMetric(types.Gauge, tt.data.name, tt.data.gauge)
+					assert.Nil(t, err)
 				default:
 					t.Errorf("Invalid metric type: %s", tt.data.metricType)
 				}

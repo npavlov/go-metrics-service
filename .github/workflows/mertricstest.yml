@@ -64,9 +64,6 @@ jobs:
       - name: Build server binary
         run: make build-server
 
-      - name: Build server binary
-        run: make build-server
-
       - name: "Code increment #1"
         if: github.event_name == 'pull_request'
         run: |

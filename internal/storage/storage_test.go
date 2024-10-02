@@ -20,7 +20,8 @@ func TestUpdateGauge(t *testing.T) {
 	metricName := types.MetricName("test_gauge")
 
 	// Update gauge
-	ms.UpdateGauge(metricName, 12.34)
+	err := ms.UpdateMetric("gauge", metricName, "12.34")
+	assert.Nil(t, err)
 
 	// Validate the update
 	value, exists := ms.GetGauge(metricName)
@@ -33,35 +34,18 @@ func TestUpdateCounter(t *testing.T) {
 	metricName := types.MetricName("test_counter")
 
 	// Update counter
-	ms.UpdateCounter(metricName, 10)
-
+	err := ms.UpdateMetric("counter", metricName, "10")
+	assert.Nil(t, err)
 	// Validate the update
 	value, exists := ms.GetCounter(metricName)
 	assert.True(t, exists, "Counter should exist")
 	assert.Equal(t, int64(10), value, "Counter value should be updated to 10")
 
 	// Increment the counter
-	ms.UpdateCounter(metricName, 5)
+	err = ms.UpdateMetric("counter", metricName, "5")
+	assert.Nil(t, err)
 	value, _ = ms.GetCounter(metricName)
 	assert.Equal(t, int64(15), value, "Counter value should be updated to 15 after increment")
-}
-
-func TestIncCounter(t *testing.T) {
-	ms := NewMemStorage()
-	metricName := types.MetricName("test_inc_counter")
-
-	// Increment the counter
-	ms.IncCounter(metricName)
-
-	// Validate the increment
-	value, exists := ms.GetCounter(metricName)
-	assert.True(t, exists, "Counter should exist after increment")
-	assert.Equal(t, int64(1), value, "Counter value should be incremented by 1")
-
-	// Increment again
-	ms.IncCounter(metricName)
-	value, _ = ms.GetCounter(metricName)
-	assert.Equal(t, int64(2), value, "Counter value should be incremented to 2 after second increment")
 }
 
 func TestGetGauge(t *testing.T) {
@@ -87,7 +71,8 @@ func TestGetGauges(t *testing.T) {
 	metricName := types.MetricName("test_gauge")
 
 	// Add a gauge
-	ms.UpdateGauge(metricName, 12.34)
+	err := ms.UpdateMetric("gauge", metricName, "12.34")
+	assert.Nil(t, err)
 
 	// Retrieve all gauges
 	gauges := ms.GetGauges()
@@ -113,7 +98,8 @@ func TestGetCounters(t *testing.T) {
 	metricName := types.MetricName("test_counter")
 
 	// Add a counter, initial value was 10
-	ms.UpdateCounter(metricName, 10)
+	err := ms.UpdateMetric("counter", metricName, "10")
+	assert.Nil(t, err)
 
 	// Retrieve all counters
 	counters := ms.GetCounters()

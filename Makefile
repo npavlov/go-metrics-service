@@ -1,4 +1,4 @@
-.PHONY: build-server build-agent test clean run-server run-client lint fmt deps
+.PHONY: build-server build-agent test clean run-server run-agent lint fmt deps
 
 # Define Go command, which can be overridden
 GO ?= go
@@ -29,8 +29,8 @@ run-server:
 
 # Run the client directly from the Go source files in the cmd/client directory
 # Why CURDIR - https://stackoverflow.com/questions/52437728/bash-what-is-the-difference-between-pwd-and-curdir
-run-client:
-	$(GO) run ${CURDIR}/cmd/client/*.go
+run-agent:
+	$(GO) run ${CURDIR}/cmd/agent/*.go
 
 # Run the linter (golangci-lint) on all Go files in the project to check for coding issues
 lint:
