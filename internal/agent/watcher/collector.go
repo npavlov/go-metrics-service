@@ -4,8 +4,8 @@ import (
 	"context"
 	"fmt"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
-	"github.com/npavlov/go-metrics-service/internal/types"
 	"math/rand"
 	"reflect"
 	"runtime"
@@ -62,7 +62,7 @@ func (mc *MetricCollector) UpdateMetrics() {
 		metric := &(*mc.metrics)[i]
 
 		switch metric.MSource {
-		case types.Runtime:
+		case domain.Runtime:
 			rValue := rMemStats.FieldByName(string(metric.ID))
 			value, err := mc.getFieldAsFloat64(rValue)
 			if err != nil {
@@ -71,12 +71,12 @@ func (mc *MetricCollector) UpdateMetrics() {
 			}
 			metric.SetValue(nil, &value)
 			metric.GetValue()
-		case types.Custom:
-			if metric.ID == types.PollCount {
+		case domain.Custom:
+			if metric.ID == domain.PollCount {
 				val := int64(1)
 				metric.SetValue(&val, nil)
 			}
-			if metric.ID == types.RandomValue {
+			if metric.ID == domain.RandomValue {
 				val := rand.Float64()
 				metric.SetValue(nil, &val)
 			}

@@ -3,8 +3,8 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -19,15 +19,14 @@ type want struct {
 func TestRetrieveHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	var metricHandler = NewMetricsHandler(memStorage, r)
-	metricHandler.SetRouter()
+	NewMetricsHandler(memStorage, r)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
 
 	type metric struct {
-		name       types.MetricName
-		metricType types.MetricType
+		name       domain.MetricName
+		metricType domain.MetricType
 		gauge      string
 		counter    string
 	}
@@ -86,11 +85,11 @@ func TestRetrieveHandler(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			if tt.data != nil {
 				switch tt.data.metricType {
-				case types.Counter:
-					err := memStorage.UpdateMetric(types.Counter, tt.data.name, tt.data.counter)
+				case domain.Counter:
+					err := memStorage.UpdateMetric(domain.Counter, tt.data.name, tt.data.counter)
 					assert.Nil(t, err)
-				case types.Gauge:
-					err := memStorage.UpdateMetric(types.Gauge, tt.data.name, tt.data.gauge)
+				case domain.Gauge:
+					err := memStorage.UpdateMetric(domain.Gauge, tt.data.name, tt.data.gauge)
 					assert.Nil(t, err)
 				default:
 					t.Errorf("Invalid metric type: %s", tt.data.metricType)

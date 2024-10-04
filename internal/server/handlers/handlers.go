@@ -1,13 +1,11 @@
 package handlers
 
 import (
-	"embed"
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/server/templates"
 	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/npavlov/go-metrics-service/internal/types"
-	"html/template"
-	"log"
 	"net/http"
 	"strconv"
 )
@@ -24,20 +22,19 @@ type MetricHandler struct {
 	st     storage.Repository
 }
 
-//go:embed templates/*
-var tplFolder embed.FS
-
 // NewMetricsHandler - constructor for MetricsHandler
 func NewMetricsHandler(st storage.Repository, router *chi.Mux) *MetricHandler {
-	return &MetricHandler{
+	mh := MetricHandler{
 		router: router,
 		st:     st,
 	}
+	mh.setRouter()
+	return &mh
 }
 
 func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
-	metricType := types.MetricType(chi.URLParam(r, "metricType"))
-	metricName := types.MetricName(chi.URLParam(r, "metricName"))
+	metricType := domain.MetricType(chi.URLParam(r, "metricType"))
+	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 	metricValue := chi.URLParam(r, "value")
 
 	if err := mh.st.UpdateMetric(metricType, metricName, metricValue); err != nil {
@@ -50,17 +47,17 @@ func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
 
 func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/text")
-	metricType := types.MetricType(chi.URLParam(r, "metricType"))
-	metricName := types.MetricName(chi.URLParam(r, "metricName"))
+	metricType := domain.MetricType(chi.URLParam(r, "metricType"))
+	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 
 	switch metricType {
-	case types.Gauge:
+	case domain.Gauge:
 		if value, found := mh.st.GetGauge(metricName); found {
 			_, _ = w.Write([]byte(strconv.FormatFloat(value, 'f', -1, 64)))
 			return
 		}
 		http.Error(w, "unknown metric name", http.StatusNotFound)
-	case types.Counter:
+	case domain.Counter:
 		if value, found := mh.st.GetCounter(metricName); found {
 			_, _ = w.Write([]byte(strconv.FormatInt(value, 10)))
 			return
@@ -72,30 +69,28 @@ func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
-	type MetricsPage struct {
-		Gauges   map[types.MetricName]float64
-		Counters map[types.MetricName]int64
-	}
-
-	page := MetricsPage{
+	page := struct {
+		Gauges   map[domain.MetricName]float64
+		Counters map[domain.MetricName]int64
+	}{
 		Gauges:   mh.st.GetGauges(),
 		Counters: mh.st.GetCounters(),
 	}
 
-	// Parse the template files from the embedded filesystem
-	tmpl, err := template.ParseFS(tplFolder, "templates/*.html")
+	reader := templates.NewEmbedReader()
+	tmpl, err := reader.Read("index.html")
 	if err != nil {
-		log.Printf("Error parsing templates: %v", err)
-		http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+		http.Error(w, "Failed to load template: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
+
 	if err := tmpl.Execute(w, page); err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to render page: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
-func (mh *MetricHandler) SetRouter() {
-	// Useful middlewares, extra logging
+// Embedding middleware setup in the constructor
+func (mh *MetricHandler) setRouter() {
 	mh.router.Use(middleware.Logger)
 	mh.router.Use(middleware.Recoverer)
 

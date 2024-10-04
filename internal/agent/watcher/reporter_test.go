@@ -3,9 +3,9 @@ package watcher
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"sync"
@@ -16,8 +16,7 @@ import (
 func TestMetricService_SendMetrics(t *testing.T) {
 	var serverStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	var metricHandler = handlers.NewMetricsHandler(serverStorage, r)
-	metricHandler.SetRouter()
+	handlers.NewMetricsHandler(serverStorage, r)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -37,12 +36,12 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	// Compare values on client and on server
 	for _, metric := range metrics {
 		switch metric.MType {
-		case types.Gauge:
+		case domain.Gauge:
 			val, ok := serverStorage.GetGauge(metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Value)
 			assert.Equal(t, original, val)
-		case types.Counter:
+		case domain.Counter:
 			val, ok := serverStorage.GetCounter(metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Counter)
@@ -53,7 +52,7 @@ func TestMetricService_SendMetrics(t *testing.T) {
 
 	reporter.SendMetrics()
 	reporter.SendMetrics()
-	counter, ok := serverStorage.GetCounter(types.PollCount)
+	counter, ok := serverStorage.GetCounter(domain.PollCount)
 	assert.True(t, ok)
 	assert.Equal(t, int64(3), counter)
 }

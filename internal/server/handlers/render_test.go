@@ -3,8 +3,8 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -15,26 +15,25 @@ import (
 func TestGetRenderHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	var metricHandler = NewMetricsHandler(memStorage, r)
-	metricHandler.SetRouter()
+	NewMetricsHandler(memStorage, r)
 
 	// Sample data to return from the mock repository
-	gauges := map[types.MetricName]string{
+	gauges := map[domain.MetricName]string{
 		"GaugeMetric1": "123.45",
 		"GaugeMetric2": "678.90",
 	}
-	counters := map[types.MetricName]string{
+	counters := map[domain.MetricName]string{
 		"CounterMetric1": "100",
 		"CounterMetric2": "200",
 	}
 
 	for k, v := range gauges {
-		err := memStorage.UpdateMetric(types.Gauge, k, v)
+		err := memStorage.UpdateMetric(domain.Gauge, k, v)
 		assert.Nil(t, err)
 	}
 
 	for k, v := range counters {
-		err := memStorage.UpdateMetric(types.Counter, k, v)
+		err := memStorage.UpdateMetric(domain.Counter, k, v)
 		assert.Nil(t, err)
 	}
 

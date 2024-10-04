@@ -2,7 +2,7 @@ package watcher
 
 import (
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
-	"github.com/npavlov/go-metrics-service/internal/types"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
@@ -23,7 +23,7 @@ func TestCollector_UpdateMetrics(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, value)
 
-		if metric.ID == types.PollCount {
+		if metric.ID == domain.PollCount {
 			assert.Equal(t, "1", value)
 		}
 	}
@@ -36,7 +36,7 @@ func TestCollector_UpdateMetrics(t *testing.T) {
 		assert.True(t, ok)
 		assert.NotNil(t, value)
 
-		if metric.ID == types.PollCount {
+		if metric.ID == domain.PollCount {
 			assert.Equal(t, "2", value)
 		}
 	}

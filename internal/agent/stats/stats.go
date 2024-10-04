@@ -1,8 +1,8 @@
 package stats
 
 import (
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
-	"github.com/npavlov/go-metrics-service/internal/types"
 	"reflect"
 )
 
@@ -38,6 +38,10 @@ type Stats struct {
 	PollCount     int64   `metricType:"counter" metricSource:"custom"`
 }
 
+func NewStats() *Stats {
+	return &Stats{}
+}
+
 func (s Stats) StatsToMetrics() []model.Metric {
 	var metrics []model.Metric
 
@@ -50,28 +54,28 @@ func (s Stats) StatsToMetrics() []model.Metric {
 		fieldName := fieldType.Name
 
 		metric := model.Metric{
-			ID: types.MetricName(fieldName),
+			ID: domain.MetricName(fieldName),
 		}
 
-		metricType := types.MetricType(fieldType.Tag.Get("metricType"))
-		metricSource := types.MetricSource(fieldType.Tag.Get("metricSource"))
+		metricType := domain.MetricType(fieldType.Tag.Get("metricType"))
+		metricSource := domain.MetricSource(fieldType.Tag.Get("metricSource"))
 
 		// Check the field type to assign Counter or Value
 		switch metricType {
-		case types.Gauge:
-			metric.MType = types.Gauge
-		case types.Counter:
-			metric.MType = types.Counter
+		case domain.Gauge:
+			metric.MType = domain.Gauge
+		case domain.Counter:
+			metric.MType = domain.Counter
 		default:
 
 			panic("unhandled metric type")
 		}
 
 		switch metricSource {
-		case types.Runtime:
-			metric.MSource = types.Runtime
-		case types.Custom:
-			metric.MSource = types.Custom
+		case domain.Runtime:
+			metric.MSource = domain.Runtime
+		case domain.Custom:
+			metric.MSource = domain.Custom
 		default:
 
 			panic("unhandled metric source")

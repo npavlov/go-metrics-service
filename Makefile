@@ -5,11 +5,11 @@ GO ?= go
 
 # Build the server binary from the Go source files in the cmd/server directory
 build-server:
-	$(GO) build -o bin/server ./cmd/server/*.go
+	$(GO) build -o bin/server ${CURDIR}/cmd/server/*.go
 
 # Build the agent binary from the Go source files in the cmd/agent directory
 build-agent:
-	$(GO) build -o bin/agent ./cmd/agent/*.go
+	$(GO) build -o bin/agent ${CURDIR}/cmd/agent/*.go
 
 # Run all tests and generate a coverage profile (cover.out)
 test:

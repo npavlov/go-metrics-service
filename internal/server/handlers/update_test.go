@@ -3,8 +3,8 @@ package handlers
 import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/npavlov/go-metrics-service/internal/types"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
@@ -14,15 +14,14 @@ import (
 func TestUpdateHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	var metricHandler = NewMetricsHandler(memStorage, r)
-	metricHandler.SetRouter()
+	NewMetricsHandler(memStorage, r)
 
 	server := httptest.NewServer(r)
 	defer server.Close()
 
 	type metric struct {
-		name       types.MetricName
-		metricType types.MetricType
+		name       domain.MetricName
+		metricType domain.MetricType
 		gauge      float64
 		counter    int64
 	}
@@ -108,11 +107,11 @@ func TestUpdateHandler(t *testing.T) {
 
 			if tt.want.result != nil {
 				switch tt.want.result.metricType {
-				case types.Gauge:
+				case domain.Gauge:
 					value, exist := memStorage.GetGauge(tt.want.result.name)
 					assert.True(t, exist)
 					assert.Equal(t, tt.want.result.gauge, value)
-				case types.Counter:
+				case domain.Counter:
 					value, exist := memStorage.GetCounter(tt.want.result.name)
 					assert.True(t, exist)
 					assert.Equal(t, tt.want.result.counter, value)

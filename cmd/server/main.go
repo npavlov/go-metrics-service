@@ -16,8 +16,7 @@ func main() {
 
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	var metricHandler handlers.Handlers = handlers.NewMetricsHandler(memStorage, r)
-	metricHandler.SetRouter()
+	handlers.NewMetricsHandler(memStorage, r)
 
 	// Launching server at :8080
 	fmt.Printf("Server started at %s\n", cfg.Address)

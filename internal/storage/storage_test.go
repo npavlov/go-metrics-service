@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"github.com/npavlov/go-metrics-service/internal/types"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -17,7 +17,7 @@ func TestNewMemStorage(t *testing.T) {
 
 func TestUpdateGauge(t *testing.T) {
 	ms := NewMemStorage()
-	metricName := types.MetricName("test_gauge")
+	metricName := domain.MetricName("test_gauge")
 
 	// Update gauge
 	err := ms.UpdateMetric("gauge", metricName, "12.34")
@@ -31,7 +31,7 @@ func TestUpdateGauge(t *testing.T) {
 
 func TestUpdateCounter(t *testing.T) {
 	ms := NewMemStorage()
-	metricName := types.MetricName("test_counter")
+	metricName := domain.MetricName("test_counter")
 
 	// Update counter
 	err := ms.UpdateMetric("counter", metricName, "10")
@@ -50,7 +50,7 @@ func TestUpdateCounter(t *testing.T) {
 
 func TestGetGauge(t *testing.T) {
 	ms := NewMemStorage()
-	metricName := types.MetricName("non_existent_gauge")
+	metricName := domain.MetricName("non_existent_gauge")
 
 	// Try to retrieve a non-existent gauge
 	_, exists := ms.GetGauge(metricName)
@@ -59,7 +59,7 @@ func TestGetGauge(t *testing.T) {
 
 func TestGetCounter(t *testing.T) {
 	ms := NewMemStorage()
-	metricName := types.MetricName("non_existent_counter")
+	metricName := domain.MetricName("non_existent_counter")
 
 	// Try to retrieve a non-existent counter
 	_, exists := ms.GetCounter(metricName)
@@ -68,7 +68,7 @@ func TestGetCounter(t *testing.T) {
 
 func TestGetGauges(t *testing.T) {
 	ms := NewMemStorage()
-	metricName := types.MetricName("test_gauge")
+	metricName := domain.MetricName("test_gauge")
 
 	// Add a gauge
 	err := ms.UpdateMetric("gauge", metricName, "12.34")
@@ -82,20 +82,20 @@ func TestGetGauges(t *testing.T) {
 
 func TestGetCounters(t *testing.T) {
 	ms := &MemStorage{
-		gauges: map[types.MetricName]float64{
-			types.MetricName("test_gauge"): 12.34,
-			types.MetricName("next_gauge"): 0.00000004,
+		gauges: map[domain.MetricName]float64{
+			domain.MetricName("test_gauge"): 12.34,
+			domain.MetricName("next_gauge"): 0.00000004,
 		},
-		counters: map[types.MetricName]int64{
-			types.MetricName("test_counter"): 10,
-			types.MetricName("next_counter"): 9999999999,
+		counters: map[domain.MetricName]int64{
+			domain.MetricName("test_counter"): 10,
+			domain.MetricName("next_counter"): 9999999999,
 		},
 	}
 
 	assert.Equal(t, ms.gauges, ms.GetGauges())
 	assert.Equal(t, ms.counters, ms.GetCounters())
 
-	metricName := types.MetricName("test_counter")
+	metricName := domain.MetricName("test_counter")
 
 	// Add a counter, initial value was 10
 	err := ms.UpdateMetric("counter", metricName, "10")
