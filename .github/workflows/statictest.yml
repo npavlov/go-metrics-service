@@ -12,7 +12,7 @@ jobs:
     container: golang:1.22
     steps:
       - name: Checkout code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Download statictest binary
         uses: robinraju/release-downloader@v1.8
