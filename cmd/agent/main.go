@@ -3,14 +3,21 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/joho/godotenv"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/utils"
+	"log"
 	"sync"
 )
 
 func main() {
+	err := godotenv.Load("agent.env")
+	if err != nil {
+		log.Fatal("Error loading agent.env file")
+	}
+
 	cfg := config.NewConfigBuilder().
 		FromEnv().
 		FromFlags().Build()
