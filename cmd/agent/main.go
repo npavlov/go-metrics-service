@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/utils"
@@ -10,7 +11,7 @@ import (
 )
 
 func main() {
-	cfg := NewConfigBuilder().
+	cfg := config.NewConfigBuilder().
 		FromEnv().
 		FromFlags().Build()
 
