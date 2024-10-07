@@ -27,3 +27,5 @@ vendor/
 metricstest
 
 bin
+
+*.env
