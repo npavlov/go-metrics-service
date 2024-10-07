@@ -1,27 +1,32 @@
-package main
+package config
 
 import (
 	"flag"
 	"fmt"
 	"github.com/caarlos0/env/v6"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/flags"
 )
 
-// ConfigBuilder defines the builder for the Config struct
-type ConfigBuilder struct {
-	cfg *config.Config
+type Config struct {
+	Address        string `env:"ADDRESS" envDefault:"localhost:8080"`
+	ReportInterval int64  `env:"REPORT_INTERVAL" envDefault:"10"`
+	PollInterval   int64  `env:"POLL_INTERVAL" envDefault:"2"`
+}
+
+// Builder defines the builder for the Config struct
+type Builder struct {
+	cfg *Config
 }
 
 // NewConfigBuilder initializes the ConfigBuilder with default values
-func NewConfigBuilder() *ConfigBuilder {
-	return &ConfigBuilder{
-		cfg: &config.Config{},
+func NewConfigBuilder() *Builder {
+	return &Builder{
+		cfg: &Config{},
 	}
 }
 
 // FromEnv parses environment variables into the ConfigBuilder
-func (b *ConfigBuilder) FromEnv() *ConfigBuilder {
+func (b *Builder) FromEnv() *Builder {
 	if err := env.Parse(b.cfg); err != nil {
 		fmt.Printf("Error parsing environment variables: %+v\n", err)
 	}
@@ -29,7 +34,7 @@ func (b *ConfigBuilder) FromEnv() *ConfigBuilder {
 }
 
 // FromFlags parses command line flags into the ConfigBuilder
-func (b *ConfigBuilder) FromFlags() *ConfigBuilder {
+func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.Address, "a", b.cfg.Address, "address and port to reach server")
 	flag.Int64Var(&b.cfg.ReportInterval, "r", b.cfg.ReportInterval, "report interval to send watcher")
 	flag.Int64Var(&b.cfg.PollInterval, "p", b.cfg.PollInterval, "poll interval to update watcher")
@@ -39,6 +44,6 @@ func (b *ConfigBuilder) FromFlags() *ConfigBuilder {
 }
 
 // Build returns the final configuration
-func (b *ConfigBuilder) Build() *config.Config {
+func (b *Builder) Build() *Config {
 	return b.cfg
 }

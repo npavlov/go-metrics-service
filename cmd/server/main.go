@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"github.com/go-chi/chi/v5"
+	"github.com/joho/godotenv"
+	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"log"
@@ -10,7 +12,12 @@ import (
 )
 
 func main() {
-	cfg := NewConfigBuilder().
+	err := godotenv.Load("server.env")
+	if err != nil {
+		log.Fatal("Error loading server.env file")
+	}
+
+	cfg := config.NewConfigBuilder().
 		FromEnv().
 		FromFlags().Build()
 
