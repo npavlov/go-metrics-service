@@ -87,6 +87,7 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 
 	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
 	wg.Add(1)
 	go reporter.StartReporter(ctx, &wg)
@@ -99,4 +100,6 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 	counter, ok := serverStorage.GetCounter(domain.PollCount)
 	assert.True(t, ok)
 	assert.Equal(t, int64(1), counter)
+
+	assert.Equal(t, context.Canceled, ctx.Err())
 }

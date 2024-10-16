@@ -84,4 +84,6 @@ func TestStartCollector(t *testing.T) {
 			assert.Greater(t, *val.Counter, int64(0))
 		}
 	}
+
+	assert.Equal(t, context.Canceled, ctx.Err())
 }
