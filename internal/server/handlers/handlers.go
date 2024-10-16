@@ -4,6 +4,8 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/logger"
+	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/npavlov/go-metrics-service/internal/server/templates"
 	"github.com/npavlov/go-metrics-service/internal/storage"
 	"net/http"
@@ -69,6 +71,8 @@ func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
+	l := logger.Get()
+
 	page := struct {
 		Gauges   map[domain.MetricName]float64
 		Counters map[domain.MetricName]int64
@@ -80,18 +84,20 @@ func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
 	reader := templates.NewEmbedReader()
 	tmpl, err := reader.Read("index.html")
 	if err != nil {
+		l.Error().Err(err).Msg("Could not load template")
 		http.Error(w, "Failed to load template: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if err := tmpl.Execute(w, page); err != nil {
+		l.Error().Err(err).Msg("Could not render template")
 		http.Error(w, "Failed to render page: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
 // Embedding middleware setup in the constructor
 func (mh *MetricHandler) setRouter() {
-	mh.router.Use(middleware.Logger)
+	mh.router.Use(middlewares.LoggingMiddleware)
 	mh.router.Use(middleware.Recoverer)
 
 	mh.router.Route("/", func(r chi.Router) {

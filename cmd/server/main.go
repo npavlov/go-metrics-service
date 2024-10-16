@@ -1,20 +1,22 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
+	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/storage"
-	"log"
 	"net/http"
 )
 
 func main() {
+	l := logger.Get()
+	logger.SetLogLevel()
+
 	err := godotenv.Load("server.env")
 	if err != nil {
-		log.Fatal("Error loading server.env file")
+		l.Fatal().Msg("Error loading server.env file")
 	}
 
 	cfg := config.NewConfigBuilder().
@@ -26,6 +28,11 @@ func main() {
 	handlers.NewMetricsHandler(memStorage, r)
 
 	// Launching server at :8080
-	fmt.Printf("Server started at %s\n", cfg.Address)
-	log.Fatal(http.ListenAndServe(cfg.Address, r))
+	l.Info().
+		Str("server_address", cfg.Address).
+		Msg("Server started")
+	err = http.ListenAndServe(cfg.Address, r)
+	if err != nil {
+		l.Fatal().Err(err).Msg("Error starting server")
+	}
 }

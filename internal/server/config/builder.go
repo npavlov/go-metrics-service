@@ -2,9 +2,8 @@ package config
 
 import (
 	"flag"
-	"fmt"
 	"github.com/caarlos0/env/v6"
-	"github.com/npavlov/go-metrics-service/internal/flags"
+	"github.com/npavlov/go-metrics-service/internal/logger"
 )
 
 type Config struct {
@@ -25,8 +24,10 @@ func NewConfigBuilder() *Builder {
 
 // FromEnv parses environment variables into the ConfigBuilder
 func (b *Builder) FromEnv() *Builder {
+	l := logger.Get()
+
 	if err := env.Parse(b.cfg); err != nil {
-		fmt.Printf("Error parsing environment variables: %+v\n", err)
+		l.Error().Err(err).Msg("failed to parse environment variables")
 	}
 	return b
 }
@@ -35,11 +36,11 @@ func (b *Builder) FromEnv() *Builder {
 func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.Address, "a", b.cfg.Address, "address and port to run server")
 	flag.Parse()
-	flags.VerifyFlags()
 	return b
 }
 
 // Build returns the final configuration
 func (b *Builder) Build() *Config {
+
 	return b.cfg
 }
