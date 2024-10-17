@@ -2,74 +2,92 @@ package watcher
 
 import (
 	"context"
-	"fmt"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"encoding/json"
 	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/logger"
+	"github.com/npavlov/go-metrics-service/internal/model"
 )
 
-// Reporter interface defines the contract for sending watcher
+// Reporter interface defines the contract for sending watcher.
 type Reporter interface {
-	SendMetrics()
-	StartReporter(ctx context.Context, cfg *config.Config)
-	sendPostRequest(url string)
+	SendMetrics(ctx context.Context)
+	StartReporter(ctx context.Context, wg *sync.WaitGroup)
 }
 
-// MetricReporter implements the Reporter interface
+// MetricReporter implements the Reporter interface.
 type MetricReporter struct {
 	metrics *[]model.Metric
 	mux     *sync.RWMutex
-	addr    string
+	cfg     *config.Config
 }
 
-func (mr *MetricReporter) StartReporter(ctx context.Context, cfg *config.Config) {
+func NewMetricReporter(metrics *[]model.Metric, mutex *sync.RWMutex, cfg *config.Config) *MetricReporter {
+	return &MetricReporter{
+		metrics: metrics,
+		mux:     mutex,
+		cfg:     cfg,
+	}
+}
+
+func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup) {
+	l := logger.NewLogger().Get()
+
+	defer wg.Done()
+
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Stopping watcher reporting")
+			l.Info().Msg("Stopping watcher reporting")
+
 			return
 		default:
 			// Add your watcher reporting logic here
-			mr.SendMetrics()
-			time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
+			mr.SendMetrics(ctx)
+			time.Sleep(time.Duration(mr.cfg.ReportInterval) * time.Second)
 		}
 	}
 }
 
-// NewMetricReporter creates a new instance of MetricReporter
-func NewMetricReporter(metrics *[]model.Metric, mux *sync.RWMutex, address string) *MetricReporter {
-	return &MetricReporter{
-		metrics: metrics,
-		mux:     mux,
-		addr:    address,
-	}
-}
-
-// SendMetrics sends the collected watcher to the server
-func (mr *MetricReporter) SendMetrics() {
+// SendMetrics sends the collected watcher to the server.
+func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 	mr.mux.Lock()
 	defer mr.mux.Unlock()
 
 	for _, metric := range *mr.metrics {
-		val, found := metric.GetValue()
-		if found {
-			url := fmt.Sprintf("%s/update/%s/%s/%s", mr.addr, metric.MType, metric.ID, val)
-			mr.sendPostRequest(url)
+		if metric.Delta == nil && metric.Value == nil {
+			continue
 		}
+
+		url := mr.cfg.Address + "/update/"
+		mr.sendPostRequest(ctx, url, metric)
 	}
 }
 
-// sendPostRequest sends a POST request to the given URL
-func (mr *MetricReporter) sendPostRequest(url string) {
-	client := resty.New()
-	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
+// sendPostRequest sends a POST request to the given URL.
+func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
+	l := logger.NewLogger().Get()
+
+	payload, err := json.Marshal(&metric)
 	if err != nil {
-		fmt.Println("Error when sending a request:", err)
+		l.Error().Err(err).Msg("Failed to marshal metric")
+
 		return
 	}
 
-	fmt.Printf("Metric is sent to %s, status: %s\n", url, resp.Status())
+	client := resty.New()
+	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "application/json").SetBody(payload).Post(url)
+	if err != nil {
+		l.Error().Err(err).Msg("Failed to send post request")
+
+		return
+	}
+
+	l.Info().
+		Str("url", url).
+		Str("status", resp.Status()).
+		Msg("Metric is sent")
 }
