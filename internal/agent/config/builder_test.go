@@ -1,4 +1,4 @@
-package config
+package config_test
 
 import (
 	"flag"
@@ -6,46 +6,41 @@ import (
 	"testing"
 
 	"github.com/caarlos0/env/v6"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestNewConfigBuilder checks if the default values are initialized properly
+// TestNewConfigBuilder checks if the default values are initialized properly.
 func TestNewConfigBuilder(t *testing.T) {
-	builder := NewConfigBuilder()
-	assert.NotNil(t, builder.cfg, "Config should be initialized")
+	t.Parallel()
+
+	builder := config.NewConfigBuilder()
+	assert.NotNil(t, builder.Build(), "Config should be initialized")
 }
 
-// TestFromEnv checks if environment variables are properly parsed into the config
+// TestFromEnv checks if environment variables are properly parsed into the config.
 func TestFromEnv(t *testing.T) {
 	// Set environment variables to test parsing
-	_ = os.Setenv("ADDRESS", "localhost:8080")
-	_ = os.Setenv("REPORT_INTERVAL", "10")
-	_ = os.Setenv("POLL_INTERVAL", "5")
+	t.Setenv("ADDRESS", "localhost:8080")
+	t.Setenv("REPORT_INTERVAL", "10")
+	t.Setenv("POLL_INTERVAL", "5")
 
-	defer func() {
-		_ = os.Unsetenv("ADDRESS")
-	}()
-	defer func() {
-		_ = os.Unsetenv("REPORT_INTERVAL")
-	}()
-	defer func() {
-		_ = os.Unsetenv("POLL_INTERVAL")
-	}()
-
-	builder := NewConfigBuilder().FromEnv()
+	cfg := config.NewConfigBuilder().FromEnv().Build()
 
 	// Manually parse the environment variables to a temporary config for comparison
-	tmpConfig := &Config{}
+	tmpConfig := &config.Config{}
 	err := env.Parse(tmpConfig)
-	assert.NoError(t, err, "Env parsing should not produce an error")
+	require.NoError(t, err, "Env parsing should not produce an error")
 
-	assert.Equal(t, tmpConfig.Address, builder.cfg.Address, "Address should match the env value")
-	assert.Equal(t, tmpConfig.ReportInterval, builder.cfg.ReportInterval, "ReportInterval should match the env value")
-	assert.Equal(t, tmpConfig.PollInterval, builder.cfg.PollInterval, "PollInterval should match the env value")
+	assert.Equal(t, "http://"+tmpConfig.Address, cfg.Address, "Address should match the env value")
+	assert.Equal(t, tmpConfig.ReportInterval, cfg.ReportInterval, "ReportInterval should match the env value")
+	assert.Equal(t, tmpConfig.PollInterval, cfg.PollInterval, "PollInterval should match the env value")
 }
 
-// TestFromFlags checks if command line flags are properly parsed into the config
+// TestFromFlags checks if command line flags are properly parsed into the config.
 func TestFromFlags(t *testing.T) {
+	t.Parallel()
 	// Reset command-line flags between tests
 	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 
@@ -57,19 +52,10 @@ func TestFromFlags(t *testing.T) {
 		"-p", "10",
 	}
 
-	builder := NewConfigBuilder().FromFlags()
+	cfg := config.NewConfigBuilder().FromFlags().Build()
 
 	// Verify that flags were correctly parsed into the config
-	assert.Equal(t, "localhost:8081", builder.cfg.Address, "Address should be set by flag")
-	assert.Equal(t, int64(20), builder.cfg.ReportInterval, "ReportInterval should be set by flag")
-	assert.Equal(t, int64(10), builder.cfg.PollInterval, "PollInterval should be set by flag")
-}
-
-// TestBuild checks if the Build function returns the final config
-func TestBuild(t *testing.T) {
-	builder := NewConfigBuilder()
-	finalConfig := builder.Build()
-
-	assert.NotNil(t, finalConfig, "Final config should not be nil")
-	assert.Equal(t, builder.cfg, finalConfig, "The returned config should match the builder's config")
+	assert.Equal(t, "http://localhost:8081", cfg.Address, "Address should be set by flag")
+	assert.Equal(t, int64(20), cfg.ReportInterval, "ReportInterval should be set by flag")
+	assert.Equal(t, int64(10), cfg.PollInterval, "PollInterval should be set by flag")
 }

@@ -3,23 +3,22 @@ package watcher
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/logger"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/logger"
+	"github.com/npavlov/go-metrics-service/internal/model"
 )
 
-// Reporter interface defines the contract for sending watcher
+// Reporter interface defines the contract for sending watcher.
 type Reporter interface {
 	SendMetrics(ctx context.Context)
 	StartReporter(ctx context.Context, wg *sync.WaitGroup)
 }
 
-// MetricReporter implements the Reporter interface
+// MetricReporter implements the Reporter interface.
 type MetricReporter struct {
 	metrics *[]model.Metric
 	mux     *sync.RWMutex
@@ -35,7 +34,7 @@ func NewMetricReporter(metrics *[]model.Metric, mutex *sync.RWMutex, cfg *config
 }
 
 func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup) {
-	l := logger.Get()
+	l := logger.NewLogger().Get()
 
 	defer wg.Done()
 
@@ -43,6 +42,7 @@ func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup)
 		select {
 		case <-ctx.Done():
 			l.Info().Msg("Stopping watcher reporting")
+
 			return
 		default:
 			// Add your watcher reporting logic here
@@ -52,7 +52,7 @@ func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup)
 	}
 }
 
-// SendMetrics sends the collected watcher to the server
+// SendMetrics sends the collected watcher to the server.
 func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 	mr.mux.Lock()
 	defer mr.mux.Unlock()
@@ -62,18 +62,19 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 			continue
 		}
 
-		url := fmt.Sprintf("%s/update/", mr.cfg.Address)
+		url := mr.cfg.Address + "/update/"
 		mr.sendPostRequest(ctx, url, metric)
 	}
 }
 
-// sendPostRequest sends a POST request to the given URL
+// sendPostRequest sends a POST request to the given URL.
 func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
-	l := logger.Get()
+	l := logger.NewLogger().Get()
 
 	payload, err := json.Marshal(&metric)
 	if err != nil {
 		l.Error().Err(err).Msg("Failed to marshal metric")
+
 		return
 	}
 
@@ -81,6 +82,7 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metri
 	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "application/json").SetBody(payload).Post(url)
 	if err != nil {
 		l.Error().Err(err).Msg("Failed to send post request")
+
 		return
 	}
 

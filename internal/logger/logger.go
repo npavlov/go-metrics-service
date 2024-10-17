@@ -1,35 +1,40 @@
 package logger
 
 import (
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/pkgerrors"
 	"io"
 	"os"
 	"sync"
 	"time"
+
+	"github.com/rs/zerolog"
 )
 
-var (
-	once     sync.Once
-	instance *zerolog.Logger
-)
-
-func Get() *zerolog.Logger {
-	once.Do(func() {
-		zerolog.ErrorStackMarshaler = pkgerrors.MarshalStack
-		zerolog.TimeFieldFormat = time.RFC3339Nano
-
-		var output io.Writer = zerolog.ConsoleWriter{
-			Out:        os.Stdout,
-			TimeFormat: time.RFC3339,
-		}
-
-		log := zerolog.New(output).With().Timestamp().Logger()
-		instance = &log
-	})
-	return instance
+type Logger struct {
+	mx sync.Mutex
+	lg zerolog.Logger
 }
 
-func SetLogLevel() {
-	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+func NewLogger() *Logger {
+	//nolint:exhaustruct
+	var output io.Writer = zerolog.ConsoleWriter{
+		Out:        os.Stdout,
+		TimeFormat: time.RFC3339,
+	}
+
+	return &Logger{
+		mx: sync.Mutex{},
+		lg: zerolog.New(output).With().Timestamp().Logger(),
+	}
+}
+
+func (l *Logger) Get() *zerolog.Logger {
+	return &l.lg
+}
+
+// SetLogLevel sets the global log level for all loggers.
+func (l *Logger) SetLogLevel(level zerolog.Level) *Logger {
+	zerolog.TimeFieldFormat = time.RFC3339Nano
+	zerolog.SetGlobalLevel(level)
+
+	return l
 }

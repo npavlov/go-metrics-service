@@ -2,26 +2,28 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"os"
+	"runtime/debug"
+	"sync"
+
 	"github.com/joho/godotenv"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/utils"
-	"os"
-	"runtime/debug"
-	"sync"
+	"github.com/rs/zerolog"
 )
 
 func main() {
-	l := logger.Get()
-	logger.SetLogLevel()
+	l := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
 
 	defer func() {
 		// Recover from panic if one occurred. Log the error and exit.
-		if err := recover(); err != nil {
+		if r := recover(); r != nil {
 			l.Fatal().
-				Str("error", err.(string)).
+				Str("error", fmt.Sprintf("%v", r)).
 				Bytes("stack", debug.Stack()).
 				Msg("Fatal error encountered")
 			os.Exit(1)

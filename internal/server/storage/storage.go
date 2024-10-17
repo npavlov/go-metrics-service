@@ -1,11 +1,12 @@
 package storage
 
 import (
+	"strconv"
+	"sync"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/pkg/errors"
-	"strconv"
-	"sync"
 )
 
 const (
@@ -24,22 +25,23 @@ type Repository interface {
 	GetCounter(name domain.MetricName) (int64, bool)
 	GetGauges() map[domain.MetricName]float64
 	GetCounters() map[domain.MetricName]int64
-	UpdateMetric(metricType domain.MetricType, metricName domain.MetricName, metricValue string) error
+	UpdateMetric(mType domain.MetricType, name domain.MetricName, value string) error
 	UpdateMetricModel(metric *model.Metric) error
 	GetMetricModel(metric *model.Metric) (*model.Metric, error)
 }
 
 type MemStorage struct {
-	mu       sync.RWMutex
+	mu       *sync.RWMutex
 	gauges   map[domain.MetricName]float64
 	counters map[domain.MetricName]int64
 }
 
-// NewMemStorage - constructor for MemStorage
+// NewMemStorage - constructor for MemStorage.
 func NewMemStorage() *MemStorage {
 	return &MemStorage{
 		gauges:   make(map[domain.MetricName]float64),
 		counters: make(map[domain.MetricName]int64),
+		mu:       &sync.RWMutex{},
 	}
 }
 
@@ -57,51 +59,56 @@ func (ms *MemStorage) GetCounters() map[domain.MetricName]int64 {
 	return cloneMap(ms.counters)
 }
 
-// GetGauge - retrieves the value of a gauge
+// GetGauge - retrieves the value of a gauge.
 func (ms *MemStorage) GetGauge(name domain.MetricName) (float64, bool) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	value, exists := ms.gauges[name]
+
 	return value, exists
 }
 
-// GetCounter - retrieves the value of a counter
+// GetCounter - retrieves the value of a counter.
 func (ms *MemStorage) GetCounter(name domain.MetricName) (int64, bool) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	value, exists := ms.counters[name]
+
 	return value, exists
 }
 
-// Generic function to clone a map with either int64 or float64 values
+// Generic function to clone a map with either int64 or float64 values.
 func cloneMap[K comparable, V Number](original map[K]V) map[K]V {
 	cloned := make(map[K]V)
 	for key, value := range original {
 		cloned[key] = value
 	}
+
 	return cloned
 }
 
-func (ms *MemStorage) UpdateMetric(metricType domain.MetricType, metricName domain.MetricName, metricValue string) error {
+func (ms *MemStorage) UpdateMetric(mType domain.MetricType, name domain.MetricName, value string) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
-	switch metricType {
+	switch mType {
 	case domain.Gauge:
-		value, err := strconv.ParseFloat(metricValue, 64)
+		value, err := strconv.ParseFloat(value, 64)
 		if err != nil {
 			return errors.Wrap(err, errInvalidGauge)
 		}
-		ms.gauges[metricName] = value
+		ms.gauges[name] = value
 	case domain.Counter:
-		value, err := strconv.ParseInt(metricValue, 10, 64)
+		value, err := strconv.ParseInt(value, 10, 64)
 		if err != nil {
 			return errors.Wrap(err, errInvalidCounter)
 		}
-		ms.counters[metricName] += value
+		ms.counters[name] += value
 	default:
+
 		return errors.New(errUnknownMetric)
 	}
+
 	return nil
 }
 
@@ -134,12 +141,14 @@ func (ms *MemStorage) GetMetricModel(metric *model.Metric) (*model.Metric, error
 		if val, exists := ms.gauges[metric.ID]; exists {
 			return &model.Metric{ID: metric.ID, MType: metric.MType, Value: &val}, nil
 		}
+
 		return nil, errors.New(errInvalidGauge)
 
 	case domain.Counter:
 		if delta, exists := ms.counters[metric.ID]; exists {
 			return &model.Metric{ID: metric.ID, MType: metric.MType, Delta: &delta}, nil
 		}
+
 		return nil, errors.New(errInvalidCounter)
 
 	default:

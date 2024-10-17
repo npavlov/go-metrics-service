@@ -1,4 +1,4 @@
-package utils
+package utils_test
 
 import (
 	"context"
@@ -8,14 +8,16 @@ import (
 	"testing"
 	"time"
 
+	"github.com/npavlov/go-metrics-service/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestWithSignalCancel(t *testing.T) {
+	t.Parallel()
 	// Create a context and call WithSignalCancel
 	ctx := context.Background()
-	ctxWithCancel := WithSignalCancel(ctx)
+	ctxWithCancel := utils.WithSignalCancel(ctx)
 
 	// Create a wait group to wait for the cancellation
 	var wg sync.WaitGroup
@@ -29,11 +31,11 @@ func TestWithSignalCancel(t *testing.T) {
 
 	// Simulate sending SIGINT to the process
 	process, err := os.FindProcess(os.Getpid()) // Get the current process
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Send SIGINT signal to the current process
 	err = process.Signal(syscall.SIGINT)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
 	// Wait for the goroutine to finish
 	wg.Wait()
@@ -43,6 +45,8 @@ func TestWithSignalCancel(t *testing.T) {
 }
 
 func TestWaitForShutdown(t *testing.T) {
+	t.Parallel()
+
 	var wg sync.WaitGroup
 
 	// Simulate a task
@@ -54,9 +58,9 @@ func TestWaitForShutdown(t *testing.T) {
 
 	// Call WaitForShutdown and check if it waits correctly
 	start := time.Now()
-	WaitForShutdown(&wg)
+	utils.WaitForShutdown(&wg)
 	duration := time.Since(start)
 
 	// Ensure that the WaitForShutdown finished after the simulated work
-	require.True(t, duration >= 100*time.Millisecond, "WaitForShutdown did not wait correctly")
+	require.GreaterOrEqual(t, duration, 100*time.Millisecond, "WaitForShutdown did not wait correctly")
 }

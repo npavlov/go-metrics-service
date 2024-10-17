@@ -1,23 +1,21 @@
-package handlers
+package handlers_test
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/server/storage"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUpdateHandler(t *testing.T) {
-	var memStorage storage.Repository = storage.NewMemStorage()
-	var r = chi.NewRouter()
-	NewMetricsHandler(memStorage, r).SetRouter()
-
-	server := httptest.NewServer(r)
-	defer server.Close()
+	t.Parallel()
 
 	type metric struct {
 		name       domain.MetricName
@@ -84,6 +82,7 @@ func TestUpdateHandler(t *testing.T) {
 					name:       "MSpanInuse",
 					metricType: "gauge",
 					gauge:      23360,
+					counter:    0,
 				},
 			},
 		},
@@ -96,6 +95,7 @@ func TestUpdateHandler(t *testing.T) {
 					name:       "PollCount",
 					metricType: "counter",
 					counter:    100,
+					gauge:      0,
 				},
 			},
 		},
@@ -103,6 +103,16 @@ func TestUpdateHandler(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			// Initialize storage and router
+			var memStorage storage.Repository = storage.NewMemStorage()
+			r := chi.NewRouter()
+			handlers.NewMetricsHandler(memStorage, r).SetRouter()
+
+			// Start the test server
+			server := httptest.NewServer(r)
+			defer server.Close()
+
 			testUpdateRequest(t, server, tt.request, tt.want.statusCode)
 
 			if tt.want.result != nil {
@@ -110,7 +120,7 @@ func TestUpdateHandler(t *testing.T) {
 				case domain.Gauge:
 					value, exist := memStorage.GetGauge(tt.want.result.name)
 					assert.True(t, exist)
-					assert.Equal(t, tt.want.result.gauge, value)
+					assert.InDelta(t, tt.want.result.gauge, value, 0.1)
 				case domain.Counter:
 					value, exist := memStorage.GetCounter(tt.want.result.name)
 					assert.True(t, exist)
@@ -119,17 +129,19 @@ func TestUpdateHandler(t *testing.T) {
 					t.Errorf("Unexpected metric type: %v", tt.want.result.metricType)
 				}
 			}
-
 		})
 	}
 }
+
 func testUpdateRequest(t *testing.T, ts *httptest.Server, route string, statusCode int) {
+	t.Helper()
+
 	req := resty.New().R()
 	req.Method = http.MethodPost
 	req.URL = ts.URL + route
 
 	res, err := req.Send()
 
-	assert.NoError(t, err, "error making HTTP request")
+	require.NoError(t, err, "error making HTTP request")
 	assert.Equal(t, statusCode, res.StatusCode())
 }

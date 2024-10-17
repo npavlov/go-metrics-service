@@ -1,24 +1,28 @@
-package watcher
+package watcher_test
 
 import (
 	"context"
-	"github.com/go-chi/chi/v5"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/stats"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/server/handlers"
-	"github.com/npavlov/go-metrics-service/internal/server/storage"
-	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/agent/stats"
+	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	"github.com/stretchr/testify/assert"
 )
 
-// Test for SendMetrics function
+// Test for SendMetrics function.
 func TestMetricService_SendMetrics(t *testing.T) {
+	t.Parallel()
+
 	var serverStorage storage.Repository = storage.NewMemStorage()
-	var r = chi.NewRouter()
+	r := chi.NewRouter()
 	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
 
 	server := httptest.NewServer(r)
@@ -29,11 +33,13 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	metrics := st.StatsToMetrics()
 	mux := sync.RWMutex{}
 	cfg := &config.Config{
-		Address: server.URL,
+		Address:        server.URL,
+		PollInterval:   1,
+		ReportInterval: 1,
 	}
 
-	var collector = NewMetricCollector(&metrics, &mux, cfg)
-	var reporter = NewMetricReporter(&metrics, &mux, cfg)
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg)
 	collector.UpdateMetrics()
 
 	// Run the SendMetrics function
@@ -46,13 +52,12 @@ func TestMetricService_SendMetrics(t *testing.T) {
 			val, ok := serverStorage.GetGauge(metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Value)
-			assert.Equal(t, original, val)
+			assert.InDelta(t, original, val, 00000.1)
 		case domain.Counter:
 			val, ok := serverStorage.GetCounter(metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Delta)
 			assert.Equal(t, original, val)
-
 		}
 	}
 
@@ -64,8 +69,10 @@ func TestMetricService_SendMetrics(t *testing.T) {
 }
 
 func TestMetricReporter_StartReporter(t *testing.T) {
+	t.Parallel()
+
 	var serverStorage storage.Repository = storage.NewMemStorage()
-	var r = chi.NewRouter()
+	r := chi.NewRouter()
 	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
 
 	server := httptest.NewServer(r)
@@ -81,8 +88,8 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 		ReportInterval: 2,
 	}
 
-	var collector = NewMetricCollector(&metrics, &mux, cfg)
-	var reporter = NewMetricReporter(&metrics, &mux, cfg)
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg)
 	collector.UpdateMetrics()
 
 	var wg sync.WaitGroup

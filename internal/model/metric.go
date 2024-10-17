@@ -1,8 +1,9 @@
 package model
 
 import (
-	"github.com/npavlov/go-metrics-service/internal/domain"
 	"strconv"
+
+	"github.com/npavlov/go-metrics-service/internal/domain"
 )
 
 type Metric struct {
@@ -18,6 +19,7 @@ func (m *Metric) SetValue(delta *int64, value *float64) {
 	if m.MType == domain.Gauge {
 		m.Delta = nil
 		m.Value = value
+
 		return
 	}
 
@@ -27,11 +29,13 @@ func (m *Metric) SetValue(delta *int64, value *float64) {
 		if m.Delta != nil && delta != nil {
 			newDelta := *m.Delta + *delta
 			m.Delta = &newDelta
+
 			return
 		}
 
 		if delta != nil {
 			m.Delta = delta
+
 			return
 		}
 	}

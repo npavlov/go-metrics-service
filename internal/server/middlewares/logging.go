@@ -1,15 +1,16 @@
 package middlewares
 
 import (
-	"github.com/go-chi/chi/v5/middleware"
-	"github.com/npavlov/go-metrics-service/internal/logger"
 	"net/http"
 	"time"
+
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/npavlov/go-metrics-service/internal/logger"
 )
 
 func LoggingMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		l := logger.Get()
+		l := logger.NewLogger().Get()
 		// Start time
 		start := time.Now()
 

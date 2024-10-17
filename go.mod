@@ -1,6 +1,6 @@
 module github.com/npavlov/go-metrics-service
 
-go 1.21
+go 1.22
 
 require (
 	github.com/caarlos0/env/v6 v6.10.1

@@ -1,24 +1,30 @@
-package watcher
+package watcher_test
 
 import (
 	"context"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/stats"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/stretchr/testify/assert"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/agent/stats"
+	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCollector_UpdateMetrics(t *testing.T) {
+	t.Parallel()
+
 	st := stats.Stats{}
 	metrics := st.StatsToMetrics()
 	mux := sync.RWMutex{}
 	cfg := &config.Config{
-		Address: "",
+		Address:        "",
+		ReportInterval: 1,
+		PollInterval:   1,
 	}
-	var collector = NewMetricCollector(&metrics, &mux, cfg)
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
 
 	// Call the method to test
 	collector.UpdateMetrics()
@@ -40,16 +46,18 @@ func TestCollector_UpdateMetrics(t *testing.T) {
 	}
 }
 
-// TestStartCollector tests the StartCollector method of MetricCollector
+// TestStartCollector tests the StartCollector method of MetricCollector.
 func TestStartCollector(t *testing.T) {
-	//setup
+	t.Parallel()
+
+	// setup
 	st := stats.Stats{}
 	metrics := st.StatsToMetrics()
 	var mu sync.RWMutex
-	cfg := &config.Config{PollInterval: 1} // Poll every second
+	cfg := &config.Config{PollInterval: 1, Address: "", ReportInterval: 1} // Poll every second
 
 	// Create an instance of MetricCollector
-	mc := NewMetricCollector(&metrics, &mu, cfg)
+	mc := watcher.NewMetricCollector(&metrics, &mu, cfg)
 
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -73,7 +81,7 @@ func TestStartCollector(t *testing.T) {
 	assert.NotNil(t, metrics) // Ensure metrics are not nil
 	for _, val := range metrics {
 		if val.ID == domain.PollCount {
-			assert.Greater(t, *val.Delta, int64(0))
+			assert.Positive(t, *val.Delta)
 		}
 	}
 

@@ -1,21 +1,26 @@
-package handlers
+package handlers_test
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/server/storage"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetRenderHandler(t *testing.T) {
+	t.Parallel()
+
 	var memStorage storage.Repository = storage.NewMemStorage()
-	var r = chi.NewRouter()
-	NewMetricsHandler(memStorage, r).SetRouter()
+	r := chi.NewRouter()
+	handlers.NewMetricsHandler(memStorage, r).SetRouter()
 
 	// Sample data to return from the mock repository
 	gauges := map[domain.MetricName]string{
@@ -29,12 +34,12 @@ func TestGetRenderHandler(t *testing.T) {
 
 	for k, v := range gauges {
 		err := memStorage.UpdateMetric(domain.Gauge, k, v)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	for k, v := range counters {
 		err := memStorage.UpdateMetric(domain.Counter, k, v)
-		assert.Nil(t, err)
+		require.NoError(t, err)
 	}
 
 	server := httptest.NewServer(r)
@@ -46,7 +51,7 @@ func TestGetRenderHandler(t *testing.T) {
 
 	res, err := req.Send()
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// Check the status code
 	assert.Equal(t, http.StatusOK, res.StatusCode())
 
