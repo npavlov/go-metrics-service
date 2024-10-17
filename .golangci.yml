@@ -16,6 +16,7 @@ issues:
         - funlen
         - depguard
         - exhaustruct
+        - gci
     - path: '(.+)builder\.go'
       linters:
         - exhaustruct
