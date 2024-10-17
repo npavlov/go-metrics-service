@@ -2,6 +2,7 @@ package model
 
 import (
 	"github.com/npavlov/go-metrics-service/internal/domain"
+	"strconv"
 )
 
 type Metric struct {
@@ -12,6 +13,7 @@ type Metric struct {
 	Value   *float64            `json:"value,omitempty"`
 }
 
+// SetValue - the method that allows to encapsulate value set logic for different types.
 func (m *Metric) SetValue(delta *int64, value *float64) {
 	if m.MType == domain.Gauge {
 		m.Delta = nil
@@ -33,4 +35,17 @@ func (m *Metric) SetValue(delta *int64, value *float64) {
 			return
 		}
 	}
+}
+
+// GetValue - the method that gets value for dedicated type.
+func (m *Metric) GetValue() string {
+	if m.MType == domain.Gauge {
+		return strconv.FormatFloat(*m.Value, 'f', -1, 64)
+	}
+
+	if m.MType == domain.Counter {
+		return strconv.FormatInt(*m.Delta, 10)
+	}
+
+	return ""
 }

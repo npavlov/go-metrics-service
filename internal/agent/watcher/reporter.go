@@ -65,18 +65,22 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 
 // sendPostRequest sends a POST request to the given URL
 func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
-	log := logger.Get()
+	l := logger.Get()
 
 	payload, err := json.Marshal(&metric)
+	if err != nil {
+		l.Error().Err(err).Msg("Failed to marshal metric")
+		return
+	}
 
 	client := resty.New()
 	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "text/json").SetBody(payload).Post(url)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to send post request")
+		l.Error().Err(err).Msg("Failed to send post request")
 		return
 	}
 
-	log.Info().
+	l.Info().
 		Str("url", url).
 		Str("status", resp.Status()).
 		Msg("Metric is sent")

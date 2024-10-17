@@ -10,8 +10,8 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/server/templates"
+	"github.com/rs/zerolog/log"
 	"net/http"
-	"strconv"
 )
 
 type Handlers interface {
@@ -87,22 +87,20 @@ func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 	metricType := domain.MetricType(chi.URLParam(r, "metricType"))
 	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 
-	switch metricType {
-	case domain.Gauge:
-		if value, found := mh.st.GetGauge(metricName); found {
-			_, _ = w.Write([]byte(strconv.FormatFloat(value, 'f', -1, 64)))
-			return
-		}
-		http.Error(w, "unknown metric name", http.StatusNotFound)
-	case domain.Counter:
-		if value, found := mh.st.GetCounter(metricName); found {
-			_, _ = w.Write([]byte(strconv.FormatInt(value, 10)))
-			return
-		}
-		http.Error(w, "unknown metric name", http.StatusNotFound)
-	default:
-		http.Error(w, "unknown metric type", http.StatusNotFound)
+	metric := &model.Metric{
+		MType: metricType,
+		ID:    metricName,
 	}
+
+	metricModel, err := mh.st.GetMetricModel(*metric)
+	if err != nil {
+		log.Error().Err(err).Msgf("Retrieve: Failed to retrieve model from memory %s", metric.ID)
+		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
+		return
+	}
+
+	_, _ = w.Write([]byte(metricModel.GetValue()))
+	w.WriteHeader(http.StatusOK)
 }
 
 func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
