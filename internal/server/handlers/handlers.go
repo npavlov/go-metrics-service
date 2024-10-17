@@ -6,8 +6,8 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/server/templates"
-	"github.com/npavlov/go-metrics-service/internal/storage"
 	"net/http"
 	"strconv"
 )

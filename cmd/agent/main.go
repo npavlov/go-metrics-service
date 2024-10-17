@@ -8,12 +8,25 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/utils"
+	"os"
+	"runtime/debug"
 	"sync"
 )
 
 func main() {
 	l := logger.Get()
 	logger.SetLogLevel()
+
+	defer func() {
+		// Recover from panic if one occurred. Log the error and exit.
+		if err := recover(); err != nil {
+			l.Fatal().
+				Str("error", err.(string)).
+				Bytes("stack", debug.Stack()).
+				Msg("Fatal error encountered")
+			os.Exit(1)
+		}
+	}()
 
 	err := godotenv.Load("agent.env")
 	if err != nil {

@@ -40,6 +40,7 @@ func (mc *MetricCollector) StartCollector(ctx context.Context, wg *sync.WaitGrou
 	l := logger.Get()
 
 	defer wg.Done()
+
 	for {
 		select {
 		case <-ctx.Done():

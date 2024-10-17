@@ -4,7 +4,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/storage"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"

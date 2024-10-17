@@ -37,6 +37,7 @@ func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup)
 	l := logger.Get()
 
 	defer wg.Done()
+
 	for {
 		select {
 		case <-ctx.Done():

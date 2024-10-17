@@ -7,7 +7,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
-	"github.com/npavlov/go-metrics-service/internal/storage"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"net/http/httptest"
 	"sync"

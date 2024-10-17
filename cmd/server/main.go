@@ -6,7 +6,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
-	"github.com/npavlov/go-metrics-service/internal/storage"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"net/http"
 )
 
