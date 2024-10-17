@@ -15,7 +15,7 @@ import (
 func TestGetRenderHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	NewMetricsHandler(memStorage, r)
+	NewMetricsHandler(memStorage, r).SetRouter()
 
 	// Sample data to return from the mock repository
 	gauges := map[domain.MetricName]string{

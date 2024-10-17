@@ -19,7 +19,7 @@ import (
 func TestMetricService_SendMetrics(t *testing.T) {
 	var serverStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	handlers.NewMetricsHandler(serverStorage, r)
+	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -66,7 +66,7 @@ func TestMetricService_SendMetrics(t *testing.T) {
 func TestMetricReporter_StartReporter(t *testing.T) {
 	var serverStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	handlers.NewMetricsHandler(serverStorage, r)
+	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
 
 	server := httptest.NewServer(r)
 	defer server.Close()

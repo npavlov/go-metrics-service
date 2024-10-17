@@ -78,7 +78,7 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metri
 	}
 
 	client := resty.New()
-	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "text/json").SetBody(payload).Post(url)
+	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "application/json").SetBody(payload).Post(url)
 	if err != nil {
 		l.Error().Err(err).Msg("Failed to send post request")
 		return

@@ -20,7 +20,6 @@ type Handlers interface {
 	RetrieveModel(http.ResponseWriter, *http.Request)
 	Update(http.ResponseWriter, *http.Request)
 	UpdateModel(http.ResponseWriter, *http.Request)
-	JSONResponse(w http.ResponseWriter, status int, v interface{})
 	SetRouter()
 }
 
@@ -31,12 +30,7 @@ type MetricHandler struct {
 
 // NewMetricsHandler - constructor for MetricsHandler
 func NewMetricsHandler(st storage.Repository, router *chi.Mux) *MetricHandler {
-	mh := MetricHandler{
-		router: router,
-		st:     st,
-	}
-	mh.setRouter()
-	return &mh
+	return &MetricHandler{router: router, st: st}
 }
 
 func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -53,6 +47,8 @@ func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+
 	l := logger.Get()
 
 	// Decode the incoming JSON request into the Metric struct
@@ -79,11 +75,16 @@ func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	mh.JSONResponse(w, http.StatusOK, responseMetric)
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(responseMetric); err != nil {
+		logger.Get().Error().Err(err).Msg("Failed to encode response JSON")
+		http.Error(w, "Failed to process response", http.StatusInternalServerError)
+	}
 }
 
 func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/text")
+
 	metricType := domain.MetricType(chi.URLParam(r, "metricType"))
 	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 
@@ -112,7 +113,7 @@ func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
 	var metric *model.Metric
 	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 		l.Error().Err(err).Msg("UpdateModel: Invalid JSON input")
-		http.Error(w, "Invalid JSON input", http.StatusBadRequest)
+		http.Error(w, "Invalid JSON input", http.StatusNotFound)
 		return
 	}
 
@@ -120,11 +121,15 @@ func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
 	responseMetric, err := mh.st.GetMetricModel(metric)
 	if err != nil {
 		l.Error().Err(err).Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
-		http.Error(w, "Failed to retrieve model from memory", http.StatusBadRequest)
+		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
 		return
 	}
 
-	mh.JSONResponse(w, http.StatusOK, responseMetric)
+	w.WriteHeader(http.StatusOK)
+	if err := json.NewEncoder(w).Encode(responseMetric); err != nil {
+		logger.Get().Error().Err(err).Msg("Failed to encode response JSON")
+		http.Error(w, "Failed to process response", http.StatusInternalServerError)
+	}
 }
 
 func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
@@ -152,18 +157,8 @@ func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
 	}
 }
 
-// JSONResponse writes a JSON response with appropriate headers and status code
-func (mh *MetricHandler) JSONResponse(w http.ResponseWriter, status int, v interface{}) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(v); err != nil {
-		logger.Get().Error().Err(err).Msg("Failed to encode response JSON")
-		http.Error(w, "Failed to process response", http.StatusInternalServerError)
-	}
-}
-
-// Embedding middleware setup in the constructor
-func (mh *MetricHandler) setRouter() {
+// SetRouter Embedding middleware setup in the constructor
+func (mh *MetricHandler) SetRouter() {
 	mh.router.Use(middlewares.LoggingMiddleware)
 	mh.router.Use(middleware.Recoverer)
 

@@ -25,7 +25,8 @@ func main() {
 
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	handlers.NewMetricsHandler(memStorage, r)
+	var router handlers.Handlers = handlers.NewMetricsHandler(memStorage, r)
+	router.SetRouter()
 
 	// Launching server at :8080
 	l.Info().

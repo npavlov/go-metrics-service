@@ -14,7 +14,7 @@ import (
 func TestUpdateHandler(t *testing.T) {
 	var memStorage storage.Repository = storage.NewMemStorage()
 	var r = chi.NewRouter()
-	NewMetricsHandler(memStorage, r)
+	NewMetricsHandler(memStorage, r).SetRouter()
 
 	server := httptest.NewServer(r)
 	defer server.Close()
