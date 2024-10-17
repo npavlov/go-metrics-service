@@ -30,7 +30,6 @@ func main() {
 	var router handlers.Handlers = handlers.NewMetricsHandler(memStorage, r)
 	router.SetRouter()
 
-	// Launching server at :8080
 	l.Info().
 		Str("server_address", cfg.Address).
 		Msg("Server started")

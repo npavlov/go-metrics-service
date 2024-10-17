@@ -43,11 +43,11 @@ func NewStats() *Stats {
 	return &Stats{}
 }
 
-func (s Stats) StatsToMetrics() []model.Metric {
+func (s *Stats) StatsToMetrics() []model.Metric {
 	var metrics []model.Metric
 
 	// Get reflection value of stats
-	t := reflect.TypeOf(s)
+	t := reflect.TypeOf(*s)
 
 	for i := range t.NumField() {
 		fieldType := t.Field(i)
