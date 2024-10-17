@@ -58,6 +58,10 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 	defer mr.mux.Unlock()
 
 	for _, metric := range *mr.metrics {
+		if metric.Delta == nil && metric.Value == nil {
+			continue
+		}
+
 		url := fmt.Sprintf("%s/update/", mr.cfg.Address)
 		mr.sendPostRequest(ctx, url, metric)
 	}

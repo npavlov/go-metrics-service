@@ -12,6 +12,7 @@ const (
 	errInvalidGauge   = "invalid gauge value"
 	errInvalidCounter = "invalid counter value"
 	errUnknownMetric  = "unknown metric type"
+	errNoValue        = "no value provided"
 )
 
 type Number interface {
@@ -24,8 +25,8 @@ type Repository interface {
 	GetGauges() map[domain.MetricName]float64
 	GetCounters() map[domain.MetricName]int64
 	UpdateMetric(metricType domain.MetricType, metricName domain.MetricName, metricValue string) error
-	UpdateMetricModel(metric model.Metric) error
-	GetMetricModel(metric model.Metric) (*model.Metric, error)
+	UpdateMetricModel(metric *model.Metric) error
+	GetMetricModel(metric *model.Metric) (*model.Metric, error)
 }
 
 type MemStorage struct {
@@ -104,15 +105,19 @@ func (ms *MemStorage) UpdateMetric(metricType domain.MetricType, metricName doma
 	return nil
 }
 
-func (ms *MemStorage) UpdateMetricModel(metric model.Metric) error {
+func (ms *MemStorage) UpdateMetricModel(metric *model.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
+	if metric.Delta == nil && metric.Value == nil {
+		return errors.New(errNoValue)
+	}
+
 	switch metric.MType {
 	case domain.Gauge:
-		ms.gauges[metric.ID] = *metric.Value
+		ms.gauges[metric.ID] = *(metric).Value
 	case domain.Counter:
-		ms.counters[metric.ID] += *metric.Delta
+		ms.counters[metric.ID] += *(metric).Delta
 	default:
 		return errors.New(errUnknownMetric)
 	}
@@ -120,7 +125,7 @@ func (ms *MemStorage) UpdateMetricModel(metric model.Metric) error {
 	return nil
 }
 
-func (ms *MemStorage) GetMetricModel(metric model.Metric) (*model.Metric, error) {
+func (ms *MemStorage) GetMetricModel(metric *model.Metric) (*model.Metric, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 

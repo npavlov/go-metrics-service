@@ -56,7 +56,7 @@ func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 	l := logger.Get()
 
 	// Decode the incoming JSON request into the Metric struct
-	var metric model.Metric
+	var metric *model.Metric
 	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 		l.Error().Err(err).Msg("UpdateModel: Invalid JSON input")
 		http.Error(w, "Invalid JSON input", http.StatusBadRequest)
@@ -92,7 +92,7 @@ func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 		ID:    metricName,
 	}
 
-	metricModel, err := mh.st.GetMetricModel(*metric)
+	metricModel, err := mh.st.GetMetricModel(metric)
 	if err != nil {
 		log.Error().Err(err).Msgf("Retrieve: Failed to retrieve model from memory %s", metric.ID)
 		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
@@ -109,7 +109,7 @@ func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
 	l := logger.Get()
 
 	// Decode the incoming JSON request into the Metric struct
-	var metric model.Metric
+	var metric *model.Metric
 	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
 		l.Error().Err(err).Msg("UpdateModel: Invalid JSON input")
 		http.Error(w, "Invalid JSON input", http.StatusBadRequest)
