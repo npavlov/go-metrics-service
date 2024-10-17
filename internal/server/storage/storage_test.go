@@ -38,14 +38,14 @@ func TestUpdateCounter(t *testing.T) {
 	assert.Nil(t, err)
 	// Validate the update
 	value, exists := ms.GetCounter(metricName)
-	assert.True(t, exists, "Counter should exist")
-	assert.Equal(t, int64(10), value, "Counter value should be updated to 10")
+	assert.True(t, exists, "Delta should exist")
+	assert.Equal(t, int64(10), value, "Delta value should be updated to 10")
 
 	// Increment the counter
 	err = ms.UpdateMetric("counter", metricName, "5")
 	assert.Nil(t, err)
 	value, _ = ms.GetCounter(metricName)
-	assert.Equal(t, int64(15), value, "Counter value should be updated to 15 after increment")
+	assert.Equal(t, int64(15), value, "Delta value should be updated to 15 after increment")
 }
 
 func TestGetGauge(t *testing.T) {
@@ -104,5 +104,5 @@ func TestGetCounters(t *testing.T) {
 	// Retrieve all counters
 	counters := ms.GetCounters()
 	assert.Contains(t, counters, metricName, "Counters map should contain the updated counter")
-	assert.Equal(t, int64(20), counters[metricName], "Counter value should be 10 in the map")
+	assert.Equal(t, int64(20), counters[metricName], "Delta value should be 10 in the map")
 }

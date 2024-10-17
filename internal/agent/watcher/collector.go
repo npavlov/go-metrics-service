@@ -79,7 +79,6 @@ func (mc *MetricCollector) UpdateMetrics() {
 				return
 			}
 			metric.SetValue(nil, &value)
-			metric.GetValue()
 		case domain.Custom:
 			if metric.ID == domain.PollCount {
 				val := int64(1)

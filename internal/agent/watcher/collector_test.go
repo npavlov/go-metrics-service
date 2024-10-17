@@ -24,26 +24,18 @@ func TestCollector_UpdateMetrics(t *testing.T) {
 	collector.UpdateMetrics()
 
 	for _, metric := range metrics {
-		value, ok := metric.GetValue()
-
-		assert.True(t, ok)
-		assert.NotNil(t, value)
-
 		if metric.ID == domain.PollCount {
-			assert.Equal(t, "1", value)
+			delta := *metric.Delta
+			assert.Equal(t, int64(1), delta)
 		}
 	}
 
 	collector.UpdateMetrics()
 
 	for _, metric := range metrics {
-		value, ok := metric.GetValue()
-
-		assert.True(t, ok)
-		assert.NotNil(t, value)
-
 		if metric.ID == domain.PollCount {
-			assert.Equal(t, "2", value)
+			delta := *metric.Delta
+			assert.Equal(t, int64(2), delta)
 		}
 	}
 }
@@ -81,7 +73,7 @@ func TestStartCollector(t *testing.T) {
 	assert.NotNil(t, metrics) // Ensure metrics are not nil
 	for _, val := range metrics {
 		if val.ID == domain.PollCount {
-			assert.Greater(t, *val.Counter, int64(0))
+			assert.Greater(t, *val.Delta, int64(0))
 		}
 	}
 

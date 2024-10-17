@@ -50,7 +50,7 @@ func TestMetricService_SendMetrics(t *testing.T) {
 		case domain.Counter:
 			val, ok := serverStorage.GetCounter(metric.ID)
 			assert.True(t, ok)
-			original := *(metric.Counter)
+			original := *(metric.Delta)
 			assert.Equal(t, original, val)
 
 		}

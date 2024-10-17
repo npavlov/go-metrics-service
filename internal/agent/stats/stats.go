@@ -59,7 +59,7 @@ func (s Stats) StatsToMetrics() []model.Metric {
 		metricType := domain.MetricType(fieldType.Tag.Get("metricType"))
 		metricSource := domain.MetricSource(fieldType.Tag.Get("metricSource"))
 
-		// Check the field type to assign Counter or Value
+		// Check the field type to assign Delta or Value
 		switch metricType {
 		case domain.Gauge:
 			metric.MType = domain.Gauge

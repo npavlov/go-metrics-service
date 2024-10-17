@@ -2,6 +2,7 @@ package storage
 
 import (
 	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/pkg/errors"
 	"strconv"
 	"sync"
@@ -23,6 +24,8 @@ type Repository interface {
 	GetGauges() map[domain.MetricName]float64
 	GetCounters() map[domain.MetricName]int64
 	UpdateMetric(metricType domain.MetricType, metricName domain.MetricName, metricValue string) error
+	UpdateMetricModel(metric model.Metric) error
+	GetMetricModel(metric model.Metric) (*model.Metric, error)
 }
 
 type MemStorage struct {
@@ -99,4 +102,42 @@ func (ms *MemStorage) UpdateMetric(metricType domain.MetricType, metricName doma
 		return errors.New(errUnknownMetric)
 	}
 	return nil
+}
+
+func (ms *MemStorage) UpdateMetricModel(metric model.Metric) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	switch metric.MType {
+	case domain.Gauge:
+		ms.gauges[metric.ID] = *metric.Value
+	case domain.Counter:
+		ms.counters[metric.ID] += *metric.Delta
+	default:
+		return errors.New(errUnknownMetric)
+	}
+
+	return nil
+}
+
+func (ms *MemStorage) GetMetricModel(metric model.Metric) (*model.Metric, error) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	switch metric.MType {
+	case domain.Gauge:
+		if val, exists := ms.gauges[metric.ID]; exists {
+			return &model.Metric{ID: metric.ID, MType: metric.MType, Value: &val}, nil
+		}
+		return nil, errors.New(errInvalidGauge)
+
+	case domain.Counter:
+		if delta, exists := ms.counters[metric.ID]; exists {
+			return &model.Metric{ID: metric.ID, MType: metric.MType, Delta: &delta}, nil
+		}
+		return nil, errors.New(errInvalidCounter)
+
+	default:
+		return nil, errors.New(errUnknownMetric)
+	}
 }

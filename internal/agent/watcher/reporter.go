@@ -2,6 +2,7 @@ package watcher
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/logger"
@@ -57,20 +58,19 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 	defer mr.mux.Unlock()
 
 	for _, metric := range *mr.metrics {
-		val, found := metric.GetValue()
-		if found {
-			url := fmt.Sprintf("%s/update/%s/%s/%s", mr.cfg.Address, metric.MType, metric.ID, val)
-			mr.sendPostRequest(url, ctx)
-		}
+		url := fmt.Sprintf("%s/update/", mr.cfg.Address)
+		mr.sendPostRequest(ctx, url, metric)
 	}
 }
 
 // sendPostRequest sends a POST request to the given URL
-func (mr *MetricReporter) sendPostRequest(url string, ctx context.Context) {
+func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
 	log := logger.Get()
 
+	payload, err := json.Marshal(&metric)
+
 	client := resty.New()
-	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "text/plain").Post(url)
+	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "text/json").SetBody(payload).Post(url)
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to send post request")
 		return
