@@ -17,6 +17,7 @@ issues:
         - depguard
         - exhaustruct
         - gci
+        - lll
     - path: '(.+)builder\.go'
       linters:
         - exhaustruct

@@ -44,5 +44,9 @@ fmt:
 deps:
 	$(GO) get -u ./...
 
+# Format all Go file in the project using Gofumpt
+gofumpt:
+	gofumpt -l -w .
+
 # Default target when 'make' is run, it formats code, runs the linter, and builds both the agent and server binaries
 all: fmt lint build-agent build-server
