@@ -46,10 +46,9 @@ func (s Stats) StatsToMetrics() []model.Metric {
 	var metrics []model.Metric
 
 	// Get reflection value of stats
-	v := reflect.ValueOf(s)
 	t := reflect.TypeOf(s)
 
-	for i := 0; i < v.NumField(); i++ {
+	for i := 0; i < t.NumField(); i++ {
 		fieldType := t.Field(i)
 		fieldName := fieldType.Name
 
