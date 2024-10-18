@@ -29,7 +29,7 @@ issues:
     - path: '(.+)storage\.go'
       linters:
         - exhaustruct
-    - path: '(.+)(?:brotli|gzip|reporter)\.go'
+    - path: '(.+)(?:brotli|gzip|reporter|wrapper)\.go'
       linters:
         - wrapcheck
 linters-settings:

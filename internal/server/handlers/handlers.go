@@ -169,6 +169,7 @@ func (mh *MetricHandler) SetRouter() {
 	mh.router.Use(middleware.Recoverer)
 	mh.router.Use(middlewares.GzipMiddleware)
 	mh.router.Use(middlewares.BrotliMiddleware)
+	mh.router.Use(middlewares.GzipDecompressionMiddleware)
 
 	mh.router.Route("/", func(r chi.Router) {
 		r.Route("/", func(r chi.Router) {

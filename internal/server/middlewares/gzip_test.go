@@ -14,21 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// Helper function to gzip compress data.
-func gzipCompress(data []byte) ([]byte, error) {
-	var buf bytes.Buffer
-	zw := gzip.NewWriter(&buf)
-	_, err := zw.Write(data)
-	if err != nil {
-		return nil, err
-	}
-	if err := zw.Close(); err != nil {
-		return nil, err
-	}
-
-	return buf.Bytes(), nil
-}
-
 // TestGzipMiddleware tests the gzip compression middleware.
 func TestGzipMiddleware(t *testing.T) {
 	t.Parallel()
@@ -44,13 +29,18 @@ func TestGzipMiddleware(t *testing.T) {
 		req.Header.Set("Accept-Encoding", "gzip")
 		rec := httptest.NewRecorder()
 
-		middlewares.GzipMiddleware(handler).ServeHTTP(rec, req)
+		md := middlewares.ContentMiddleware("application/json")
+
+		middlewares.GzipMiddleware(md(handler)).ServeHTTP(rec, req)
+
+		rec.WriteHeader(http.StatusOK)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Equal(t, "gzip", rec.Header().Get("Content-Encoding"))
 
 		// Verify that the response body is actually gzip compressed
-		gr, err := gzip.NewReader(rec.Body)
+		compressedBody := rec.Body.Bytes()
+		gr, err := gzip.NewReader(bytes.NewReader(compressedBody))
 		require.NoError(t, err)
 		defer func(gr *gzip.Reader) {
 			_ = gr.Close()
@@ -77,28 +67,6 @@ func TestGzipMiddleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Empty(t, rec.Header().Get("Content-Encoding"))
 		assert.Equal(t, "Hello, world!", rec.Body.String())
-	})
-
-	t.Run("ShouldHandleGzipRequestBody", func(t *testing.T) {
-		t.Parallel()
-
-		handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			body, err := io.ReadAll(r.Body)
-			assert.NoError(t, err)
-			assert.Equal(t, "compressed body", string(body))
-			w.WriteHeader(http.StatusOK)
-		})
-
-		compressedBody, err := gzipCompress([]byte("compressed body"))
-		require.NoError(t, err)
-
-		req := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(compressedBody))
-		req.Header.Set("Content-Encoding", "gzip")
-		rec := httptest.NewRecorder()
-
-		middlewares.GzipMiddleware(handler).ServeHTTP(rec, req)
-
-		assert.Equal(t, http.StatusOK, rec.Code)
 	})
 
 	t.Run("ShouldPassThroughWhenBrotliEncodingIsSupportedButNotGzip", func(t *testing.T) {

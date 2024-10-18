@@ -5,71 +5,32 @@ import (
 	"strings"
 
 	"github.com/andybalholm/brotli"
-	"github.com/pkg/errors"
+	"github.com/npavlov/go-metrics-service/internal/server/middlewares/helpers"
 )
 
-type compressBrWriter struct {
-	w  http.ResponseWriter
-	zw *brotli.Writer
-}
-
-func newCompressBrWriter(w http.ResponseWriter) *compressBrWriter {
-	return &compressBrWriter{
-		w:  w,
-		zw: brotli.NewWriter(w),
-	}
-}
-
-// Header - the function that retrieves header from the response writer.
-func (c *compressBrWriter) Header() http.Header {
-	return c.w.Header()
-}
-
-// Write - the function that writes to the response.
-func (c *compressBrWriter) Write(p []byte) (int, error) {
-	n, err := c.zw.Write(p)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed to close writer")
-	}
-
-	return n, nil
-}
-
-// WriteHeader  - the function that writes header to the response.
-func (c *compressBrWriter) WriteHeader(statusCode int) {
-	if statusCode <= http.StatusMultipleChoices {
-		c.w.Header().Set("Content-Encoding", "gzip")
-	}
-	c.w.WriteHeader(statusCode)
-}
-
-// Close - the function that closes the response writer.
-func (c *compressBrWriter) Close() error {
-	if err := c.zw.Close(); err != nil {
-		return errors.Wrapf(err, "failed to close writer")
-	}
-
-	return nil
-}
-
-// BrotliMiddleware - the middleware function that enables compression for http communicztion.
+// BrotliMiddleware compresses the response using Brotli if the client supports it.
 func BrotliMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ow := w
+		// Check if the client accepts Brotli encoding
+		if !strings.Contains(r.Header.Get("Accept-Encoding"), "br") {
+			next.ServeHTTP(w, r)
 
-		acceptEncoding := r.Header.Get("Accept-Encoding")
-		supportsBrotli := strings.Contains(acceptEncoding, "br")
-		if supportsBrotli {
-			cw := newCompressBrWriter(w)
-			ow = cw
-			defer func() {
-				if err := cw.Close(); err != nil {
-					return
-				}
-			}()
-			w.Header().Set("Content-Encoding", "br")
+			return
 		}
 
-		next.ServeHTTP(ow, r)
+		// Create a Brotli writer to compress the response
+		w.Header().Set("Content-Encoding", "br")
+		w.Header().Del("Content-Length") // Can't know content length after compression
+
+		brWriter := brotli.NewWriter(w)
+		defer func(brWriter *brotli.Writer) {
+			_ = brWriter.Close()
+		}(brWriter)
+
+		// Wrap the response writer
+		brResponseWriter := &helpers.WrappedResponseWriter{ResponseWriter: w, Writer: brWriter}
+
+		// Pass the request to the next handler
+		next.ServeHTTP(brResponseWriter, r)
 	})
 }

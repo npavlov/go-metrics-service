@@ -48,7 +48,8 @@ func TestBrotliMiddleware(t *testing.T) {
 			req.Header.Set("Accept-Encoding", tt.acceptEncoding)
 			rec := httptest.NewRecorder()
 
-			middleware := middlewares.BrotliMiddleware(handler)
+			md := middlewares.ContentMiddleware("application/json")
+			middleware := middlewares.BrotliMiddleware(md(handler))
 			middleware.ServeHTTP(rec, req)
 
 			if tt.expectBrotli {
