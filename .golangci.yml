@@ -18,6 +18,7 @@ issues:
         - exhaustruct
         - gci
         - lll
+        - wrapcheck
     - path: '(.+)builder\.go'
       linters:
         - exhaustruct
