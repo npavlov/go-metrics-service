@@ -1,8 +1,12 @@
 package watcher
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
 	"encoding/json"
+	"io"
+	"net/http"
 	"sync"
 	"time"
 
@@ -67,10 +71,10 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 	}
 }
 
-// sendPostRequest sends a POST request to the given URL.
 func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
 	l := logger.NewLogger().Get()
 
+	// Marshal the metric to JSON
 	payload, err := json.Marshal(&metric)
 	if err != nil {
 		l.Error().Err(err).Msg("Failed to marshal metric")
@@ -78,16 +82,87 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metri
 		return
 	}
 
+	compressed, err := mr.compressRequest(payload)
+	if err != nil {
+		l.Error().Err(err).Msg("Failed to compress payload")
+
+		return
+	}
+
+	// Create a new Resty client and send the POST request
 	client := resty.New()
-	resp, err := client.R().SetContext(ctx).SetHeader("Content-Type", "application/json").SetBody(payload).Post(url)
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Accept-Encoding", "gzip").
+		SetBody(compressed.Bytes()).
+		SetDoNotParseResponse(true).
+		Post(url)
 	if err != nil {
 		l.Error().Err(err).Msg("Failed to send post request")
 
 		return
 	}
 
+	if resp.StatusCode() != http.StatusOK {
+		l.Error().Int("statusCode", resp.StatusCode()).Msg("Failed to send post request")
+
+		return
+	}
+
+	responseBody, err := mr.decompressResult(resp.RawBody())
+	if err != nil {
+		l.Error().Err(err).Msg("Failed to decompress response")
+	}
+
+	// Unmarshal the decompressed response into a Metric struct
+	var rMetric model.Metric
+	err = json.Unmarshal(responseBody, &rMetric)
+	if err != nil {
+		l.Error().Err(err).Msg("Failed to unmarshal metric")
+
+		return
+	}
+
+	// Log the successful transmission
 	l.Info().
 		Str("url", url).
 		Str("status", resp.Status()).
+		Interface("metric", rMetric).
 		Msg("Metric is sent")
+}
+
+func (mr *MetricReporter) compressRequest(data []byte) (*bytes.Buffer, error) {
+	// Compress the payload using gzip
+	var compressedPayload bytes.Buffer
+	gzipWriter := gzip.NewWriter(&compressedPayload)
+	_, err := gzipWriter.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	err = gzipWriter.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return &compressedPayload, nil
+}
+
+func (mr *MetricReporter) decompressResult(body io.ReadCloser) ([]byte, error) {
+	// Decompress the gzipped response
+	reader, err := gzip.NewReader(body)
+	if err != nil {
+		return nil, err
+	}
+	defer func(reader *gzip.Reader) {
+		_ = reader.Close()
+	}(reader)
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

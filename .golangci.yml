@@ -28,6 +28,9 @@ issues:
     - path: '(.+)storage\.go'
       linters:
         - exhaustruct
+    - path: '(.+)(?:brotli|gzip|reporter)\.go'
+      linters:
+        - wrapcheck
 linters-settings:
   depguard:
     rules:
@@ -74,3 +77,6 @@ linters-settings:
           - context
           - io
           - strings
+          - compress/gzip
+          - bytes
+          - github.com/andybalholm/brotli

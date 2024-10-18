@@ -49,8 +49,6 @@ func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	l := logger.NewLogger().Get()
 
 	// Decode the incoming JSON request into the Metric struct
@@ -89,8 +87,6 @@ func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/text")
-
 	metricType := domain.MetricType(chi.URLParam(r, "metricType"))
 	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 
@@ -113,8 +109,6 @@ func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-
 	l := logger.NewLogger().Get()
 
 	// Decode the incoming JSON request into the Metric struct
@@ -173,16 +167,24 @@ func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
 func (mh *MetricHandler) SetRouter() {
 	mh.router.Use(middlewares.LoggingMiddleware)
 	mh.router.Use(middleware.Recoverer)
+	mh.router.Use(middlewares.GzipMiddleware)
+	mh.router.Use(middlewares.BrotliMiddleware)
 
 	mh.router.Route("/", func(r chi.Router) {
-		r.Get("/", mh.Render)
+		r.Route("/", func(r chi.Router) {
+			r.With(middlewares.ContentMiddleware("text/html")).Get("/", mh.Render)
+		})
 		r.Route("/update", func(r chi.Router) {
-			r.Post("/", mh.UpdateModel)
-			r.Post("/{metricType}/{metricName}/{value}", mh.Update)
+			r.With(middlewares.ContentMiddleware("application/json")).Post("/", mh.UpdateModel)
+		})
+		r.Route("/update/{metricType}/{metricName}/{value}", func(r chi.Router) {
+			r.With(middlewares.ContentMiddleware("application/text")).Post("/", mh.Update)
 		})
 		r.Route("/value", func(r chi.Router) {
-			r.Post("/", mh.RetrieveModel)
-			r.Get("/{metricType}/{metricName}", mh.Retrieve)
+			r.With(middlewares.ContentMiddleware("application/json")).Post("/", mh.RetrieveModel)
+		})
+		r.Route("/value/{metricType}/{metricName}", func(r chi.Router) {
+			r.With(middlewares.ContentMiddleware("application/text")).Get("/", mh.Retrieve)
 		})
 	})
 }
