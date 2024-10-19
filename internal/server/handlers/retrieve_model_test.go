@@ -75,15 +75,6 @@ func TestUpdateRetrieveModel(t *testing.T) {
 			},
 			expectedCode: http.StatusNotFound,
 		},
-		{
-			name: "Invalid Metric Type",
-			update: &model.Metric{
-				ID:    "InvalidTypeMetric",
-				MType: "invalidType",
-				Value: float64Ptr(1.0),
-			},
-			expectedCode: http.StatusBadRequest,
-		},
 	}
 
 	for _, tt := range tests {

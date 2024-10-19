@@ -3,6 +3,7 @@ package handlers
 import (
 	"encoding/json"
 	"net/http"
+	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -39,7 +40,34 @@ func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
 	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 	metricValue := chi.URLParam(r, "value")
 
-	if err := mh.st.UpdateMetric(metricType, metricName, metricValue); err != nil {
+	metric := &model.Metric{
+		ID: metricName,
+	}
+	switch metricType {
+	case domain.Gauge:
+		value, err := strconv.ParseFloat(metricValue, 64)
+		if err != nil {
+			log.Error().Err(err).Msg("error parsing float value")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+		metric.MType = metricType
+		metric.Value = &value
+	case domain.Counter:
+		value, err := strconv.ParseInt(metricValue, 10, 64)
+		if err != nil {
+			log.Error().Err(err).Msg("error parsing int64 value")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+
+			return
+		}
+		metric.MType = metricType
+		metric.Delta = &value
+	}
+
+	if err := mh.st.Update(metric); err != nil {
+		log.Error().Err(err).Msg("error updating metric")
 		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
@@ -61,7 +89,7 @@ func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Update the metric in the storage and retrieve the updated values
-	err := mh.st.UpdateMetricModel(metric)
+	err := mh.st.Update(metric)
 	if err != nil {
 		l.Error().Err(err).Msgf("UpdateModel: Failed to update metric %s", metric.ID)
 		http.Error(w, "Failed to update metric", http.StatusBadRequest)
@@ -70,9 +98,9 @@ func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare the updated metric to be returned
-	responseMetric, err := mh.st.GetMetricModel(metric)
-	if err != nil {
-		l.Error().Err(err).Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
+	responseMetric, found := mh.st.Get(metric.ID)
+	if found != true {
+		l.Error().Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
 		http.Error(w, "Failed to retrieve model from memory", http.StatusBadRequest)
 
 		return
@@ -87,18 +115,12 @@ func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 }
 
 func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
-	metricType := domain.MetricType(chi.URLParam(r, "metricType"))
+
 	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 
-	//nolint:exhaustruct
-	metric := &model.Metric{
-		MType: metricType,
-		ID:    metricName,
-	}
-
-	metricModel, err := mh.st.GetMetricModel(metric)
-	if err != nil {
-		log.Error().Err(err).Msgf("Retrieve: Failed to retrieve model from memory %s", metric.ID)
+	metricModel, found := mh.st.Get(metricName)
+	if found != true {
+		log.Error().Msgf("Retrieve: Failed to retrieve model from memory %s", metricName)
 		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
 
 		return
@@ -121,16 +143,16 @@ func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Prepare the updated metric to be returned
-	responseMetric, err := mh.st.GetMetricModel(metric)
-	if err != nil {
-		l.Error().Err(err).Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
+	responseMetric, found := mh.st.Get(metric.ID)
+	if found != true {
+		l.Error().Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
 		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
 
 		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(responseMetric)
+	err := json.NewEncoder(w).Encode(responseMetric)
 	if err != nil {
 		l.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(w, "Failed to process response", http.StatusInternalServerError)
@@ -141,11 +163,9 @@ func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
 	l := logger.NewLogger().Get()
 
 	page := struct {
-		Gauges   map[domain.MetricName]float64
-		Counters map[domain.MetricName]int64
+		Metrics map[domain.MetricName]model.Metric
 	}{
-		Gauges:   mh.st.GetGauges(),
-		Counters: mh.st.GetCounters(),
+		Metrics: mh.st.GetAll(),
 	}
 
 	reader := templates.NewEmbedReader()

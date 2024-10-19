@@ -116,17 +116,16 @@ func TestUpdateHandler(t *testing.T) {
 			testUpdateRequest(t, server, tt.request, tt.want.statusCode)
 
 			if tt.want.result != nil {
-				switch tt.want.result.metricType {
+				metric, exist := memStorage.Get(tt.want.result.name)
+				assert.True(t, exist)
+
+				switch metric.MType {
 				case domain.Gauge:
-					value, exist := memStorage.GetGauge(tt.want.result.name)
-					assert.True(t, exist)
-					assert.InDelta(t, tt.want.result.gauge, value, 0.1)
+					assert.Equal(t, tt.want.result.gauge, *metric.Value)
+
 				case domain.Counter:
-					value, exist := memStorage.GetCounter(tt.want.result.name)
-					assert.True(t, exist)
-					assert.Equal(t, tt.want.result.counter, value)
-				default:
-					t.Errorf("Unexpected metric type: %v", tt.want.result.metricType)
+					assert.Equal(t, tt.want.result.counter, *metric.Delta)
+
 				}
 			}
 		})

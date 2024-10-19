@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"github.com/npavlov/go-metrics-service/internal/model"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -22,23 +23,31 @@ func TestGetRenderHandler(t *testing.T) {
 	r := chi.NewRouter()
 	handlers.NewMetricsHandler(memStorage, r).SetRouter()
 
-	// Sample data to return from the mock repository
-	gauges := map[domain.MetricName]string{
-		"GaugeMetric1": "123.45",
-		"GaugeMetric2": "678.90",
-	}
-	counters := map[domain.MetricName]string{
-		"CounterMetric1": "100",
-		"CounterMetric2": "200",
+	metrics := []model.Metric{
+		{
+			ID:    "GaugeMetric1",
+			MType: domain.Gauge,
+			Value: float64Ptr(123.45),
+		},
+		{
+			ID:    "GaugeMetric2",
+			MType: domain.Gauge,
+			Value: float64Ptr(678.90),
+		},
+		{
+			ID:    "CounterMetric1",
+			MType: domain.Counter,
+			Delta: int64Ptr(100),
+		},
+		{
+			ID:    "CounterMetric2",
+			MType: domain.Counter,
+			Delta: int64Ptr(200),
+		},
 	}
 
-	for k, v := range gauges {
-		err := memStorage.UpdateMetric(domain.Gauge, k, v)
-		require.NoError(t, err)
-	}
-
-	for k, v := range counters {
-		err := memStorage.UpdateMetric(domain.Counter, k, v)
+	for _, v := range metrics {
+		err := memStorage.Update(&v)
 		require.NoError(t, err)
 	}
 

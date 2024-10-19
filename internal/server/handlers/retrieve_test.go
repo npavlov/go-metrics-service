@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"github.com/npavlov/go-metrics-service/internal/model"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -22,27 +23,19 @@ type want struct {
 func TestRetrieveHandler(t *testing.T) {
 	t.Parallel()
 
-	type metric struct {
-		name       domain.MetricName
-		metricType domain.MetricType
-		gauge      string
-		counter    string
-	}
-
 	tests := []struct {
 		name    string
 		request string
-		data    *metric
+		data    *model.Metric
 		want    want
 	}{
 		{
 			name:    "Good value simple #1",
 			request: "/value/gauge/MSpanInuse",
-			data: &metric{
-				name:       "MSpanInuse",
-				metricType: "gauge",
-				gauge:      "23360",
-				counter:    "",
+			data: &model.Metric{
+				ID:    "MSpanInuse",
+				MType: domain.Gauge,
+				Value: float64Ptr(23360),
 			},
 			want: want{
 				statusCode: http.StatusOK,
@@ -52,11 +45,10 @@ func TestRetrieveHandler(t *testing.T) {
 		{
 			name:    "Good value simple #2",
 			request: "/value/counter/PollCount",
-			data: &metric{
-				name:       "PollCount",
-				metricType: "counter",
-				counter:    "100",
-				gauge:      "",
+			data: &model.Metric{
+				ID:    "PollCount",
+				MType: domain.Counter,
+				Delta: int64Ptr(100),
 			},
 			want: want{
 				statusCode: http.StatusOK,
@@ -97,15 +89,9 @@ func TestRetrieveHandler(t *testing.T) {
 			defer server.Close()
 
 			if tt.data != nil {
-				switch tt.data.metricType {
-				case domain.Counter:
-					err := memStorage.UpdateMetric(domain.Counter, tt.data.name, tt.data.counter)
-					require.NoError(t, err)
-				case domain.Gauge:
-					err := memStorage.UpdateMetric(domain.Gauge, tt.data.name, tt.data.gauge)
-					require.NoError(t, err)
-				default:
-					t.Errorf("Invalid metric type: %s", tt.data.metricType)
+				err := memStorage.Update(tt.data)
+				if err != nil {
+					t.Fatal(err)
 				}
 			}
 

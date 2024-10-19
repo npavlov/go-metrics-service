@@ -49,23 +49,24 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	for _, metric := range metrics {
 		switch metric.MType {
 		case domain.Gauge:
-			val, ok := serverStorage.GetGauge(metric.ID)
+			m, ok := serverStorage.Get(metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Value)
-			assert.InDelta(t, original, val, 00000.1)
+			assert.InDelta(t, original, *m.Value, 00000.1)
 		case domain.Counter:
-			val, ok := serverStorage.GetCounter(metric.ID)
+			m, ok := serverStorage.Get(metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Delta)
-			assert.Equal(t, original, val)
+			assert.Equal(t, original, *m.Delta)
 		}
 	}
 
+	collector.UpdateMetrics()
+	collector.UpdateMetrics()
 	reporter.SendMetrics(context.TODO())
-	reporter.SendMetrics(context.TODO())
-	counter, ok := serverStorage.GetCounter(domain.PollCount)
+	m, ok := serverStorage.Get(domain.PollCount)
 	assert.True(t, ok)
-	assert.Equal(t, int64(3), counter)
+	assert.Equal(t, int64(3), *m.Delta)
 }
 
 func TestMetricReporter_StartReporter(t *testing.T) {
@@ -104,9 +105,9 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 
 	wg.Wait() // Wait for the goroutine to finish
 
-	counter, ok := serverStorage.GetCounter(domain.PollCount)
+	m, ok := serverStorage.Get(domain.PollCount)
 	assert.True(t, ok)
-	assert.Equal(t, int64(1), counter)
+	assert.Equal(t, int64(1), *m.Delta)
 
 	assert.Equal(t, context.Canceled, ctx.Err())
 }

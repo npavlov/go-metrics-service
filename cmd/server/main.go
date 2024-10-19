@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	"github.com/npavlov/go-metrics-service/internal/utils"
+	"github.com/pkg/errors"
 	"net/http"
 	"time"
 
@@ -25,7 +28,12 @@ func main() {
 		FromEnv().
 		FromFlags().Build()
 
-	var memStorage storage.Repository = storage.NewMemStorage()
+	l.Info().Interface("config", cfg).Msg("Configuration loaded")
+
+	ctx := utils.WithSignalCancel(context.Background())
+
+	var memStorage storage.Repository = storage.NewMemStorage().WithBackup(ctx, cfg)
+
 	r := chi.NewRouter()
 	var router handlers.Handlers = handlers.NewMetricsHandler(memStorage, r)
 	router.SetRouter()
@@ -41,8 +49,19 @@ func main() {
 		WriteTimeout: 1 * time.Second,
 		Handler:      r,
 	}
-	err = server.ListenAndServe()
-	if err != nil {
+
+	go func() {
+		// Wait for the context to be done (i.e., signal received)
+		<-ctx.Done()
+
+		if err := server.Shutdown(ctx); err != nil {
+			l.Error().Err(err).Msg("Error shutting down server")
+		}
+	}()
+
+	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		l.Fatal().Err(err).Msg("Error starting server")
 	}
+
+	l.Info().Msg("Server shut down")
 }

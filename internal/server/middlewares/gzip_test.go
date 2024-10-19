@@ -18,6 +18,8 @@ import (
 func TestGzipMiddleware(t *testing.T) {
 	t.Parallel()
 
+	md := middlewares.ContentMiddleware("application/json")
+
 	t.Run("ShouldCompressResponseWhenClientAcceptsGzip", func(t *testing.T) {
 		t.Parallel()
 
@@ -28,8 +30,6 @@ func TestGzipMiddleware(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		req.Header.Set("Accept-Encoding", "gzip")
 		rec := httptest.NewRecorder()
-
-		md := middlewares.ContentMiddleware("application/json")
 
 		middlewares.GzipMiddleware(md(handler)).ServeHTTP(rec, req)
 
@@ -62,7 +62,7 @@ func TestGzipMiddleware(t *testing.T) {
 		req := httptest.NewRequest(http.MethodGet, "/", nil)
 		rec := httptest.NewRecorder()
 
-		middlewares.GzipMiddleware(handler).ServeHTTP(rec, req)
+		middlewares.GzipMiddleware(md(handler)).ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Empty(t, rec.Header().Get("Content-Encoding"))
@@ -80,7 +80,7 @@ func TestGzipMiddleware(t *testing.T) {
 		req.Header.Set("Accept-Encoding", "br")
 		rec := httptest.NewRecorder()
 
-		middlewares.GzipMiddleware(handler).ServeHTTP(rec, req)
+		middlewares.GzipMiddleware(md(handler)).ServeHTTP(rec, req)
 
 		assert.Equal(t, http.StatusOK, rec.Code)
 		assert.Empty(t, rec.Header().Get("Content-Encoding"))
@@ -99,7 +99,7 @@ func TestGzipMiddleware(t *testing.T) {
 		req.Header.Set("Accept-Encoding", "gzip")
 		rec := httptest.NewRecorder()
 
-		middlewares.GzipMiddleware(handler).ServeHTTP(rec, req)
+		middlewares.GzipMiddleware(md(handler)).ServeHTTP(rec, req)
 
 		// Verify gzip writer is closed properly by checking content length
 		assert.Equal(t, "gzip", rec.Header().Get("Content-Encoding"))

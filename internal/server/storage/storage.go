@@ -1,8 +1,15 @@
 package storage
 
 import (
-	"strconv"
+	"context"
+	"encoding/json"
+	"github.com/npavlov/go-metrics-service/internal/logger"
+	"github.com/npavlov/go-metrics-service/internal/server/config"
+	"github.com/rs/zerolog"
+	"io/fs"
+	"os"
 	"sync"
+	"time"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
@@ -10,10 +17,7 @@ import (
 )
 
 const (
-	errInvalidGauge   = "invalid gauge value"
-	errInvalidCounter = "invalid counter value"
-	errUnknownMetric  = "unknown metric type"
-	errNoValue        = "no value provided"
+	errNoValue = "no value provided"
 )
 
 type Number interface {
@@ -21,65 +25,124 @@ type Number interface {
 }
 
 type Repository interface {
-	GetGauge(name domain.MetricName) (float64, bool)
-	GetCounter(name domain.MetricName) (int64, bool)
-	GetGauges() map[domain.MetricName]float64
-	GetCounters() map[domain.MetricName]int64
-	UpdateMetric(mType domain.MetricType, name domain.MetricName, value string) error
-	UpdateMetricModel(metric *model.Metric) error
-	GetMetricModel(metric *model.Metric) (*model.Metric, error)
+	Get(name domain.MetricName) (*model.Metric, bool)
+	GetAll() map[domain.MetricName]model.Metric
+	Update(metric *model.Metric) error
+	WithBackup(ctx context.Context, cfg *config.Config) *MemStorage
 }
 
 type MemStorage struct {
-	mu       *sync.RWMutex
-	gauges   map[domain.MetricName]float64
-	counters map[domain.MetricName]int64
+	mu      *sync.RWMutex
+	metrics map[domain.MetricName]model.Metric
+	cfg     *config.Config
+	ctx     context.Context
+	l       *zerolog.Logger
 }
 
 // NewMemStorage - constructor for MemStorage.
 func NewMemStorage() *MemStorage {
-	return &MemStorage{
-		gauges:   make(map[domain.MetricName]float64),
-		counters: make(map[domain.MetricName]int64),
-		mu:       &sync.RWMutex{},
+	ms := &MemStorage{
+		metrics: make(map[domain.MetricName]model.Metric),
+		mu:      &sync.RWMutex{},
+		l:       logger.NewLogger().Get(),
+	}
+
+	return ms
+}
+
+func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemStorage {
+	ms.cfg = cfg
+	ms.ctx = ctx
+
+	err := ms.restore()
+	if err != nil {
+		ms.l.Error().Err(err).Msg("failed to restore metrics")
+
+		return nil
+	}
+
+	ms.l.Info().Msg("Metrics restored successfully")
+
+	ms.startBackup()
+
+	return ms
+}
+
+func (ms *MemStorage) startBackup() {
+	if ms.cfg.StoreInterval > 0 {
+		go func() {
+			for {
+				select {
+				case <-ms.ctx.Done():
+					ms.l.Info().Msg("Stopping storage backup")
+
+					return
+				default:
+					ms.mu.RLock()
+					err := ms.saveFile()
+					ms.mu.RUnlock()
+					if err != nil {
+						ms.l.Error().Err(err).Msg("Error saving file")
+						panic(err)
+					}
+					time.Sleep(time.Duration(ms.cfg.StoreInterval) * time.Second)
+				}
+			}
+		}()
 	}
 }
 
-func (ms *MemStorage) GetGauges() map[domain.MetricName]float64 {
+func (ms *MemStorage) restore() error {
+	file, err := os.ReadFile(ms.cfg.File)
+	if err != nil {
+		ms.l.Error().Err(err).Msg("failed to load output")
+	}
+	newStorage := make(map[domain.MetricName]model.Metric)
+	err = json.Unmarshal(file, &newStorage)
+
+	if err != nil {
+		ms.l.Error().Err(err).Msg("failed to unmarshal output")
+	}
+
+	ms.metrics = newStorage
+
+	return nil
+}
+
+func (ms *MemStorage) saveFile() error {
+	file, err := json.MarshalIndent(ms.metrics, "", "  ")
+
+	if err != nil {
+		return err
+	}
+
+	err = os.WriteFile(ms.cfg.File, file, fs.ModePerm)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (ms *MemStorage) GetAll() map[domain.MetricName]model.Metric {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
-	return cloneMap(ms.gauges)
+	return cloneMap(ms.metrics)
 }
 
-func (ms *MemStorage) GetCounters() map[domain.MetricName]int64 {
+// Get - retrieves the value of a Metric.
+func (ms *MemStorage) Get(name domain.MetricName) (*model.Metric, bool) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
+	value, exists := ms.metrics[name]
 
-	return cloneMap(ms.counters)
+	return &value, exists
 }
 
-// GetGauge - retrieves the value of a gauge.
-func (ms *MemStorage) GetGauge(name domain.MetricName) (float64, bool) {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	value, exists := ms.gauges[name]
-
-	return value, exists
-}
-
-// GetCounter - retrieves the value of a counter.
-func (ms *MemStorage) GetCounter(name domain.MetricName) (int64, bool) {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-	value, exists := ms.counters[name]
-
-	return value, exists
-}
-
-// Generic function to clone a map with either int64 or float64 values.
-func cloneMap[K comparable, V Number](original map[K]V) map[K]V {
-	cloned := make(map[K]V)
+// Generic function to clone a map of Metrics.
+func cloneMap(original map[domain.MetricName]model.Metric) map[domain.MetricName]model.Metric {
+	cloned := make(map[domain.MetricName]model.Metric)
 	for key, value := range original {
 		cloned[key] = value
 	}
@@ -87,32 +150,7 @@ func cloneMap[K comparable, V Number](original map[K]V) map[K]V {
 	return cloned
 }
 
-func (ms *MemStorage) UpdateMetric(mType domain.MetricType, name domain.MetricName, value string) error {
-	ms.mu.Lock()
-	defer ms.mu.Unlock()
-
-	switch mType {
-	case domain.Gauge:
-		value, err := strconv.ParseFloat(value, 64)
-		if err != nil {
-			return errors.Wrap(err, errInvalidGauge)
-		}
-		ms.gauges[name] = value
-	case domain.Counter:
-		value, err := strconv.ParseInt(value, 10, 64)
-		if err != nil {
-			return errors.Wrap(err, errInvalidCounter)
-		}
-		ms.counters[name] += value
-	default:
-
-		return errors.New(errUnknownMetric)
-	}
-
-	return nil
-}
-
-func (ms *MemStorage) UpdateMetricModel(metric *model.Metric) error {
+func (ms *MemStorage) Update(metric *model.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -120,38 +158,14 @@ func (ms *MemStorage) UpdateMetricModel(metric *model.Metric) error {
 		return errors.New(errNoValue)
 	}
 
-	switch metric.MType {
-	case domain.Gauge:
-		ms.gauges[metric.ID] = *(metric).Value
-	case domain.Counter:
-		ms.counters[metric.ID] += *(metric).Delta
-	default:
-		return errors.New(errUnknownMetric)
+	ms.metrics[metric.ID] = *metric
+
+	if ms.cfg != nil && ms.cfg.StoreInterval == 0 {
+		err := ms.saveFile()
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil
-}
-
-func (ms *MemStorage) GetMetricModel(metric *model.Metric) (*model.Metric, error) {
-	ms.mu.RLock()
-	defer ms.mu.RUnlock()
-
-	switch metric.MType {
-	case domain.Gauge:
-		if val, exists := ms.gauges[metric.ID]; exists {
-			return &model.Metric{ID: metric.ID, MType: metric.MType, Value: &val}, nil
-		}
-
-		return nil, errors.New(errInvalidGauge)
-
-	case domain.Counter:
-		if delta, exists := ms.counters[metric.ID]; exists {
-			return &model.Metric{ID: metric.ID, MType: metric.MType, Delta: &delta}, nil
-		}
-
-		return nil, errors.New(errInvalidCounter)
-
-	default:
-		return nil, errors.New(errUnknownMetric)
-	}
 }
