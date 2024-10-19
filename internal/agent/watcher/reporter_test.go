@@ -61,8 +61,7 @@ func TestMetricService_SendMetrics(t *testing.T) {
 		}
 	}
 
-	collector.UpdateMetrics()
-	collector.UpdateMetrics()
+	reporter.SendMetrics(context.TODO())
 	reporter.SendMetrics(context.TODO())
 	m, ok := serverStorage.Get(domain.PollCount)
 	assert.True(t, ok)

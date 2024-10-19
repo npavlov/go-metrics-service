@@ -26,6 +26,7 @@ type Number interface {
 
 type Repository interface {
 	Get(name domain.MetricName) (*model.Metric, bool)
+	Create(metric *model.Metric) error
 	GetAll() map[domain.MetricName]model.Metric
 	Update(metric *model.Metric) error
 	WithBackup(ctx context.Context, cfg *config.Config) *MemStorage
@@ -151,6 +152,26 @@ func cloneMap(original map[domain.MetricName]model.Metric) map[domain.MetricName
 }
 
 func (ms *MemStorage) Update(metric *model.Metric) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	if metric.Delta == nil && metric.Value == nil {
+		return errors.New(errNoValue)
+	}
+
+	ms.metrics[metric.ID] = *metric
+
+	if ms.cfg != nil && ms.cfg.StoreInterval == 0 {
+		err := ms.saveFile()
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (ms *MemStorage) Create(metric *model.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
