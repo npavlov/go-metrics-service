@@ -1,11 +1,12 @@
 package handlers_test
 
 import (
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/npavlov/go-metrics-service/internal/model"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"

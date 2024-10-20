@@ -2,6 +2,8 @@ package handlers
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/npavlov/go-metrics-service/internal/domain"
@@ -10,8 +12,9 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/server/templates"
+	validators "github.com/npavlov/go-metrics-service/internal/validator"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
-	"net/http"
 )
 
 type Handlers interface {
@@ -24,13 +27,14 @@ type Handlers interface {
 }
 
 type MetricHandler struct {
-	router *chi.Mux
-	st     storage.Repository
+	router    *chi.Mux
+	st        storage.Repository
+	validator validators.Validator
 }
 
 // NewMetricsHandler - constructor for MetricsHandler.
 func NewMetricsHandler(st storage.Repository, router *chi.Mux) *MetricHandler {
-	return &MetricHandler{router: router, st: st}
+	return &MetricHandler{router: router, st: st, validator: validators.NewMetricsValidator()}
 }
 
 func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
@@ -40,40 +44,20 @@ func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
 	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 	metricValue := chi.URLParam(r, "value")
 
-	existingMetric, found := mh.st.Get(metricName)
+	newMetric, err := mh.validator.FromVars(metricName, metricType, metricValue)
+	if err != nil {
+		l.Error().Err(err).Msg("error validating structure")
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
-	if found {
-		newMetric, err := existingMetric.SetStringValue(metricValue)
-		if err != nil {
-			l.Error().Err(err).Msg("error parsing value")
-			http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
 
-			return
-		}
+	_, err = mh.updateAndReturn(newMetric)
+	if err != nil {
+		l.Error().Err(err).Msg("error updating metric")
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
-		err = mh.st.Update(newMetric)
-		if err != nil {
-			l.Error().Err(err).Msg("error updating existingMetric")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-			return
-		}
-	} else {
-		newMetric, err := model.NewMetric(metricName, metricType).SetStringValue(metricValue)
-
-		if err != nil {
-			l.Error().Err(err).Msg("error parsing value")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-			return
-		}
-
-		if err := mh.st.Create(newMetric); err != nil {
-			log.Error().Err(err).Msg("error creating existingMetric")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-			return
-		}
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -82,51 +66,61 @@ func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
 func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
 	l := logger.NewLogger().Get()
 
-	// Decode the incoming JSON request into the Metric struct
-	var metric *model.Metric
-	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-		l.Error().Err(err).Msg("UpdateModel: Invalid JSON input")
-		http.Error(w, "Invalid JSON input", http.StatusBadRequest)
+	newMetric, err := mh.validator.FromBody(r.Body)
+	if err != nil {
+		l.Error().Err(err).Msg("error validating structure")
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	existingMetric, found := mh.st.Get(metric.ID)
+	metric, err := mh.updateAndReturn(newMetric)
+	if err != nil {
+		l.Error().Err(err).Msg("error updating metric")
+		http.Error(w, err.Error(), http.StatusBadRequest)
 
-	if found {
-		existingMetric.SetValue(metric.Delta, metric.Value)
-
-		err := mh.st.Update(existingMetric)
-		if err != nil {
-			l.Error().Err(err).Msg("error updating existingMetric")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-			return
-		}
-		metric = existingMetric
-	} else {
-		if err := mh.st.Create(metric); err != nil {
-			log.Error().Err(err).Msg("error creating existingMetric")
-			http.Error(w, err.Error(), http.StatusBadRequest)
-
-			return
-		}
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(metric)
+	err = json.NewEncoder(w).Encode(metric)
 	if err != nil {
 		l.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(w, "Failed to process response", http.StatusInternalServerError)
 	}
 }
 
-func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
+func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric, error) {
+	existingMetric, found := mh.st.Get(newMetric.ID)
 
+	if found {
+		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
+
+		err := mh.st.Update(existingMetric)
+		if err != nil {
+			log.Error().Err(err).Msg("error updating existingMetric")
+
+			return nil, errors.Wrap(err, "error updating existingMetric")
+		}
+
+		return existingMetric, nil
+	}
+
+	err := mh.st.Create(newMetric)
+	if err != nil {
+		log.Error().Err(err).Msg("error creating Metric")
+
+		return nil, errors.Wrap(err, "error creating new Metric")
+	}
+
+	return newMetric, nil
+}
+
+func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
 	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
 
 	metricModel, found := mh.st.Get(metricName)
-	if found != true {
+	if !found {
 		log.Error().Msgf("Retrieve: Failed to retrieve model from memory %s", metricName)
 		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
 
@@ -151,7 +145,7 @@ func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
 
 	// Prepare the updated metric to be returned
 	responseMetric, found := mh.st.Get(metric.ID)
-	if found != true {
+	if !found {
 		l.Error().Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
 		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
 

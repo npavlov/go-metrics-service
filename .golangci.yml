@@ -32,6 +32,9 @@ issues:
     - path: '(.+)(?:brotli|gzip|reporter|wrapper)\.go'
       linters:
         - wrapcheck
+    - path: '(.+)validator\.go'
+      linters:
+        - exhaustruct
 linters-settings:
   depguard:
     rules:
@@ -48,6 +51,7 @@ linters-settings:
           - github.com/npavlov/go-metrics-service/internal/server/handlers
           - github.com/npavlov/go-metrics-service/internal/domain
           - github.com/npavlov/go-metrics-service/internal/model
+          - github.com/npavlov/go-metrics-service/internal/validator
           - github.com/go-chi/chi/v5/middleware'
           - github.com/go-chi/chi/v5
           - github.com/npavlov/go-metrics-service/internal/logger
@@ -81,3 +85,4 @@ linters-settings:
           - compress/gzip
           - bytes
           - github.com/andybalholm/brotli
+          - github.com/go-playground/validator/v10

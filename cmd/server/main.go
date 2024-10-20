@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"github.com/npavlov/go-metrics-service/internal/utils"
-	"github.com/pkg/errors"
 	"net/http"
 	"time"
 
@@ -13,6 +11,8 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	"github.com/npavlov/go-metrics-service/internal/utils"
+	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
 

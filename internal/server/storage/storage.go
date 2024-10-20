@@ -3,17 +3,17 @@ package storage
 import (
 	"context"
 	"encoding/json"
-	"github.com/npavlov/go-metrics-service/internal/logger"
-	"github.com/npavlov/go-metrics-service/internal/server/config"
-	"github.com/rs/zerolog"
 	"io/fs"
 	"os"
 	"sync"
 	"time"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 const (
@@ -36,7 +36,6 @@ type MemStorage struct {
 	mu      *sync.RWMutex
 	metrics map[domain.MetricName]model.Metric
 	cfg     *config.Config
-	ctx     context.Context
 	l       *zerolog.Logger
 }
 
@@ -53,28 +52,26 @@ func NewMemStorage() *MemStorage {
 
 func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemStorage {
 	ms.cfg = cfg
-	ms.ctx = ctx
 
 	err := ms.restore()
 	if err != nil {
+		// Continue on error
 		ms.l.Error().Err(err).Msg("failed to restore metrics")
-
-		return nil
 	}
 
 	ms.l.Info().Msg("Metrics restored successfully")
 
-	ms.startBackup()
+	ms.startBackup(ctx)
 
 	return ms
 }
 
-func (ms *MemStorage) startBackup() {
+func (ms *MemStorage) startBackup(ctx context.Context) {
 	if ms.cfg.StoreInterval > 0 {
 		go func() {
 			for {
 				select {
-				case <-ms.ctx.Done():
+				case <-ctx.Done():
 					ms.l.Info().Msg("Stopping storage backup")
 
 					return
@@ -97,12 +94,15 @@ func (ms *MemStorage) restore() error {
 	file, err := os.ReadFile(ms.cfg.File)
 	if err != nil {
 		ms.l.Error().Err(err).Msg("failed to load output")
+
+		return errors.Wrap(err, "failed to load output")
 	}
 	newStorage := make(map[domain.MetricName]model.Metric)
 	err = json.Unmarshal(file, &newStorage)
-
 	if err != nil {
 		ms.l.Error().Err(err).Msg("failed to unmarshal output")
+
+		return errors.Wrap(err, "failed to unmarshal output")
 	}
 
 	ms.metrics = newStorage
@@ -112,14 +112,13 @@ func (ms *MemStorage) restore() error {
 
 func (ms *MemStorage) saveFile() error {
 	file, err := json.MarshalIndent(ms.metrics, "", "  ")
-
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to marshal output")
 	}
 
 	err = os.WriteFile(ms.cfg.File, file, fs.ModePerm)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to save output")
 	}
 
 	return nil

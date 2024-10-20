@@ -7,18 +7,11 @@ import (
 )
 
 type Metric struct {
-	ID      domain.MetricName   `json:"id"`
-	MType   domain.MetricType   `json:"type"`
+	ID      domain.MetricName   `json:"id"              validate:"required"`
+	MType   domain.MetricType   `json:"type"            validate:"required,oneof=counter gauge"`
 	MSource domain.MetricSource `json:"-"`
 	Delta   *int64              `json:"delta,omitempty"`
 	Value   *float64            `json:"value,omitempty"`
-}
-
-func NewMetric(id domain.MetricName, mType domain.MetricType) *Metric {
-	return &Metric{
-		ID:    id,
-		MType: mType,
-	}
 }
 
 // SetValue - the method that allows to encapsulate value set logic for different types.
@@ -46,31 +39,6 @@ func (m *Metric) SetValue(delta *int64, value *float64) {
 			return
 		}
 	}
-}
-
-// SetStringValue - the method that allows to encapsulate value set logic for different types.
-func (m *Metric) SetStringValue(value string) (*Metric, error) {
-	if m.MType == domain.Gauge {
-		newVal, err := strconv.ParseFloat(value, 64)
-
-		if err != nil {
-			return nil, err
-		}
-
-		m.SetValue(nil, &newVal)
-	}
-
-	if m.MType == domain.Counter {
-		newVal, err := strconv.ParseInt(value, 10, 64)
-
-		if err != nil {
-			return nil, err
-		}
-
-		m.SetValue(&newVal, nil)
-	}
-
-	return m, nil
 }
 
 // GetValue - the method that gets value for dedicated type.

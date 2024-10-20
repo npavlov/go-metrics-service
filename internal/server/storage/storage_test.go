@@ -3,26 +3,31 @@ package storage_test
 import (
 	"context"
 	"encoding/json"
+	"os"
+	"sync"
+	"testing"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"os"
-	"sync"
-	"testing"
 )
 
 func TestMemStorageInitialization(t *testing.T) {
+	t.Parallel()
+
 	memStorage := storage.NewMemStorage()
 
 	assert.NotNil(t, memStorage)
 	assert.NotNil(t, memStorage.GetAll())
-	assert.Equal(t, 0, len(memStorage.GetAll()))
+	assert.Empty(t, memStorage.GetAll())
 }
 
 func TestMemStorageUpdateAndGet(t *testing.T) {
+	t.Parallel()
+
 	memStorage := storage.NewMemStorage()
 
 	// Prepare metric
@@ -54,10 +59,12 @@ func TestMemStorageUpdateAndGet(t *testing.T) {
 
 	retrievedMetric2, exists := memStorage.Get(domain.MetricName("test_gauge"))
 	assert.True(t, exists)
-	assert.Equal(t, gaugeValue, *retrievedMetric2.Value)
+	assert.InDelta(t, gaugeValue, *retrievedMetric2.Value, 0.0001)
 }
 
 func TestMemStorageGetAll(t *testing.T) {
+	t.Parallel()
+
 	memStorage := storage.NewMemStorage()
 
 	// Prepare metrics
@@ -81,12 +88,14 @@ func TestMemStorageGetAll(t *testing.T) {
 	// Get all metrics
 	allMetrics := memStorage.GetAll()
 
-	assert.Equal(t, 2, len(allMetrics))
-	assert.Equal(t, delta, *allMetrics[domain.MetricName("counter_metric")].Delta)
-	assert.Equal(t, gaugeValue, *allMetrics[domain.MetricName("gauge_metric")].Value)
+	assert.Len(t, allMetrics, 2)
+	assert.Equal(t, delta, *allMetrics["counter_metric"].Delta)
+	assert.InDelta(t, gaugeValue, *allMetrics["gauge_metric"].Value, 0000.1)
 }
 
 func TestMemStorageBackupAndRestore(t *testing.T) {
+	t.Parallel()
+
 	// Setup temporary file for testing backup/restore
 	tmpFile := "test_metrics.json"
 	defer func(name string) {
@@ -132,20 +141,22 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	err = json.Unmarshal(fileContent, &restoredData)
 	require.NoError(t, err)
 
-	assert.Equal(t, delta, *restoredData[domain.MetricName("backup_counter")].Delta)
-	assert.Equal(t, gaugeValue, *restoredData[domain.MetricName("backup_gauge")].Value)
+	assert.Equal(t, delta, *restoredData[("backup_counter")].Delta)
+	assert.InDelta(t, gaugeValue, *restoredData[("backup_gauge")].Value, 0.0001)
 
 	// Test restore functionality
 	memStorageRestored := storage.NewMemStorage().WithBackup(context.Background(), cfg)
-	assert.Equal(t, 2, len(memStorageRestored.GetAll()))
+	assert.Len(t, memStorageRestored.GetAll(), 2)
 }
 
 func TestMemStorageConcurrentUpdate(t *testing.T) {
+	t.Parallel()
+
 	memStorage := storage.NewMemStorage()
 	delta := int64(1)
 
 	var wg sync.WaitGroup
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -159,12 +170,14 @@ func TestMemStorageConcurrentUpdate(t *testing.T) {
 	}
 
 	wg.Wait()
-	retrievedMetric, exists := memStorage.Get(domain.MetricName("concurrent_counter"))
+	retrievedMetric, exists := memStorage.Get("concurrent_counter")
 	assert.True(t, exists)
 	assert.Equal(t, delta, *retrievedMetric.Delta)
 }
 
 func TestMemStorageUpdateWithNoValue(t *testing.T) {
+	t.Parallel()
+
 	memStorage := storage.NewMemStorage()
 	metric := &model.Metric{
 		ID:    domain.MetricName("invalid_metric"),
@@ -172,6 +185,39 @@ func TestMemStorageUpdateWithNoValue(t *testing.T) {
 	}
 
 	err := memStorage.Update(metric)
-	assert.Error(t, err)
+	require.Error(t, err)
 	assert.Equal(t, "no value provided", err.Error())
+}
+
+func TestMemStorageCreate(t *testing.T) {
+	t.Parallel()
+
+	memStorage := storage.NewMemStorage()
+
+	// Prepare metrics
+	delta := int64(150)
+	gaugeValue := float64(55.5)
+	metric1 := &model.Metric{
+		ID:    domain.MetricName("counter_metric"),
+		MType: domain.Counter,
+		Delta: &delta,
+	}
+	metric2 := &model.Metric{
+		ID:    domain.MetricName("gauge_metric"),
+		MType: domain.Gauge,
+		Value: &gaugeValue,
+	}
+
+	// Update storage
+	err := memStorage.Create(metric1)
+	require.NoError(t, err)
+	err = memStorage.Create(metric2)
+	require.NoError(t, err)
+
+	// Get all metrics
+	allMetrics := memStorage.GetAll()
+
+	assert.Len(t, allMetrics, 2)
+	assert.Equal(t, delta, *allMetrics["counter_metric"].Delta)
+	assert.InDelta(t, gaugeValue, *allMetrics["gauge_metric"].Value, 0000.1)
 }

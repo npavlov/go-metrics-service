@@ -121,11 +121,10 @@ func TestUpdateHandler(t *testing.T) {
 
 				switch metric.MType {
 				case domain.Gauge:
-					assert.Equal(t, tt.want.result.gauge, *metric.Value)
+					assert.InDelta(t, tt.want.result.gauge, *metric.Value, 0.0001)
 
 				case domain.Counter:
 					assert.Equal(t, tt.want.result.counter, *metric.Delta)
-
 				}
 			}
 		})

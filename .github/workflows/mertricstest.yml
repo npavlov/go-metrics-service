@@ -155,8 +155,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration9$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -file-storage-path=$TEMP_FILE \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -174,8 +174,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration10[AB]$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -192,8 +192,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration11$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -209,8 +209,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration12$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -225,8 +225,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration13$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -240,8 +240,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration14$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -key="${TEMP_FILE}" \
             -server-port=$SERVER_PORT \
