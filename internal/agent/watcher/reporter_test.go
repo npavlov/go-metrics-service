@@ -1,22 +1,29 @@
-package watcher
+package watcher_test
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/npavlov/go-metrics-service/internal/agent/stats"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/server/handlers"
-	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/stretchr/testify/assert"
+	"context"
 	"net/http/httptest"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/agent/stats"
+	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	"github.com/stretchr/testify/assert"
 )
 
-// Test for SendMetrics function
+// Test for SendMetrics function.
 func TestMetricService_SendMetrics(t *testing.T) {
+	t.Parallel()
+
 	var serverStorage storage.Repository = storage.NewMemStorage()
-	var r = chi.NewRouter()
-	handlers.NewMetricsHandler(serverStorage, r)
+	r := chi.NewRouter()
+	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
 
 	server := httptest.NewServer(r)
 	defer server.Close()
@@ -25,34 +32,81 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	st := stats.Stats{}
 	metrics := st.StatsToMetrics()
 	mux := sync.RWMutex{}
+	cfg := &config.Config{
+		Address:        server.URL,
+		PollInterval:   1,
+		ReportInterval: 1,
+	}
 
-	var collector = NewMetricCollector(&metrics, &mux)
-	var reporter = NewMetricReporter(&metrics, &mux, server.URL)
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg)
 	collector.UpdateMetrics()
 
 	// Run the SendMetrics function
-	reporter.SendMetrics()
+	reporter.SendMetrics(context.TODO())
 
 	// Compare values on client and on server
 	for _, metric := range metrics {
 		switch metric.MType {
 		case domain.Gauge:
-			val, ok := serverStorage.GetGauge(metric.ID)
+			m, ok := serverStorage.Get(metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Value)
-			assert.Equal(t, original, val)
+			assert.InDelta(t, original, *m.Value, 00000.1)
 		case domain.Counter:
-			val, ok := serverStorage.GetCounter(metric.ID)
+			m, ok := serverStorage.Get(metric.ID)
 			assert.True(t, ok)
-			original := *(metric.Counter)
-			assert.Equal(t, original, val)
-
+			original := *(metric.Delta)
+			assert.Equal(t, original, *m.Delta)
 		}
 	}
 
-	reporter.SendMetrics()
-	reporter.SendMetrics()
-	counter, ok := serverStorage.GetCounter(domain.PollCount)
+	reporter.SendMetrics(context.TODO())
+	reporter.SendMetrics(context.TODO())
+	m, ok := serverStorage.Get(domain.PollCount)
 	assert.True(t, ok)
-	assert.Equal(t, int64(3), counter)
+	assert.Equal(t, int64(3), *m.Delta)
+}
+
+func TestMetricReporter_StartReporter(t *testing.T) {
+	t.Parallel()
+
+	var serverStorage storage.Repository = storage.NewMemStorage()
+	r := chi.NewRouter()
+	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
+
+	server := httptest.NewServer(r)
+	defer server.Close()
+
+	// Create an instance of MetricService
+	st := stats.Stats{}
+	metrics := st.StatsToMetrics()
+	mux := sync.RWMutex{}
+	cfg := &config.Config{
+		Address:        server.URL,
+		PollInterval:   1,
+		ReportInterval: 2,
+	}
+
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg)
+	collector.UpdateMetrics()
+
+	var wg sync.WaitGroup
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	wg.Add(1)
+	go reporter.StartReporter(ctx, &wg)
+	// Wait for a short duration to allow the reporter to run
+	time.Sleep(2 * time.Second)
+	cancel() // Stop the reporter
+
+	wg.Wait() // Wait for the goroutine to finish
+
+	m, ok := serverStorage.Get(domain.PollCount)
+	assert.True(t, ok)
+	assert.Equal(t, int64(1), *m.Delta)
+
+	assert.Equal(t, context.Canceled, ctx.Err())
 }

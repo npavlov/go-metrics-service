@@ -1,40 +1,55 @@
-package handlers
+package handlers_test
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/npavlov/go-metrics-service/internal/model"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/go-resty/resty/v2"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestGetRenderHandler(t *testing.T) {
+	t.Parallel()
+
 	var memStorage storage.Repository = storage.NewMemStorage()
-	var r = chi.NewRouter()
-	NewMetricsHandler(memStorage, r)
+	r := chi.NewRouter()
+	handlers.NewMetricsHandler(memStorage, r).SetRouter()
 
-	// Sample data to return from the mock repository
-	gauges := map[domain.MetricName]string{
-		"GaugeMetric1": "123.45",
-		"GaugeMetric2": "678.90",
-	}
-	counters := map[domain.MetricName]string{
-		"CounterMetric1": "100",
-		"CounterMetric2": "200",
+	metrics := []model.Metric{
+		{
+			ID:    "GaugeMetric1",
+			MType: domain.Gauge,
+			Value: float64Ptr(123.45),
+		},
+		{
+			ID:    "GaugeMetric2",
+			MType: domain.Gauge,
+			Value: float64Ptr(678.90),
+		},
+		{
+			ID:    "CounterMetric1",
+			MType: domain.Counter,
+			Delta: int64Ptr(100),
+		},
+		{
+			ID:    "CounterMetric2",
+			MType: domain.Counter,
+			Delta: int64Ptr(200),
+		},
 	}
 
-	for k, v := range gauges {
-		err := memStorage.UpdateMetric(domain.Gauge, k, v)
-		assert.Nil(t, err)
-	}
-
-	for k, v := range counters {
-		err := memStorage.UpdateMetric(domain.Counter, k, v)
-		assert.Nil(t, err)
+	for _, v := range metrics {
+		err := memStorage.Update(&v)
+		require.NoError(t, err)
 	}
 
 	server := httptest.NewServer(r)
@@ -46,7 +61,7 @@ func TestGetRenderHandler(t *testing.T) {
 
 	res, err := req.Send()
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// Check the status code
 	assert.Equal(t, http.StatusOK, res.StatusCode())
 
