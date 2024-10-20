@@ -2,6 +2,7 @@ package validators
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"strconv"
 
@@ -11,26 +12,26 @@ import (
 	"github.com/pkg/errors"
 )
 
-// Validator - the interface to describe validator for metrics.
-type Validator interface {
+// MValidator - the interface to describe validators for metrics.
+type MValidator interface {
 	FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error)
 	FromBody(body io.ReadCloser) (*model.Metric, error)
 }
 
-// ValidatorImpl - the implementation structure for validations.
-type ValidatorImpl struct {
+// MValidatorImpl - the implementation structure for validations.
+type MValidatorImpl struct {
 	validate *validator.Validate
 }
 
-// NewMetricsValidator - the builder function for ValidatorImpl.
-func NewMetricsValidator() *ValidatorImpl {
-	return &ValidatorImpl{
+// NewMetricsValidator - the builder function for MValidatorImpl.
+func NewMetricsValidator() *MValidatorImpl {
+	return &MValidatorImpl{
 		validate: validator.New(validator.WithRequiredStructEnabled()),
 	}
 }
 
 // FromVars - the function that parses metric structure from map object.
-func (v *ValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error) {
+func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error) {
 	metric := &model.Metric{}
 	// Retrieving variables
 	if len(mName) == 0 {
@@ -81,7 +82,7 @@ func (v *ValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricTyp
 }
 
 // FromBody - the function that parses metric structure from reader.
-func (v *ValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
+func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
 	metric := &model.Metric{}
 
 	err := json.NewDecoder(body).Decode(metric)
@@ -90,7 +91,7 @@ func (v *ValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
 	}
 
 	if metric.MType != domain.Counter && metric.MType != domain.Gauge {
-		return nil, errors.Wrap(err, "failed to validate metric type: %s")
+		return nil, fmt.Errorf("failed to validate metric type: %s", metric.MType)
 	}
 
 	if metric.MType == domain.Counter {

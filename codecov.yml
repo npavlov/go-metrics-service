@@ -9,3 +9,5 @@ coverage:
       default:
         target: 60%
         threshold: 0%
+github_checks:
+  annotations: false

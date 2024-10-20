@@ -12,7 +12,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/server/templates"
-	validators "github.com/npavlov/go-metrics-service/internal/validator"
+	validators "github.com/npavlov/go-metrics-service/internal/validators"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog/log"
 )
@@ -29,7 +29,7 @@ type Handlers interface {
 type MetricHandler struct {
 	router    *chi.Mux
 	st        storage.Repository
-	validator validators.Validator
+	validator validators.MValidator
 }
 
 // NewMetricsHandler - constructor for MetricsHandler.
