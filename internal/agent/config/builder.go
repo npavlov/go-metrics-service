@@ -21,10 +21,14 @@ type Builder struct {
 }
 
 // NewConfigBuilder initializes the ConfigBuilder with default values.
-func NewConfigBuilder(l *zerolog.Logger) *Builder {
+func NewConfigBuilder(log *zerolog.Logger) *Builder {
 	return &Builder{
-		cfg: &Config{},
-		l:   l,
+		cfg: &Config{
+			Address:        "",
+			ReportInterval: 0,
+			PollInterval:   0,
+		},
+		l: log,
 	}
 }
 

@@ -16,6 +16,7 @@ import (
 type MValidator interface {
 	FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error)
 	FromBody(body io.ReadCloser) (*model.Metric, error)
+	ValidateStructure(metric *model.Metric) error
 }
 
 // MValidatorImpl - the implementation structure for validations.
@@ -32,7 +33,13 @@ func NewMetricsValidator() *MValidatorImpl {
 
 // FromVars - the function that parses metric structure from map object.
 func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error) {
-	metric := &model.Metric{}
+	metric := &model.Metric{
+		ID:      "",
+		MSource: "",
+		MType:   "",
+		Delta:   nil,
+		Value:   nil,
+	}
 	// Retrieving variables
 	if len(mName) == 0 {
 		return nil, errors.New("failed to retrieve metricID path param")
@@ -83,7 +90,13 @@ func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricTy
 
 // FromBody - the function that parses metric structure from reader.
 func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
-	metric := &model.Metric{}
+	metric := &model.Metric{
+		ID:      "",
+		MSource: "",
+		MType:   "",
+		Delta:   nil,
+		Value:   nil,
+	}
 
 	err := json.NewDecoder(body).Decode(metric)
 	if err != nil {
@@ -103,4 +116,8 @@ func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
 	}
 
 	return metric, nil
+}
+
+func (v *MValidatorImpl) ValidateStructure(metric *model.Metric) error {
+	return v.validate.Struct(metric)
 }

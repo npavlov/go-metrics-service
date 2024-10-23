@@ -10,8 +10,8 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
-	"github.com/npavlov/go-metrics-service/internal/server/templates"
 	validators "github.com/npavlov/go-metrics-service/internal/validators"
+	"github.com/npavlov/go-metrics-service/web"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
@@ -137,7 +137,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	// Decode the incoming JSON request into the Metric struct
 	var metric *model.Metric
 	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
-		mh.l.Error().Err(err).Msg("UpdateModel: Invalid JSON input")
+		mh.l.Error().Err(err).Msg("Invalid JSON input")
 		http.Error(response, "Invalid JSON input", http.StatusNotFound)
 
 		return
@@ -146,7 +146,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	// Prepare the updated metric to be returned
 	responseMetric, found := mh.st.Get(metric.ID)
 	if !found {
-		mh.l.Error().Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
+		mh.l.Error().Msgf("Failed to retrieve model from memory %s", metric.ID)
 		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)
 
 		return
@@ -167,7 +167,7 @@ func (mh *MetricHandler) Render(response http.ResponseWriter, _ *http.Request) {
 		Metrics: mh.st.GetAll(),
 	}
 
-	reader := templates.NewEmbedReader()
+	reader := web.NewEmbedReader()
 	tmpl, err := reader.Read("index.html")
 	if err != nil {
 		mh.l.Error().Err(err).Msg("Could not load template")

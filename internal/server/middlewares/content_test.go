@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
-
 	"github.com/stretchr/testify/assert"
 )
 

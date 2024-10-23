@@ -7,12 +7,11 @@ import (
 	"sync"
 	"testing"
 
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
-
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -105,8 +104,9 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	}(tmpFile)
 
 	cfg := &config.Config{
-		File:          tmpFile,
-		StoreInterval: 0,
+		File:           tmpFile,
+		StoreInterval:  0,
+		RestoreStorage: false,
 	}
 
 	// Create metrics to be backed up
@@ -146,8 +146,13 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	assert.Equal(t, delta, *restoredData[("backup_counter")].Delta)
 	assert.InDelta(t, gaugeValue, *restoredData[("backup_gauge")].Value, 0.0001)
 
+	cfgRestore := &config.Config{
+		File:           tmpFile,
+		StoreInterval:  0,
+		RestoreStorage: true,
+	}
 	// Test restore functionality
-	memStorageRestored := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(context.Background(), cfg)
+	memStorageRestored := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(context.Background(), cfgRestore)
 	assert.Len(t, memStorageRestored.GetAll(), 2)
 }
 

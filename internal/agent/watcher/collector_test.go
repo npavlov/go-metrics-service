@@ -6,12 +6,11 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
-
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/domain"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 	"github.com/stretchr/testify/assert"
 )
 

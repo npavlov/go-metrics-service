@@ -1,4 +1,4 @@
-package templates
+package web
 
 import (
 	"embed"
@@ -7,7 +7,7 @@ import (
 	"github.com/pkg/errors"
 )
 
-//go:embed files/*
+//go:embed template/*
 var tplFolder embed.FS
 
 type Reader interface {
@@ -22,7 +22,7 @@ func NewEmbedReader() *EmbedReader {
 }
 
 func (t *EmbedReader) Read(filename string) (*template.Template, error) {
-	tmpl, err := template.ParseFS(tplFolder, "files/"+filename)
+	tmpl, err := template.ParseFS(tplFolder, "template/"+filename)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse template")
 	}

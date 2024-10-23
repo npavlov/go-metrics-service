@@ -36,9 +36,11 @@ type MemStorage struct {
 // NewMemStorage - constructor for MemStorage.
 func NewMemStorage(l *zerolog.Logger) *MemStorage {
 	ms := &MemStorage{
-		metrics: make(map[domain.MetricName]model.Metric),
-		mu:      &sync.RWMutex{},
-		l:       l,
+		metrics:  make(map[domain.MetricName]model.Metric),
+		mu:       &sync.RWMutex{},
+		l:        l,
+		cfg:      nil,
+		snapshot: nil,
 	}
 
 	return ms
@@ -49,12 +51,11 @@ func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemSt
 	ms.snapshot = memSnapshot
 	ms.cfg = cfg
 
-	metrics, err := memSnapshot.Restore()
-	if err != nil {
-		// Continue on error
-		ms.l.Error().Err(err).Msg("failed to restore metrics")
-	}
-	if err == nil {
+	if cfg.RestoreStorage {
+		metrics, err := memSnapshot.Restore()
+		if err != nil {
+			panic(err)
+		}
 		ms.metrics = metrics
 	}
 

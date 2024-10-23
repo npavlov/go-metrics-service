@@ -40,48 +40,36 @@ type Stats struct {
 }
 
 func NewStats() *Stats {
+	//exhaustruct:ignore
 	return &Stats{}
 }
 
 func (s *Stats) StatsToMetrics() []model.Metric {
-	var metrics []model.Metric
-
 	// Get reflection value of stats
 	t := reflect.TypeOf(*s)
 
-	for i := range t.NumField() {
-		fieldType := t.Field(i)
+	metrics := make([]model.Metric, t.NumField())
+
+	for index := range t.NumField() {
+		fieldType := t.Field(index)
 		fieldName := fieldType.Name
 
 		metric := model.Metric{
-			ID: domain.MetricName(fieldName),
+			ID:      domain.MetricName(fieldName),
+			MType:   domain.MetricType(fieldType.Tag.Get("metricType")),
+			MSource: domain.MetricSource(fieldType.Tag.Get("metricSource")),
+			Value:   nil,
+			Delta:   nil,
 		}
 
-		metricType := domain.MetricType(fieldType.Tag.Get("metricType"))
-		metricSource := domain.MetricSource(fieldType.Tag.Get("metricSource"))
-
-		// Check the field type to assign Delta or Value
-		switch metricType {
-		case domain.Gauge:
-			metric.MType = domain.Gauge
-		case domain.Counter:
-			metric.MType = domain.Counter
-		default:
-
+		if metric.MType != domain.Gauge && metric.MType != domain.Counter {
 			panic("unhandled metric type")
 		}
-
-		switch metricSource {
-		case domain.Runtime:
-			metric.MSource = domain.Runtime
-		case domain.Custom:
-			metric.MSource = domain.Custom
-		default:
-
+		if metric.MSource != domain.Runtime && metric.MSource != domain.Custom {
 			panic("unhandled metric source")
 		}
 
-		metrics = append(metrics, metric)
+		metrics[index] = metric
 	}
 
 	return metrics

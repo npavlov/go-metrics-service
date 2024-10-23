@@ -7,8 +7,6 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
-
 	"github.com/go-chi/chi/v5"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
@@ -16,6 +14,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 	"github.com/stretchr/testify/assert"
 )
 

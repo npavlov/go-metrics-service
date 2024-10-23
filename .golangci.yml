@@ -1,3 +1,5 @@
+# See https://golangci-lint.run/usage/linters/
+
 linters:
   enable-all: true
   disable:
@@ -17,22 +19,11 @@ issues:
         - gci
         - lll
         - wrapcheck
-    - path: '(.+)builder\.go'
-      linters:
-        - exhaustruct
-    - path: '(.+)stats\.go'
-      linters:
-        - exhaustruct
-        - prealloc
-    - path: '(.+)storage\.go'
-      linters:
-        - exhaustruct
-    - path: '(.+)(?:brotli|gzip|reporter|wrapper)\.go'
+    - path: '(.+)(?:brotli|gzip|reporter|wrapper|validator)\.go'
       linters:
         - wrapcheck
     - path: '(.+)validator\.go'
       linters:
-        - exhaustruct
         - err113
 linters-settings:
   varnamelen:
@@ -48,7 +39,7 @@ linters-settings:
           - github.com/npavlov/go-metrics-service/internal/agent/config
           - github.com/npavlov/go-metrics-service/internal/server/config
           - github.com/npavlov/go-metrics-service/internal/utils
-          - github.com/npavlov/go-metrics-service/internal/server/templates
+          - github.com/npavlov/go-metrics-service/web
           - github.com/npavlov/go-metrics-service/internal/server/storage
           - github.com/npavlov/go-metrics-service/internal/server/middlewares
           - github.com/npavlov/go-metrics-service/internal/server/handlers

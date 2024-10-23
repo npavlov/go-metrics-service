@@ -21,10 +21,15 @@ type Builder struct {
 }
 
 // NewConfigBuilder initializes the ConfigBuilder with default values.
-func NewConfigBuilder(l *zerolog.Logger) *Builder {
+func NewConfigBuilder(log *zerolog.Logger) *Builder {
 	return &Builder{
-		cfg: &Config{},
-		l:   l,
+		cfg: &Config{
+			Address:        "",
+			StoreInterval:  0,
+			File:           "",
+			RestoreStorage: false,
+		},
+		l: log,
 	}
 }
 
@@ -40,6 +45,8 @@ func (b *Builder) FromEnv() *Builder {
 // FromFlags parses command line flags into the ConfigBuilder.
 func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.Address, "a", b.cfg.Address, "address and port to run server")
+	flag.BoolVar(&b.cfg.RestoreStorage, "r", b.cfg.RestoreStorage, "restore previous session")
+	flag.StringVar(&b.cfg.File, "f", b.cfg.File, "file where to store mem storage")
 	flag.Parse()
 
 	return b
