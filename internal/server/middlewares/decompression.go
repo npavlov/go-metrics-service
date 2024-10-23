@@ -7,18 +7,18 @@ import (
 
 // GzipDecompressionMiddleware decompresses the request body if it is gzip encoded.
 func GzipDecompressionMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		// Check if the request is encoded with Gzip
-		if r.Header.Get("Content-Encoding") != "gzip" {
-			next.ServeHTTP(w, r)
+		if request.Header.Get("Content-Encoding") != "gzip" {
+			next.ServeHTTP(response, request)
 
 			return
 		}
 
 		// Decompress the Gzip data
-		gzReader, err := gzip.NewReader(r.Body)
+		gzReader, err := gzip.NewReader(request.Body)
 		if err != nil {
-			http.Error(w, "Failed to decompress request body", http.StatusBadRequest)
+			http.Error(response, "Failed to decompress request body", http.StatusBadRequest)
 
 			return
 		}
@@ -27,7 +27,7 @@ func GzipDecompressionMiddleware(next http.Handler) http.Handler {
 		}(gzReader)
 
 		// Replace the request body with the decompressed data
-		r.Body = gzReader
-		next.ServeHTTP(w, r)
+		request.Body = gzReader
+		next.ServeHTTP(response, request)
 	})
 }

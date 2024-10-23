@@ -8,6 +8,8 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,8 +18,9 @@ import (
 func TestWithSignalCancel(t *testing.T) {
 	t.Parallel()
 	// Create a context and call WithSignalCancel
+	l := testutils.GetTLogger()
 	ctx := context.Background()
-	ctxWithCancel := utils.WithSignalCancel(ctx)
+	ctxWithCancel := utils.WithSignalCancel(ctx, l)
 
 	// Create a wait group to wait for the cancellation
 	var wg sync.WaitGroup

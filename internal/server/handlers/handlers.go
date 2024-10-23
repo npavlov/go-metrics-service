@@ -7,13 +7,13 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/server/templates"
 	validators "github.com/npavlov/go-metrics-service/internal/validators"
 	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
@@ -30,63 +30,65 @@ type MetricHandler struct {
 	router    *chi.Mux
 	st        storage.Repository
 	validator validators.MValidator
+	l         *zerolog.Logger
 }
 
 // NewMetricsHandler - constructor for MetricsHandler.
-func NewMetricsHandler(st storage.Repository, router *chi.Mux) *MetricHandler {
-	return &MetricHandler{router: router, st: st, validator: validators.NewMetricsValidator()}
+func NewMetricsHandler(st storage.Repository, router *chi.Mux, l *zerolog.Logger) *MetricHandler {
+	return &MetricHandler{
+		router:    router,
+		st:        st,
+		validator: validators.NewMetricsValidator(),
+		l:         l,
+	}
 }
 
-func (mh *MetricHandler) Update(w http.ResponseWriter, r *http.Request) {
-	l := logger.NewLogger().Get()
-
-	metricType := domain.MetricType(chi.URLParam(r, "metricType"))
-	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
-	metricValue := chi.URLParam(r, "value")
+func (mh *MetricHandler) Update(response http.ResponseWriter, request *http.Request) {
+	metricType := domain.MetricType(chi.URLParam(request, "metricType"))
+	metricName := domain.MetricName(chi.URLParam(request, "metricName"))
+	metricValue := chi.URLParam(request, "value")
 
 	newMetric, err := mh.validator.FromVars(metricName, metricType, metricValue)
 	if err != nil {
-		l.Error().Err(err).Msg("error validating structure")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		mh.l.Error().Err(err).Msg("error validating structure")
+		http.Error(response, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
 	_, err = mh.updateAndReturn(newMetric)
 	if err != nil {
-		l.Error().Err(err).Msg("error updating metric")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		mh.l.Error().Err(err).Msg("error updating metric")
+		http.Error(response, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
+	response.WriteHeader(http.StatusOK)
 }
 
-func (mh *MetricHandler) UpdateModel(w http.ResponseWriter, r *http.Request) {
-	l := logger.NewLogger().Get()
-
-	newMetric, err := mh.validator.FromBody(r.Body)
+func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http.Request) {
+	newMetric, err := mh.validator.FromBody(request.Body)
 	if err != nil {
-		l.Error().Err(err).Msg("error validating structure")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		mh.l.Error().Err(err).Msg("error validating structure")
+		http.Error(response, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
 	metric, err := mh.updateAndReturn(newMetric)
 	if err != nil {
-		l.Error().Err(err).Msg("error updating metric")
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		mh.l.Error().Err(err).Msg("error updating metric")
+		http.Error(response, err.Error(), http.StatusBadRequest)
 
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(w).Encode(metric)
+	response.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(response).Encode(metric)
 	if err != nil {
-		l.Error().Err(err).Msg("Failed to encode response JSON")
-		http.Error(w, "Failed to process response", http.StatusInternalServerError)
+		mh.l.Error().Err(err).Msg("Failed to encode response JSON")
+		http.Error(response, "Failed to process response", http.StatusInternalServerError)
 	}
 }
 
@@ -98,7 +100,7 @@ func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric
 
 		err := mh.st.Update(existingMetric)
 		if err != nil {
-			log.Error().Err(err).Msg("error updating existingMetric")
+			mh.l.Error().Err(err).Msg("error updating existingMetric")
 
 			return nil, errors.Wrap(err, "error updating existingMetric")
 		}
@@ -108,7 +110,7 @@ func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric
 
 	err := mh.st.Create(newMetric)
 	if err != nil {
-		log.Error().Err(err).Msg("error creating Metric")
+		mh.l.Error().Err(err).Msg("error creating Metric")
 
 		return nil, errors.Wrap(err, "error creating new Metric")
 	}
@@ -116,29 +118,27 @@ func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric
 	return newMetric, nil
 }
 
-func (mh *MetricHandler) Retrieve(w http.ResponseWriter, r *http.Request) {
-	metricName := domain.MetricName(chi.URLParam(r, "metricName"))
+func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Request) {
+	metricName := domain.MetricName(chi.URLParam(request, "metricName"))
 
 	metricModel, found := mh.st.Get(metricName)
 	if !found {
 		log.Error().Msgf("Retrieve: Failed to retrieve model from memory %s", metricName)
-		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
+		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)
 
 		return
 	}
 
-	_, _ = w.Write([]byte(metricModel.GetValue()))
-	w.WriteHeader(http.StatusOK)
+	_, _ = response.Write([]byte(metricModel.GetValue()))
+	response.WriteHeader(http.StatusOK)
 }
 
-func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
-	l := logger.NewLogger().Get()
-
+func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *http.Request) {
 	// Decode the incoming JSON request into the Metric struct
 	var metric *model.Metric
-	if err := json.NewDecoder(r.Body).Decode(&metric); err != nil {
-		l.Error().Err(err).Msg("UpdateModel: Invalid JSON input")
-		http.Error(w, "Invalid JSON input", http.StatusNotFound)
+	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
+		mh.l.Error().Err(err).Msg("UpdateModel: Invalid JSON input")
+		http.Error(response, "Invalid JSON input", http.StatusNotFound)
 
 		return
 	}
@@ -146,23 +146,21 @@ func (mh *MetricHandler) RetrieveModel(w http.ResponseWriter, r *http.Request) {
 	// Prepare the updated metric to be returned
 	responseMetric, found := mh.st.Get(metric.ID)
 	if !found {
-		l.Error().Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
-		http.Error(w, "Failed to retrieve model from memory", http.StatusNotFound)
+		mh.l.Error().Msgf("UpdateModel: Failed to retrieve model from memory %s", metric.ID)
+		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)
 
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(w).Encode(responseMetric)
+	response.WriteHeader(http.StatusOK)
+	err := json.NewEncoder(response).Encode(responseMetric)
 	if err != nil {
-		l.Error().Err(err).Msg("Failed to encode response JSON")
-		http.Error(w, "Failed to process response", http.StatusInternalServerError)
+		mh.l.Error().Err(err).Msg("Failed to encode response JSON")
+		http.Error(response, "Failed to process response", http.StatusInternalServerError)
 	}
 }
 
-func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
-	l := logger.NewLogger().Get()
-
+func (mh *MetricHandler) Render(response http.ResponseWriter, _ *http.Request) {
 	page := struct {
 		Metrics map[domain.MetricName]model.Metric
 	}{
@@ -172,41 +170,46 @@ func (mh *MetricHandler) Render(w http.ResponseWriter, _ *http.Request) {
 	reader := templates.NewEmbedReader()
 	tmpl, err := reader.Read("index.html")
 	if err != nil {
-		l.Error().Err(err).Msg("Could not load template")
-		http.Error(w, "Failed to load template: "+err.Error(), http.StatusInternalServerError)
+		mh.l.Error().Err(err).Msg("Could not load template")
+		http.Error(response, "Failed to load template: "+err.Error(), http.StatusInternalServerError)
 
 		return
 	}
 
-	if err := tmpl.Execute(w, page); err != nil {
-		l.Error().Err(err).Msg("Could not render template")
-		http.Error(w, "Failed to render page: "+err.Error(), http.StatusInternalServerError)
+	if err := tmpl.Execute(response, page); err != nil {
+		mh.l.Error().Err(err).Msg("Could not render template")
+		http.Error(response, "Failed to render page: "+err.Error(), http.StatusInternalServerError)
 	}
 }
 
 // SetRouter Embedding middleware setup in the constructor.
 func (mh *MetricHandler) SetRouter() {
-	mh.router.Use(middlewares.LoggingMiddleware)
+	mh.router.Use(middlewares.LoggingMiddleware(mh.l))
 	mh.router.Use(middleware.Recoverer)
 	mh.router.Use(middlewares.GzipMiddleware)
 	mh.router.Use(middlewares.BrotliMiddleware)
 	mh.router.Use(middlewares.GzipDecompressionMiddleware)
 
-	mh.router.Route("/", func(r chi.Router) {
-		r.Route("/", func(r chi.Router) {
-			r.With(middlewares.ContentMiddleware("text/html")).Get("/", mh.Render)
+	mh.router.Route("/", func(router chi.Router) {
+		router.Route("/", func(router chi.Router) {
+			router.With(middlewares.ContentMiddleware("text/html")).
+				Get("/", mh.Render)
 		})
-		r.Route("/update", func(r chi.Router) {
-			r.With(middlewares.ContentMiddleware("application/json")).Post("/", mh.UpdateModel)
+		router.Route("/update", func(router chi.Router) {
+			router.With(middlewares.ContentMiddleware("application/json")).
+				Post("/", mh.UpdateModel)
 		})
-		r.Route("/update/{metricType}/{metricName}/{value}", func(r chi.Router) {
-			r.With(middlewares.ContentMiddleware("application/text")).Post("/", mh.Update)
+		router.Route("/update/{metricType}/{metricName}/{value}", func(router chi.Router) {
+			router.With(middlewares.ContentMiddleware("application/text")).
+				Post("/", mh.Update)
 		})
-		r.Route("/value", func(r chi.Router) {
-			r.With(middlewares.ContentMiddleware("application/json")).Post("/", mh.RetrieveModel)
+		router.Route("/value", func(router chi.Router) {
+			router.With(middlewares.ContentMiddleware("application/json")).
+				Post("/", mh.RetrieveModel)
 		})
-		r.Route("/value/{metricType}/{metricName}", func(r chi.Router) {
-			r.With(middlewares.ContentMiddleware("application/text")).Get("/", mh.Retrieve)
+		router.Route("/value/{metricType}/{metricName}", func(router chi.Router) {
+			router.With(middlewares.ContentMiddleware("application/text")).
+				Get("/", mh.Retrieve)
 		})
 	})
 }

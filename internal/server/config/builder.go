@@ -4,7 +4,7 @@ import (
 	"flag"
 
 	"github.com/caarlos0/env/v6"
-	"github.com/npavlov/go-metrics-service/internal/logger"
+	"github.com/rs/zerolog"
 )
 
 type Config struct {
@@ -17,21 +17,21 @@ type Config struct {
 // Builder defines the builder for the Config struct.
 type Builder struct {
 	cfg *Config
+	l   *zerolog.Logger
 }
 
 // NewConfigBuilder initializes the ConfigBuilder with default values.
-func NewConfigBuilder() *Builder {
+func NewConfigBuilder(l *zerolog.Logger) *Builder {
 	return &Builder{
 		cfg: &Config{},
+		l:   l,
 	}
 }
 
 // FromEnv parses environment variables into the ConfigBuilder.
 func (b *Builder) FromEnv() *Builder {
-	l := logger.NewLogger().Get()
-
 	if err := env.Parse(b.cfg); err != nil {
-		l.Error().Err(err).Msg("failed to parse environment variables")
+		b.l.Error().Err(err).Msg("failed to parse environment variables")
 	}
 
 	return b

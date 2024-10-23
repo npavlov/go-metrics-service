@@ -6,6 +6,8 @@ import (
 	"strings"
 	"testing"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/model"
 
 	"github.com/go-chi/chi/v5"
@@ -20,9 +22,10 @@ import (
 func TestGetRenderHandler(t *testing.T) {
 	t.Parallel()
 
-	var memStorage storage.Repository = storage.NewMemStorage()
-	r := chi.NewRouter()
-	handlers.NewMetricsHandler(memStorage, r).SetRouter()
+	log := testutils.GetTLogger()
+	var memStorage storage.Repository = storage.NewMemStorage(log)
+	router := chi.NewRouter()
+	handlers.NewMetricsHandler(memStorage, router, log).SetRouter()
 
 	metrics := []model.Metric{
 		{
@@ -52,7 +55,7 @@ func TestGetRenderHandler(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	server := httptest.NewServer(r)
+	server := httptest.NewServer(router)
 	defer server.Close()
 
 	req := resty.New().R()

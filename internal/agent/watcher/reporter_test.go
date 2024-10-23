@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
@@ -21,11 +23,12 @@ import (
 func TestMetricService_SendMetrics(t *testing.T) {
 	t.Parallel()
 
-	var serverStorage storage.Repository = storage.NewMemStorage()
-	r := chi.NewRouter()
-	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
+	log := testutils.GetTLogger()
+	var serverStorage storage.Repository = storage.NewMemStorage(log)
+	router := chi.NewRouter()
+	handlers.NewMetricsHandler(serverStorage, router, log).SetRouter()
 
-	server := httptest.NewServer(r)
+	server := httptest.NewServer(router)
 	defer server.Close()
 
 	// Create an instance of MetricService
@@ -38,8 +41,8 @@ func TestMetricService_SendMetrics(t *testing.T) {
 		ReportInterval: 1,
 	}
 
-	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
-	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg)
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg, log)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg, log)
 	collector.UpdateMetrics()
 
 	// Run the SendMetrics function
@@ -71,11 +74,12 @@ func TestMetricService_SendMetrics(t *testing.T) {
 func TestMetricReporter_StartReporter(t *testing.T) {
 	t.Parallel()
 
-	var serverStorage storage.Repository = storage.NewMemStorage()
-	r := chi.NewRouter()
-	handlers.NewMetricsHandler(serverStorage, r).SetRouter()
+	log := testutils.GetTLogger()
+	var serverStorage storage.Repository = storage.NewMemStorage(log)
+	router := chi.NewRouter()
+	handlers.NewMetricsHandler(serverStorage, router, log).SetRouter()
 
-	server := httptest.NewServer(r)
+	server := httptest.NewServer(router)
 	defer server.Close()
 
 	// Create an instance of MetricService
@@ -88,8 +92,8 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 		ReportInterval: 2,
 	}
 
-	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
-	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg)
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg, log)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg, log)
 	collector.UpdateMetrics()
 
 	var wg sync.WaitGroup

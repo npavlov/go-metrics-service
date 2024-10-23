@@ -17,12 +17,12 @@ import (
 )
 
 func main() {
-	l := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
+	log := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
 
 	defer func() {
 		// Recover from panic if one occurred. Log the error and exit.
 		if r := recover(); r != nil {
-			l.Fatal().
+			log.Fatal().
 				Str("error", fmt.Sprintf("%v", r)).
 				Bytes("stack", debug.Stack()).
 				Msg("Fatal error encountered")
@@ -32,10 +32,10 @@ func main() {
 
 	err := godotenv.Load("agent.env")
 	if err != nil {
-		l.Fatal().Msg("Error loading agent.env file")
+		log.Error().Msg("Error loading agent.env file")
 	}
 
-	cfg := config.NewConfigBuilder().
+	cfg := config.NewConfigBuilder(log).
 		FromEnv().
 		FromFlags().Build()
 
@@ -44,15 +44,15 @@ func main() {
 	// WaitGroup to wait for all goroutines to complete
 	var wg sync.WaitGroup
 
-	ctx := utils.WithSignalCancel(context.Background())
+	ctx := utils.WithSignalCancel(context.Background(), log)
 
-	l.Info().
+	log.Info().
 		Str("server_address", cfg.Address).
 		Msg("Endpoint address set")
-	var collector watcher.Collector = watcher.NewMetricCollector(&metrics, &mux, cfg)
-	var reporter watcher.Reporter = watcher.NewMetricReporter(&metrics, &mux, cfg)
+	var collector watcher.Collector = watcher.NewMetricCollector(&metrics, &mux, cfg, log)
+	var reporter watcher.Reporter = watcher.NewMetricReporter(&metrics, &mux, cfg, log)
 
-	l.Info().
+	log.Info().
 		Int64("polling_time", cfg.PollInterval).
 		Int64("reporting_time", cfg.ReportInterval).
 		Msg("Polling and reporting times set")
@@ -65,7 +65,7 @@ func main() {
 	wg.Add(1)
 	go reporter.StartReporter(ctx, &wg)
 
-	l.Info().Msg("Application started")
+	log.Info().Msg("Application started")
 	utils.WaitForShutdown(&wg)
-	l.Info().Msg("Application stopped gracefully")
+	log.Info().Msg("Application stopped gracefully")
 }

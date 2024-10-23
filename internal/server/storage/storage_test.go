@@ -7,6 +7,8 @@ import (
 	"sync"
 	"testing"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
@@ -18,7 +20,7 @@ import (
 func TestMemStorageInitialization(t *testing.T) {
 	t.Parallel()
 
-	memStorage := storage.NewMemStorage()
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
 
 	assert.NotNil(t, memStorage)
 	assert.NotNil(t, memStorage.GetAll())
@@ -28,7 +30,7 @@ func TestMemStorageInitialization(t *testing.T) {
 func TestMemStorageUpdateAndGet(t *testing.T) {
 	t.Parallel()
 
-	memStorage := storage.NewMemStorage()
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
 
 	// Prepare metric
 	delta := int64(100)
@@ -65,7 +67,7 @@ func TestMemStorageUpdateAndGet(t *testing.T) {
 func TestMemStorageGetAll(t *testing.T) {
 	t.Parallel()
 
-	memStorage := storage.NewMemStorage()
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
 
 	// Prepare metrics
 	delta := int64(150)
@@ -110,7 +112,7 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	// Create metrics to be backed up
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	memStorage := storage.NewMemStorage().WithBackup(ctx, cfg)
+	memStorage := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(ctx, cfg)
 
 	delta := int64(30)
 	gaugeValue := float64(42.42)
@@ -145,14 +147,14 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	assert.InDelta(t, gaugeValue, *restoredData[("backup_gauge")].Value, 0.0001)
 
 	// Test restore functionality
-	memStorageRestored := storage.NewMemStorage().WithBackup(context.Background(), cfg)
+	memStorageRestored := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(context.Background(), cfg)
 	assert.Len(t, memStorageRestored.GetAll(), 2)
 }
 
 func TestMemStorageConcurrentUpdate(t *testing.T) {
 	t.Parallel()
 
-	memStorage := storage.NewMemStorage()
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
 	delta := int64(1)
 
 	var wg sync.WaitGroup
@@ -178,7 +180,7 @@ func TestMemStorageConcurrentUpdate(t *testing.T) {
 func TestMemStorageUpdateWithNoValue(t *testing.T) {
 	t.Parallel()
 
-	memStorage := storage.NewMemStorage()
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
 	metric := &model.Metric{
 		ID:    domain.MetricName("invalid_metric"),
 		MType: domain.Counter,
@@ -192,7 +194,7 @@ func TestMemStorageUpdateWithNoValue(t *testing.T) {
 func TestMemStorageCreate(t *testing.T) {
 	t.Parallel()
 
-	memStorage := storage.NewMemStorage()
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
 
 	// Prepare metrics
 	delta := int64(150)

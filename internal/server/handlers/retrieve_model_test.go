@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/go-resty/resty/v2"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/stretchr/testify/require"
@@ -82,9 +84,10 @@ func TestUpdateRetrieveModel(t *testing.T) {
 			t.Parallel()
 
 			// Initialize storage and router
-			memStorage := storage.NewMemStorage()
+			l := testutils.GetTLogger()
+			memStorage := storage.NewMemStorage(l)
 			r := chi.NewRouter()
-			hd := handlers.NewMetricsHandler(memStorage, r)
+			hd := handlers.NewMetricsHandler(memStorage, r, l)
 			hd.SetRouter()
 
 			// Start the test server

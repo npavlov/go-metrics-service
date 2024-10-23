@@ -5,6 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/model"
 
 	"github.com/go-chi/chi/v5"
@@ -81,9 +83,10 @@ func TestRetrieveHandler(t *testing.T) {
 			t.Parallel()
 
 			// Initialize storage and router
-			var memStorage storage.Repository = storage.NewMemStorage()
+			l := testutils.GetTLogger()
+			var memStorage storage.Repository = storage.NewMemStorage(l)
 			r := chi.NewRouter()
-			handlers.NewMetricsHandler(memStorage, r).SetRouter()
+			handlers.NewMetricsHandler(memStorage, r, l).SetRouter()
 
 			// Start the test server
 			server := httptest.NewServer(r)

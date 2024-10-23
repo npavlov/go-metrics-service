@@ -12,8 +12,8 @@ import (
 
 	"github.com/go-resty/resty/v2"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/rs/zerolog"
 )
 
 // Reporter interface defines the contract for sending watcher.
@@ -27,25 +27,25 @@ type MetricReporter struct {
 	metrics *[]model.Metric
 	mux     *sync.RWMutex
 	cfg     *config.Config
+	l       *zerolog.Logger
 }
 
-func NewMetricReporter(metrics *[]model.Metric, mutex *sync.RWMutex, cfg *config.Config) *MetricReporter {
+func NewMetricReporter(m *[]model.Metric, mutex *sync.RWMutex, cfg *config.Config, l *zerolog.Logger) *MetricReporter {
 	return &MetricReporter{
-		metrics: metrics,
+		metrics: m,
 		mux:     mutex,
 		cfg:     cfg,
+		l:       l,
 	}
 }
 
 func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup) {
-	l := logger.NewLogger().Get()
-
 	defer wg.Done()
 
 	for {
 		select {
 		case <-ctx.Done():
-			l.Info().Msg("Stopping watcher reporting")
+			mr.l.Info().Msg("Stopping watcher reporting")
 
 			return
 		default:
@@ -72,19 +72,17 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 }
 
 func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
-	l := logger.NewLogger().Get()
-
 	// Marshal the metric to JSON
 	payload, err := json.Marshal(&metric)
 	if err != nil {
-		l.Error().Err(err).Msg("Failed to marshal metric")
+		mr.l.Error().Err(err).Msg("Failed to marshal metric")
 
 		return
 	}
 
 	compressed, err := mr.compressRequest(payload)
 	if err != nil {
-		l.Error().Err(err).Msg("Failed to compress payload")
+		mr.l.Error().Err(err).Msg("Failed to compress payload")
 
 		return
 	}
@@ -100,33 +98,33 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metri
 		SetDoNotParseResponse(true).
 		Post(url)
 	if err != nil {
-		l.Error().Err(err).Msg("Failed to send post request")
+		mr.l.Error().Err(err).Msg("Failed to send post request")
 
 		return
 	}
 
 	if resp.StatusCode() != http.StatusOK {
-		l.Error().Int("statusCode", resp.StatusCode()).Msg("Failed to send post request")
+		mr.l.Error().Int("statusCode", resp.StatusCode()).Msg("Failed to send post request")
 
 		return
 	}
 
 	responseBody, err := mr.decompressResult(resp.RawBody())
 	if err != nil {
-		l.Error().Err(err).Msg("Failed to decompress response")
+		mr.l.Error().Err(err).Msg("Failed to decompress response")
 	}
 
 	// Unmarshal the decompressed response into a Metric struct
 	var rMetric model.Metric
 	err = json.Unmarshal(responseBody, &rMetric)
 	if err != nil {
-		l.Error().Err(err).Msg("Failed to unmarshal metric")
+		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
 
 		return
 	}
 
 	// Log the successful transmission
-	l.Info().
+	mr.l.Info().
 		Str("url", url).
 		Str("status", resp.Status()).
 		Interface("metric", rMetric).

@@ -5,8 +5,6 @@ linters:
     - gomnd
     - execinquery
     - exportloopref
-    # Disable naming
-    - varnamelen
     # Disable wsl
     - wsl
 issues:
@@ -37,6 +35,10 @@ issues:
         - exhaustruct
         - err113
 linters-settings:
+  varnamelen:
+    min-name-length: 2  # Adjust the minimum length as needed
+    skip-names:
+      - wg
   depguard:
     rules:
       main:
@@ -53,9 +55,10 @@ linters-settings:
           - github.com/npavlov/go-metrics-service/internal/domain
           - github.com/npavlov/go-metrics-service/internal/model
           - github.com/npavlov/go-metrics-service/internal/validators
+          - github.com/npavlov/go-metrics-service/internal/server/snapshot
+          - github.com/npavlov/go-metrics-service/internal/logger
           - github.com/go-chi/chi/v5/middleware'
           - github.com/go-chi/chi/v5
-          - github.com/npavlov/go-metrics-service/internal/logger
           - github.com/joho/godotenv
           - encoding/json
           - github.com/pkg/errors

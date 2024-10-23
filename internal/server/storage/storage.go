@@ -2,16 +2,13 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
-	"io/fs"
-	"os"
 	"sync"
 	"time"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
+	"github.com/npavlov/go-metrics-service/internal/server/snapshot"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 )
@@ -19,10 +16,6 @@ import (
 const (
 	errNoValue = "no value provided"
 )
-
-type Number interface {
-	int64 | float64
-}
 
 type Repository interface {
 	Get(name domain.MetricName) (*model.Metric, bool)
@@ -33,30 +26,36 @@ type Repository interface {
 }
 
 type MemStorage struct {
-	mu      *sync.RWMutex
-	metrics map[domain.MetricName]model.Metric
-	cfg     *config.Config
-	l       *zerolog.Logger
+	mu       *sync.RWMutex
+	metrics  map[domain.MetricName]model.Metric
+	cfg      *config.Config
+	l        *zerolog.Logger
+	snapshot snapshot.Snapshot
 }
 
 // NewMemStorage - constructor for MemStorage.
-func NewMemStorage() *MemStorage {
+func NewMemStorage(l *zerolog.Logger) *MemStorage {
 	ms := &MemStorage{
 		metrics: make(map[domain.MetricName]model.Metric),
 		mu:      &sync.RWMutex{},
-		l:       logger.NewLogger().Get(),
+		l:       l,
 	}
 
 	return ms
 }
 
 func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemStorage {
+	memSnapshot := snapshot.NewMemSnapshot(cfg.File, ms.l)
+	ms.snapshot = memSnapshot
 	ms.cfg = cfg
 
-	err := ms.restore()
+	metrics, err := memSnapshot.Restore()
 	if err != nil {
 		// Continue on error
 		ms.l.Error().Err(err).Msg("failed to restore metrics")
+	}
+	if err == nil {
+		ms.metrics = metrics
 	}
 
 	ms.l.Info().Msg("Metrics restored successfully")
@@ -77,7 +76,7 @@ func (ms *MemStorage) startBackup(ctx context.Context) {
 					return
 				default:
 					ms.mu.RLock()
-					err := ms.saveFile()
+					err := ms.snapshot.Save(ms.metrics)
 					ms.mu.RUnlock()
 					if err != nil {
 						ms.l.Error().Err(err).Msg("Error saving file")
@@ -88,40 +87,6 @@ func (ms *MemStorage) startBackup(ctx context.Context) {
 			}
 		}()
 	}
-}
-
-func (ms *MemStorage) restore() error {
-	file, err := os.ReadFile(ms.cfg.File)
-	if err != nil {
-		ms.l.Error().Err(err).Msg("failed to load output")
-
-		return errors.Wrap(err, "failed to load output")
-	}
-	newStorage := make(map[domain.MetricName]model.Metric)
-	err = json.Unmarshal(file, &newStorage)
-	if err != nil {
-		ms.l.Error().Err(err).Msg("failed to unmarshal output")
-
-		return errors.Wrap(err, "failed to unmarshal output")
-	}
-
-	ms.metrics = newStorage
-
-	return nil
-}
-
-func (ms *MemStorage) saveFile() error {
-	file, err := json.MarshalIndent(ms.metrics, "", "  ")
-	if err != nil {
-		return errors.Wrap(err, "failed to marshal output")
-	}
-
-	err = os.WriteFile(ms.cfg.File, file, fs.ModePerm)
-	if err != nil {
-		return errors.Wrap(err, "failed to save output")
-	}
-
-	return nil
 }
 
 func (ms *MemStorage) GetAll() map[domain.MetricName]model.Metric {
@@ -161,9 +126,9 @@ func (ms *MemStorage) Update(metric *model.Metric) error {
 	ms.metrics[metric.ID] = *metric
 
 	if ms.cfg != nil && ms.cfg.StoreInterval == 0 {
-		err := ms.saveFile()
+		err := ms.snapshot.Save(ms.metrics)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to save metrics")
 		}
 	}
 
@@ -181,9 +146,9 @@ func (ms *MemStorage) Create(metric *model.Metric) error {
 	ms.metrics[metric.ID] = *metric
 
 	if ms.cfg != nil && ms.cfg.StoreInterval == 0 {
-		err := ms.saveFile()
+		err := ms.snapshot.Save(ms.metrics)
 		if err != nil {
-			return err
+			return errors.Wrap(err, "failed to save metrics")
 		}
 	}
 

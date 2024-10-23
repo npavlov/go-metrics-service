@@ -5,6 +5,8 @@ import (
 	"os"
 	"testing"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/caarlos0/env/v6"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/stretchr/testify/assert"
@@ -15,7 +17,7 @@ import (
 func TestNewConfigBuilder(t *testing.T) {
 	t.Parallel()
 
-	cfg := config.NewConfigBuilder().Build()
+	cfg := config.NewConfigBuilder(testutils.GetTLogger()).Build()
 	assert.NotNil(t, cfg, "Config should be initialized")
 }
 
@@ -24,7 +26,7 @@ func TestFromEnv(t *testing.T) {
 	// Set environment variables to test parsing
 	t.Setenv("ADDRESS", "localhost:8082")
 
-	cfg := config.NewConfigBuilder().FromEnv().Build()
+	cfg := config.NewConfigBuilder(testutils.GetTLogger()).FromEnv().Build()
 
 	// Manually parse the environment variables to a temporary config for comparison
 	tmpConfig := &config.Config{}
@@ -47,7 +49,7 @@ func TestFromFlags(t *testing.T) {
 		"-a", "localhost:8091",
 	}
 
-	cfg := config.NewConfigBuilder().FromFlags().Build()
+	cfg := config.NewConfigBuilder(testutils.GetTLogger()).FromFlags().Build()
 
 	// Verify that flags were correctly parsed into the config
 	assert.Equal(t, "localhost:8091", cfg.Address, "Address should be set by flag")

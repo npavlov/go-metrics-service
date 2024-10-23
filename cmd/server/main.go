@@ -17,28 +17,28 @@ import (
 )
 
 func main() {
-	l := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
+	log := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
 
 	err := godotenv.Load("server.env")
 	if err != nil {
-		l.Fatal().Msg("Error loading server.env file")
+		log.Fatal().Msg("Error loading server.env file")
 	}
 
-	cfg := config.NewConfigBuilder().
+	cfg := config.NewConfigBuilder(log).
 		FromEnv().
 		FromFlags().Build()
 
-	l.Info().Interface("config", cfg).Msg("Configuration loaded")
+	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
-	ctx := utils.WithSignalCancel(context.Background())
+	ctx := utils.WithSignalCancel(context.Background(), log)
 
-	var memStorage storage.Repository = storage.NewMemStorage().WithBackup(ctx, cfg)
+	var memStorage storage.Repository = storage.NewMemStorage(log).WithBackup(ctx, cfg)
 
-	r := chi.NewRouter()
-	var router handlers.Handlers = handlers.NewMetricsHandler(memStorage, r)
-	router.SetRouter()
+	router := chi.NewRouter()
+	var mHandlers handlers.Handlers = handlers.NewMetricsHandler(memStorage, router, log)
+	mHandlers.SetRouter()
 
-	l.Info().
+	log.Info().
 		Str("server_address", cfg.Address).
 		Msg("Server started")
 
@@ -47,7 +47,7 @@ func main() {
 		Addr:         cfg.Address,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
-		Handler:      r,
+		Handler:      router,
 	}
 
 	go func() {
@@ -55,13 +55,13 @@ func main() {
 		<-ctx.Done()
 
 		if err := server.Shutdown(ctx); err != nil {
-			l.Error().Err(err).Msg("Error shutting down server")
+			log.Error().Err(err).Msg("Error shutting down server")
 		}
 	}()
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		l.Fatal().Err(err).Msg("Error starting server")
+		log.Fatal().Err(err).Msg("Error starting server")
 	}
 
-	l.Info().Msg("Server shut down")
+	log.Info().Msg("Server shut down")
 }

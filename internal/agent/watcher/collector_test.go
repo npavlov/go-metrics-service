@@ -6,6 +6,8 @@ import (
 	"testing"
 	"time"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
@@ -24,7 +26,8 @@ func TestCollector_UpdateMetrics(t *testing.T) {
 		ReportInterval: 1,
 		PollInterval:   1,
 	}
-	collector := watcher.NewMetricCollector(&metrics, &mux, cfg)
+	l := testutils.GetTLogger()
+	collector := watcher.NewMetricCollector(&metrics, &mux, cfg, l)
 
 	// Call the method to test
 	collector.UpdateMetrics()
@@ -55,9 +58,10 @@ func TestStartCollector(t *testing.T) {
 	metrics := st.StatsToMetrics()
 	var mu sync.RWMutex
 	cfg := &config.Config{PollInterval: 1, Address: "", ReportInterval: 1} // Poll every second
+	l := testutils.GetTLogger()
 
 	// Create an instance of MetricCollector
-	mc := watcher.NewMetricCollector(&metrics, &mu, cfg)
+	mc := watcher.NewMetricCollector(&metrics, &mu, cfg, l)
 
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
