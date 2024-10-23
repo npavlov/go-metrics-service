@@ -54,10 +54,12 @@ func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemSt
 	if cfg.RestoreStorage {
 		metrics, err := memSnapshot.Restore()
 		if err != nil {
-			panic(err)
+			ms.l.Error().Err(err).Msg("failed to restore metrics")
 		}
-		ms.metrics = metrics
-		ms.l.Info().Msg("Metrics restored successfully")
+		if err == nil {
+			ms.metrics = metrics
+			ms.l.Info().Msg("Metrics restored successfully")
+		}
 	}
 
 	ms.startBackup(ctx)
