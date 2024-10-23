@@ -65,7 +65,6 @@ jobs:
         run: make build-server
 
       - name: "Code increment #1"
-        if: github.event_name == 'pull_request'
         run: |
           metricstest -test.v -test.run=^TestIteration1$ \
             -binary-path=$SERVER_BINARY_PATH
@@ -74,14 +73,12 @@ jobs:
         run: make build-agent
 
       - name: "Code increment #2"
-        if: github.event_name == 'pull_request'
         run: |
           metricstest -test.v -test.run=^TestIteration2[AB]*$ \
             -source-path=. \
             -agent-binary-path=$AGENT_BINARY_PATH
 
       - name: "Code increment #3"
-        if: github.event_name == 'pull_request'
         run: |
           metricstest -test.v -test.run=^TestIteration3[AB]*$ \
             -source-path=. \
@@ -89,7 +86,6 @@ jobs:
             -binary-path=$SERVER_BINARY_PATH
 
       - name: "Code increment #4"
-        if: github.event_name == 'pull_request'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
@@ -101,7 +97,6 @@ jobs:
             -source-path=.
 
       - name: "Code increment #5"
-        if: github.event_name == 'pull_request'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
@@ -113,84 +108,46 @@ jobs:
             -source-path=.
 
       - name: "Code increment #6"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter6' ||
-          github.head_ref == 'iter7' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration6$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -server-port=$SERVER_PORT \
             -source-path=.
 
       - name: "Code increment #7"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter7' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration7$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -server-port=$SERVER_PORT \
             -source-path=.
 
       - name: "Code increment #8"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter8' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration8$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -server-port=$SERVER_PORT \
             -source-path=.
 
       - name: "Code increment #9"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter9' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration9$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -file-storage-path=$TEMP_FILE \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -208,8 +165,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration10[AB]$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -226,8 +183,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration11$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -243,8 +200,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration12$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -259,8 +216,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration13$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -server-port=$SERVER_PORT \
             -source-path=.
@@ -274,8 +231,8 @@ jobs:
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration14$ \
-            -agent-binary-path=cmd/agent/agent \
-            -binary-path=cmd/server/server \
+            -agent-binary-path=$AGENT_BINARY_PATH \
+            -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
             -key="${TEMP_FILE}" \
             -server-port=$SERVER_PORT \

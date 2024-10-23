@@ -11,27 +11,25 @@
     </style>
 </head>
 <body>
-<h1 style="text-align: center;">Metrics</h1>
+<h2 style="text-align: center;">Metrics Table</h2>
 <table>
     <thead>
     <tr>
-        <th>Metric Name</th>
-        <th>Values</th>
+        <th>ID</th>
+        <th>Type</th>
+        <th>Delta</th>
+        <th>Value</th>
     </tr>
     </thead>
     <tbody>
-    {{range $name, $value := .Counters}}
+    {{ range $key, $metric := .Metrics }}
     <tr>
-        <td>{{$name}}</td>
-        <td>{{$value}}</td>
+        <td>{{ $key }}</td>
+        <td>{{ $metric.MType }}</td>
+        <td>{{ if $metric.Delta }}{{ $metric.Delta }}{{ else }}N/A{{ end }}</td>
+        <td>{{ if $metric.Value }}{{ $metric.Value }}{{ else }}N/A{{ end }}</td>
     </tr>
-    {{end}}
-    {{range $name, $value := .Gauges}}
-    <tr>
-        <td>{{$name}}</td>
-        <td>{{$value}}</td>
-    </tr>
-    {{end}}
+    {{ end }}
     </tbody>
 </table>
 </body>
