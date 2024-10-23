@@ -57,9 +57,8 @@ func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemSt
 			panic(err)
 		}
 		ms.metrics = metrics
+		ms.l.Info().Msg("Metrics restored successfully")
 	}
-
-	ms.l.Info().Msg("Metrics restored successfully")
 
 	ms.startBackup(ctx)
 
