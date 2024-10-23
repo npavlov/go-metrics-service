@@ -7,13 +7,14 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 func TestMemStorageInitialization(t *testing.T) {

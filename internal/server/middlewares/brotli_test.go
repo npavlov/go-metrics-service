@@ -7,9 +7,10 @@ import (
 	"testing"
 
 	"github.com/andybalholm/brotli"
-	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 )
 
 func TestBrotliMiddleware(t *testing.T) {

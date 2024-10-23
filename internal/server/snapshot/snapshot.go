@@ -5,10 +5,11 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/model"
 )
 
 type Snapshot interface {

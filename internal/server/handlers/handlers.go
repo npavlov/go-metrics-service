@@ -6,15 +6,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	validators "github.com/npavlov/go-metrics-service/internal/validators"
 	"github.com/npavlov/go-metrics-service/web"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 )
 
 type Handlers interface {

@@ -30,6 +30,15 @@ linters-settings:
     min-name-length: 2  # Adjust the minimum length as needed
     skip-names:
       - wg
+  goimports:
+    local-prefixes: github.com/npavlov/go-metrics-service
+  gci:
+    skip-generated: true
+    sections:
+      - Standard
+      - Default
+      - Prefix(github.com/npavlov/go-metrics-service)
+    skip-non-go: true
   depguard:
     rules:
       main:

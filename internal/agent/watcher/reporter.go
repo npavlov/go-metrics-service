@@ -11,9 +11,10 @@ import (
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/rs/zerolog"
+
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/model"
-	"github.com/rs/zerolog"
 )
 
 // Reporter interface defines the contract for sending watcher.

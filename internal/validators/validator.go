@@ -7,9 +7,10 @@ import (
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
+	"github.com/pkg/errors"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
-	"github.com/pkg/errors"
 )
 
 // MValidator - the interface to describe validators for metrics.

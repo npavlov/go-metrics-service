@@ -6,10 +6,11 @@ import (
 	"testing"
 
 	"github.com/caarlos0/env/v6"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 )
 
 // TestNewConfigBuilder checks if the default values are initialized properly.

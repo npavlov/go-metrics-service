@@ -7,13 +7,14 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/utils"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 )
 
 func main() {

@@ -8,12 +8,13 @@ import (
 	"sync"
 
 	"github.com/joho/godotenv"
+	"github.com/rs/zerolog"
+
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/utils"
-	"github.com/rs/zerolog"
 )
 
 func main() {

@@ -8,10 +8,11 @@ import (
 	"testing"
 	"time"
 
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
-	"github.com/npavlov/go-metrics-service/internal/utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
 func TestWithSignalCancel(t *testing.T) {

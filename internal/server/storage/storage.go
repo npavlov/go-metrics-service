@@ -5,12 +5,13 @@ import (
 	"sync"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/snapshot"
-	"github.com/pkg/errors"
-	"github.com/rs/zerolog"
 )
 
 const (

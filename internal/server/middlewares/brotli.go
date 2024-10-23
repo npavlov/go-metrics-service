@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/andybalholm/brotli"
+
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares/helpers"
 )
 
