@@ -5,10 +5,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
@@ -84,11 +85,12 @@ func TestRetrieveHandler(t *testing.T) {
 			// Initialize storage and router
 			l := testutils.GetTLogger()
 			var memStorage storage.Repository = storage.NewMemStorage(l)
-			r := chi.NewRouter()
-			handlers.NewMetricsHandler(memStorage, r, l).SetRouter()
+			mHandlers := handlers.NewMetricsHandler(memStorage, l)
+			var cRouter router.Router = router.NewCustomRouter(l)
+			cRouter.SetRouter(mHandlers)
 
 			// Start the test server
-			server := httptest.NewServer(r)
+			server := httptest.NewServer(cRouter.GetRouter())
 			defer server.Close()
 
 			if tt.data != nil {

@@ -27,7 +27,8 @@ func TestCollector_UpdateMetrics(t *testing.T) {
 		PollInterval:   1,
 	}
 	l := testutils.GetTLogger()
-	collector := watcher.NewMetricCollector(&metrics, &mux, cfg, l)
+	newConfig := config.NewConfigBuilder(l).FromObj(cfg).Build()
+	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, l)
 
 	// Call the method to test
 	collector.UpdateMetrics()
@@ -59,9 +60,10 @@ func TestStartCollector(t *testing.T) {
 	var mu sync.RWMutex
 	cfg := &config.Config{PollInterval: 1, Address: "", ReportInterval: 1} // Poll every second
 	l := testutils.GetTLogger()
+	newConfig := config.NewConfigBuilder(l).FromObj(cfg).Build()
 
 	// Create an instance of MetricCollector
-	mc := watcher.NewMetricCollector(&metrics, &mu, cfg, l)
+	mc := watcher.NewMetricCollector(&metrics, &mu, newConfig, l)
 
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())

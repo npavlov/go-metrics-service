@@ -7,8 +7,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
@@ -25,10 +26,11 @@ func TestMetricService_SendMetrics(t *testing.T) {
 
 	log := testutils.GetTLogger()
 	var serverStorage storage.Repository = storage.NewMemStorage(log)
-	router := chi.NewRouter()
-	handlers.NewMetricsHandler(serverStorage, router, log).SetRouter()
+	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
+	var cRouter router.Router = router.NewCustomRouter(log)
+	cRouter.SetRouter(mHandlers)
 
-	server := httptest.NewServer(router)
+	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
 
 	// Create an instance of MetricService
@@ -41,8 +43,9 @@ func TestMetricService_SendMetrics(t *testing.T) {
 		ReportInterval: 1,
 	}
 
-	collector := watcher.NewMetricCollector(&metrics, &mux, cfg, log)
-	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg, log)
+	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
+	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
 	collector.UpdateMetrics()
 
 	// Run the SendMetrics function
@@ -76,10 +79,11 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 
 	log := testutils.GetTLogger()
 	var serverStorage storage.Repository = storage.NewMemStorage(log)
-	router := chi.NewRouter()
-	handlers.NewMetricsHandler(serverStorage, router, log).SetRouter()
+	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
+	var cRouter router.Router = router.NewCustomRouter(log)
+	cRouter.SetRouter(mHandlers)
 
-	server := httptest.NewServer(router)
+	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
 
 	// Create an instance of MetricService
@@ -91,9 +95,10 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 		PollInterval:   1,
 		ReportInterval: 2,
 	}
+	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
 
-	collector := watcher.NewMetricCollector(&metrics, &mux, cfg, log)
-	reporter := watcher.NewMetricReporter(&metrics, &mux, cfg, log)
+	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
+	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
 	collector.UpdateMetrics()
 
 	var wg sync.WaitGroup

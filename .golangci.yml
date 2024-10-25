@@ -41,53 +41,10 @@ linters-settings:
     skip-non-go: true
   depguard:
     rules:
-      main:
+      prevent_unmaintained_packages:
+        list-mode: lax # allow unless explicitely denied
+        files:
+          - $all
+          - "!$test"
         allow:
-          - github.com/npavlov/go-metrics-service/internal/agent/watcher
-          - github.com/npavlov/go-metrics-service/internal/agent/stats
-          - github.com/npavlov/go-metrics-service/internal/agent/config
-          - github.com/npavlov/go-metrics-service/internal/server/config
-          - github.com/npavlov/go-metrics-service/internal/utils
-          - github.com/npavlov/go-metrics-service/web
-          - github.com/npavlov/go-metrics-service/internal/server/storage
-          - github.com/npavlov/go-metrics-service/internal/server/middlewares
-          - github.com/npavlov/go-metrics-service/internal/server/handlers
-          - github.com/npavlov/go-metrics-service/internal/domain
-          - github.com/npavlov/go-metrics-service/internal/model
-          - github.com/npavlov/go-metrics-service/internal/validators
-          - github.com/npavlov/go-metrics-service/internal/server/snapshot
-          - github.com/npavlov/go-metrics-service/internal/logger
-          - github.com/go-chi/chi/v5/middleware'
-          - github.com/go-chi/chi/v5
-          - github.com/joho/godotenv
-          - encoding/json
-          - github.com/pkg/errors
-          - strconv
-          - github.com/pkg/errors
-          - github.com/rs/zerolog
-          - github.com/rs/zerolog/log
-          - net/http
-          - html/template
-          - embed
-          - github.com/caarlos0/env/v6
-          - os
-          - syscall
-          - runtime/debug
-          - fmt
-          - github.com/go-chi/chi/v5/middleware
-          - flag
-          - github.com/go-resty/resty/v2
-          - contexts
-          - time
-          - runtime
-          - reflect
-          - math/rand
-          - sync
-          - context
-          - io
-          - strings
-          - compress/gzip
-          - bytes
-          - github.com/andybalholm/brotli
-          - github.com/go-playground/validators/v10
-          - github.com/go-playground/validator/v10
+          - $gostd

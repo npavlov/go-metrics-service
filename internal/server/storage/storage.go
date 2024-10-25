@@ -24,6 +24,7 @@ type Repository interface {
 	GetAll() map[domain.MetricName]model.Metric
 	Update(metric *model.Metric) error
 	WithBackup(ctx context.Context, cfg *config.Config) *MemStorage
+	StartBackup(ctx context.Context)
 }
 
 type MemStorage struct {
@@ -63,12 +64,12 @@ func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemSt
 		}
 	}
 
-	ms.startBackup(ctx)
+	ms.StartBackup(ctx)
 
 	return ms
 }
 
-func (ms *MemStorage) startBackup(ctx context.Context) {
+func (ms *MemStorage) StartBackup(ctx context.Context) {
 	if ms.cfg.StoreInterval > 0 {
 		go func() {
 			for {
@@ -85,7 +86,7 @@ func (ms *MemStorage) startBackup(ctx context.Context) {
 						ms.l.Error().Err(err).Msg("Error saving file")
 						panic(err)
 					}
-					time.Sleep(time.Duration(ms.cfg.StoreInterval) * time.Second)
+					time.Sleep(ms.cfg.StoreIntervalDur)
 				}
 			}
 		}()

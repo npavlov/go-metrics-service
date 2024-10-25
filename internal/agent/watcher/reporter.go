@@ -52,7 +52,7 @@ func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup)
 		default:
 			// Add your watcher reporting logic here
 			mr.SendMetrics(ctx)
-			time.Sleep(time.Duration(mr.cfg.ReportInterval) * time.Second)
+			time.Sleep(mr.cfg.ReportIntervalDur)
 		}
 	}
 }

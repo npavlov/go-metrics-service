@@ -6,10 +6,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
@@ -23,8 +24,9 @@ func TestGetRenderHandler(t *testing.T) {
 
 	log := testutils.GetTLogger()
 	var memStorage storage.Repository = storage.NewMemStorage(log)
-	router := chi.NewRouter()
-	handlers.NewMetricsHandler(memStorage, router, log).SetRouter()
+	mHandlers := handlers.NewMetricsHandler(memStorage, log)
+	var cRouter router.Router = router.NewCustomRouter(log)
+	cRouter.SetRouter(mHandlers)
 
 	metrics := []model.Metric{
 		{
@@ -54,7 +56,7 @@ func TestGetRenderHandler(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	server := httptest.NewServer(router)
+	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
 
 	req := resty.New().R()

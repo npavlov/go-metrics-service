@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -13,6 +12,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
@@ -35,9 +35,9 @@ func main() {
 
 	var memStorage storage.Repository = storage.NewMemStorage(log).WithBackup(ctx, cfg)
 
-	router := chi.NewRouter()
-	var mHandlers handlers.Handlers = handlers.NewMetricsHandler(memStorage, router, log)
-	mHandlers.SetRouter()
+	var mHandlers handlers.Handlers = handlers.NewMetricsHandler(memStorage, log)
+	var cRouter router.Router = router.NewCustomRouter(log)
+	cRouter.SetRouter(mHandlers)
 
 	log.Info().
 		Str("server_address", cfg.Address).
@@ -48,7 +48,7 @@ func main() {
 		Addr:         cfg.Address,
 		ReadTimeout:  1 * time.Second,
 		WriteTimeout: 1 * time.Second,
-		Handler:      router,
+		Handler:      cRouter.GetRouter(),
 	}
 
 	go func() {

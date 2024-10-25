@@ -1,0 +1,25 @@
+{
+  "main": {
+    "files": [
+      "$all",
+      "!$test"
+    ],
+    "listMode": "Strict",
+    "allow": [
+      "$gostd",
+      "github.com/OpenPeeDeeP"
+    ],
+    "deny": {
+      "reflect": "Who needs reflection",
+    }
+  },
+  "tests": {
+    "files": [
+      "$test"
+    ],
+    "listMode": "Lax",
+    "deny": {
+      "github.com/stretchr/testify": "Please use standard library for tests"
+    }
+  }
+}

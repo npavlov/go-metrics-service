@@ -57,7 +57,7 @@ func (mc *MetricCollector) StartCollector(ctx context.Context, wg *sync.WaitGrou
 		default:
 			// Add your watcher collection logic here
 			mc.UpdateMetrics()
-			time.Sleep(time.Duration(mc.cfg.PollInterval) * time.Second)
+			time.Sleep(mc.cfg.PollIntervalDur)
 		}
 	}
 }
@@ -106,7 +106,7 @@ func (mc *MetricCollector) getFieldAsFloat64(value reflect.Value) (float64, erro
 	}
 
 	// Switch based on the field type and convert it to float64
-	//nolint:exhaustive
+	//nolint:exhaustive // Only handling specific types we expect
 	switch value.Kind() {
 	case reflect.Uint64:
 		return float64(value.Uint()), nil
