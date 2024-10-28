@@ -1,0 +1,33 @@
+# Dockerfile.server
+FROM golang:1.22 AS builder
+
+WORKDIR /app
+
+# Copy and download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the application code
+COPY . .
+
+# Install Delve
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Build the server binary with Delve debug info
+RUN go build -gcflags "all=-N -l" -o server ./cmd/server
+
+# Start a new image from a minimal base image
+FROM ubuntu:22.04
+
+WORKDIR /app
+
+# Copy the compiled server binary and any required files (e.g., .env files)
+COPY --from=builder /app/server /app/server
+COPY --from=builder /go/bin/dlv /usr/local/bin/dlv
+COPY server.env /app/server.env
+
+# Expose the port the server listens on, and the Delve debugging port
+EXPOSE 8080 40000
+
+# Run the server application with Delve
+CMD ["dlv", "exec", "/app/server", "--headless", "--listen=:40000", "--api-version=2", "--log", "--accept-multiclient"]

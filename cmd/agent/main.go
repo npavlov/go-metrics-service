@@ -33,7 +33,7 @@ func main() {
 
 	err := godotenv.Load("agent.env")
 	if err != nil {
-		log.Error().Msg("Error loading agent.env file")
+		log.Error().Err(err).Msg("Error loading agent.env file")
 	}
 
 	cfg := config.NewConfigBuilder(log).

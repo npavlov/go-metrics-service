@@ -1,0 +1,33 @@
+# Dockerfile.agent
+FROM golang:1.22 AS builder
+
+WORKDIR /app
+
+# Copy and download dependencies
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy the application code
+COPY . .
+
+# Install Delve
+RUN go install github.com/go-delve/delve/cmd/dlv@latest
+
+# Build the agent binary with Delve debug info
+RUN go build -gcflags "all=-N -l" -o agent ./cmd/agent
+
+# Start a new image from a minimal base image
+FROM ubuntu:22.04
+
+WORKDIR /app
+
+# Copy the compiled agent binary and any required files (e.g., .env files)
+COPY --from=builder /app/agent /app/agent
+COPY --from=builder /go/bin/dlv /usr/local/bin/dlv
+COPY agent.env /app/agent.env
+
+# Expose the Delve debugging port
+EXPOSE 40001
+
+# Run the agent application with Delve
+CMD ["dlv", "exec", "/app/agent", "--headless", "--listen=:40001", "--api-version=2", "--log", "--accept-multiclient"]

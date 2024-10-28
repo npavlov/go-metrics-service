@@ -22,7 +22,7 @@ func main() {
 
 	err := godotenv.Load("server.env")
 	if err != nil {
-		log.Fatal().Msg("Error loading server.env file")
+		log.Error().Err(err).Msg("Error loading server.env file")
 	}
 
 	cfg := config.NewConfigBuilder(log).
