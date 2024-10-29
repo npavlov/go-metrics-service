@@ -1,4 +1,4 @@
-# Dockerfile.server
+# Stage 1: Build the Go binary with debugging support
 FROM golang:1.22 AS builder
 
 WORKDIR /app
@@ -16,10 +16,13 @@ RUN go install github.com/go-delve/delve/cmd/dlv@latest
 # Build the server binary with Delve debug info
 RUN go build -gcflags "all=-N -l" -o server ./cmd/server
 
-# Start a new image from a minimal base image
-FROM ubuntu:22.04
+# Stage 2: Create a lightweight container with the built binary
+FROM alpine:3.18
 
 WORKDIR /app
+
+# Install libc6-compat for compatibility with binaries built with glibc
+RUN apk add --no-cache libc6-compat
 
 # Copy the compiled server binary and any required files (e.g., .env files)
 COPY --from=builder /app/server /app/server
