@@ -2,52 +2,67 @@ package watcher
 
 import (
 	"context"
-	"fmt"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"math/rand"
 	"reflect"
 	"runtime"
 	"sync"
 	"time"
+
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
+
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/model"
 )
 
-// Collector interface defines the contract for updating watcher
+const (
+	errNoSuchField     = "no such field in memStats"
+	errUnsupportedKind = "cannot convert field to float64, unsupported kind: %s"
+)
+
+// Collector interface defines the contract for updating watcher.
 type Collector interface {
 	UpdateMetrics()
-	StartCollector(ctx context.Context, cfg *config.Config)
+	StartCollector(ctx context.Context, wg *sync.WaitGroup)
 }
 
-// MetricCollector implements the Collector interface
+// MetricCollector implements the Collector interface.
 type MetricCollector struct {
 	metrics *[]model.Metric
 	mux     *sync.RWMutex
+	cfg     *config.Config
+	l       *zerolog.Logger
 }
 
-func (mc *MetricCollector) StartCollector(ctx context.Context, cfg *config.Config) {
+// NewMetricCollector creates a new instance of MetricCollector.
+func NewMetricCollector(m *[]model.Metric, mux *sync.RWMutex, cfg *config.Config, l *zerolog.Logger) *MetricCollector {
+	return &MetricCollector{
+		metrics: m,
+		mux:     mux,
+		cfg:     cfg,
+		l:       l,
+	}
+}
+
+func (mc *MetricCollector) StartCollector(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Stopping watcher collection")
+			mc.l.Info().Msg("Stopping watcher collection")
+
 			return
 		default:
 			// Add your watcher collection logic here
 			mc.UpdateMetrics()
-			time.Sleep(time.Duration(cfg.PollInterval) * time.Second)
+			time.Sleep(mc.cfg.PollIntervalDur)
 		}
 	}
 }
 
-// NewMetricCollector creates a new instance of MetricCollector
-func NewMetricCollector(metrics *[]model.Metric, mux *sync.RWMutex) *MetricCollector {
-	return &MetricCollector{
-		metrics: metrics,
-		mux:     mux,
-	}
-}
-
-// UpdateMetrics updates runtime watcher using the runtime package
+// UpdateMetrics updates runtime watcher using the runtime package.
 func (mc *MetricCollector) UpdateMetrics() {
 	var memStats runtime.MemStats
 	runtime.ReadMemStats(&memStats)
@@ -66,17 +81,18 @@ func (mc *MetricCollector) UpdateMetrics() {
 			rValue := rMemStats.FieldByName(string(metric.ID))
 			value, err := mc.getFieldAsFloat64(rValue)
 			if err != nil {
-				fmt.Printf("can't transform field to Float64 %s: %v", metric.ID, err)
+				mc.l.Error().Err(err).Str("Metric Id", string(metric.ID)).Msg("can't transform field to Float64")
+
 				return
 			}
 			metric.SetValue(nil, &value)
-			metric.GetValue()
 		case domain.Custom:
 			if metric.ID == domain.PollCount {
 				val := int64(1)
 				metric.SetValue(&val, nil)
 			}
 			if metric.ID == domain.RandomValue {
+				//nolint:gosec
 				val := rand.Float64()
 				metric.SetValue(nil, &val)
 			}
@@ -86,10 +102,11 @@ func (mc *MetricCollector) UpdateMetrics() {
 
 func (mc *MetricCollector) getFieldAsFloat64(value reflect.Value) (float64, error) {
 	if !value.IsValid() {
-		return 0, fmt.Errorf("no such field: %s in memStats", value)
+		return 0, errors.New(errNoSuchField)
 	}
 
 	// Switch based on the field type and convert it to float64
+	//nolint:exhaustive // Only handling specific types we expect
 	switch value.Kind() {
 	case reflect.Uint64:
 		return float64(value.Uint()), nil
@@ -98,6 +115,6 @@ func (mc *MetricCollector) getFieldAsFloat64(value reflect.Value) (float64, erro
 	case reflect.Float64:
 		return value.Float(), nil
 	default:
-		return 0, fmt.Errorf("cannot convert field to float64, unsupported kind: %s", value.Kind())
+		return 0, errors.New(errUnsupportedKind)
 	}
 }

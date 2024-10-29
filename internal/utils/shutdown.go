@@ -2,27 +2,28 @@ package utils
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
+
+	"github.com/rs/zerolog"
 )
 
-func WithSignalCancel(ctx context.Context) (context.Context, context.CancelFunc, chan os.Signal) {
+func WithSignalCancel(ctx context.Context, log *zerolog.Logger) context.Context {
 	ctx, cancel := context.WithCancel(ctx)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	go func() {
 		<-sigChan
+		log.Info().Msg("Shutdown signal received")
 		cancel()
 	}()
 
-	return ctx, cancel, sigChan
+	return ctx
 }
 
-func WaitForShutdown(sigChan chan os.Signal, cancelFunc context.CancelFunc) {
-	<-sigChan
-	fmt.Println("Shutdown signal received")
-	cancelFunc()
+func WaitForShutdown(wg *sync.WaitGroup) {
+	wg.Wait()
 }

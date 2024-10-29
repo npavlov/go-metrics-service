@@ -1,75 +1,167 @@
 package watcher
 
 import (
+	"bytes"
+	"compress/gzip"
 	"context"
-	"fmt"
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"encoding/json"
+	"io"
+	"net/http"
 	"sync"
 	"time"
 
 	"github.com/go-resty/resty/v2"
+	"github.com/rs/zerolog"
+
+	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/model"
 )
 
-// Reporter interface defines the contract for sending watcher
+// Reporter interface defines the contract for sending watcher.
 type Reporter interface {
-	SendMetrics()
-	StartReporter(ctx context.Context, cfg *config.Config)
-	sendPostRequest(url string)
+	SendMetrics(ctx context.Context)
+	StartReporter(ctx context.Context, wg *sync.WaitGroup)
 }
 
-// MetricReporter implements the Reporter interface
+// MetricReporter implements the Reporter interface.
 type MetricReporter struct {
 	metrics *[]model.Metric
 	mux     *sync.RWMutex
-	addr    string
+	cfg     *config.Config
+	l       *zerolog.Logger
 }
 
-func (mr *MetricReporter) StartReporter(ctx context.Context, cfg *config.Config) {
+func NewMetricReporter(m *[]model.Metric, mutex *sync.RWMutex, cfg *config.Config, l *zerolog.Logger) *MetricReporter {
+	return &MetricReporter{
+		metrics: m,
+		mux:     mutex,
+		cfg:     cfg,
+		l:       l,
+	}
+}
+
+func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup) {
+	defer wg.Done()
+
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Println("Stopping watcher reporting")
+			mr.l.Info().Msg("Stopping watcher reporting")
+
 			return
 		default:
 			// Add your watcher reporting logic here
-			mr.SendMetrics()
-			time.Sleep(time.Duration(cfg.ReportInterval) * time.Second)
+			mr.SendMetrics(ctx)
+			time.Sleep(mr.cfg.ReportIntervalDur)
 		}
 	}
 }
 
-// NewMetricReporter creates a new instance of MetricReporter
-func NewMetricReporter(metrics *[]model.Metric, mux *sync.RWMutex, address string) *MetricReporter {
-	return &MetricReporter{
-		metrics: metrics,
-		mux:     mux,
-		addr:    address,
-	}
-}
-
-// SendMetrics sends the collected watcher to the server
-func (mr *MetricReporter) SendMetrics() {
+// SendMetrics sends the collected watcher to the server.
+func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 	mr.mux.Lock()
 	defer mr.mux.Unlock()
 
 	for _, metric := range *mr.metrics {
-		val, found := metric.GetValue()
-		if found {
-			url := fmt.Sprintf("%s/update/%s/%s/%s", mr.addr, metric.MType, metric.ID, val)
-			mr.sendPostRequest(url)
+		if metric.Delta == nil && metric.Value == nil {
+			continue
 		}
+
+		url := mr.cfg.Address + "/update/"
+		mr.sendPostRequest(ctx, url, metric)
 	}
 }
 
-// sendPostRequest sends a POST request to the given URL
-func (mr *MetricReporter) sendPostRequest(url string) {
-	client := resty.New()
-	resp, err := client.R().SetHeader("Content-Type", "text/plain").Post(url)
+func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
+	// Marshal the metric to JSON
+	payload, err := json.Marshal(&metric)
 	if err != nil {
-		fmt.Println("Error when sending a request:", err)
+		mr.l.Error().Err(err).Msg("Failed to marshal metric")
+
 		return
 	}
 
-	fmt.Printf("Metric is sent to %s, status: %s\n", url, resp.Status())
+	compressed, err := mr.compressRequest(payload)
+	if err != nil {
+		mr.l.Error().Err(err).Msg("Failed to compress payload")
+
+		return
+	}
+
+	// Create a new Resty client and send the POST request
+	client := resty.New()
+	resp, err := client.R().
+		SetContext(ctx).
+		SetHeader("Content-Type", "application/json").
+		SetHeader("Content-Encoding", "gzip").
+		SetHeader("Accept-Encoding", "gzip").
+		SetBody(compressed.Bytes()).
+		SetDoNotParseResponse(true).
+		Post(url)
+	if err != nil {
+		mr.l.Error().Err(err).Msg("Failed to send post request")
+
+		return
+	}
+
+	if resp.StatusCode() != http.StatusOK {
+		mr.l.Error().Int("statusCode", resp.StatusCode()).Msg("Failed to send post request")
+
+		return
+	}
+
+	responseBody, err := mr.decompressResult(resp.RawBody())
+	if err != nil {
+		mr.l.Error().Err(err).Msg("Failed to decompress response")
+	}
+
+	// Unmarshal the decompressed response into a Metric struct
+	var rMetric model.Metric
+	err = json.Unmarshal(responseBody, &rMetric)
+	if err != nil {
+		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
+
+		return
+	}
+
+	// Log the successful transmission
+	mr.l.Info().
+		Str("url", url).
+		Str("status", resp.Status()).
+		Interface("metric", rMetric).
+		Msg("Metric is sent")
+}
+
+func (mr *MetricReporter) compressRequest(data []byte) (*bytes.Buffer, error) {
+	// Compress the payload using gzip
+	var compressedPayload bytes.Buffer
+	gzipWriter := gzip.NewWriter(&compressedPayload)
+	_, err := gzipWriter.Write(data)
+	if err != nil {
+		return nil, err
+	}
+	err = gzipWriter.Close()
+	if err != nil {
+		return nil, err
+	}
+
+	return &compressedPayload, nil
+}
+
+func (mr *MetricReporter) decompressResult(body io.ReadCloser) ([]byte, error) {
+	// Decompress the gzipped response
+	reader, err := gzip.NewReader(body)
+	if err != nil {
+		return nil, err
+	}
+	defer func(reader *gzip.Reader) {
+		_ = reader.Close()
+	}(reader)
+
+	data, err := io.ReadAll(reader)
+	if err != nil {
+		return nil, err
+	}
+
+	return data, nil
 }

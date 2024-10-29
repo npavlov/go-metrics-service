@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  server:
+    build:
+      context: .
+      dockerfile: dockerfile.server
+    network_mode: host
+    ports:
+      - "8080:8080"    # Server application port
+      - "40000:40000"  # Delve debugging port
+    environment:
+      - ADDRESS=localhost:8080  # Replace with the address your server listens on
+    command: dlv exec /app/server --headless --listen=:40000 --api-version=2 --log --accept-multiclient
+
+  agent:
+    build:
+      context: .
+      dockerfile: dockerfile.agent
+    network_mode: host
+    ports:
+      - "40001:40001"  # Delve debugging port
+    environment:
+      - SERVER_ADDRESS=http://localhost:8080  # Ensure the agent can reach the server
+    command: dlv exec /app/agent --headless --listen=:40001 --api-version=2 --log --accept-multiclient

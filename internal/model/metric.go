@@ -1,49 +1,55 @@
 package model
 
 import (
-	"github.com/npavlov/go-metrics-service/internal/domain"
 	"strconv"
+
+	"github.com/npavlov/go-metrics-service/internal/domain"
 )
 
 type Metric struct {
-	ID      domain.MetricName
-	MType   domain.MetricType
-	MSource domain.MetricSource
-	Counter *int64
-	Value   *float64
+	ID      domain.MetricName   `json:"id"              validate:"required"`
+	MType   domain.MetricType   `json:"type"            validate:"required,oneof=counter gauge"`
+	MSource domain.MetricSource `json:"-"`
+	Delta   *int64              `json:"delta,omitempty"`
+	Value   *float64            `json:"value,omitempty"`
 }
 
-func (m *Metric) SetValue(counter *int64, value *float64) {
+// SetValue - the method that allows to encapsulate value set logic for different types.
+func (m *Metric) SetValue(delta *int64, value *float64) {
 	if m.MType == domain.Gauge {
-		m.Counter = nil
+		m.Delta = nil
 		m.Value = value
+
 		return
 	}
 
 	if m.MType == domain.Counter {
 		m.Value = nil
 
-		if m.Counter != nil && counter != nil {
-			newDelta := *m.Counter + *counter
-			m.Counter = &newDelta
+		if m.Delta != nil && delta != nil {
+			newDelta := *m.Delta + *delta
+			m.Delta = &newDelta
+
 			return
 		}
 
-		if counter != nil {
-			m.Counter = counter
+		if delta != nil {
+			m.Delta = delta
+
 			return
 		}
 	}
 }
 
-func (m *Metric) GetValue() (string, bool) {
-	if m.MType == domain.Gauge && m.Value != nil {
-		return strconv.FormatFloat(*m.Value, 'f', -1, 64), true
+// GetValue - the method that gets value for dedicated type.
+func (m *Metric) GetValue() string {
+	if m.MType == domain.Gauge {
+		return strconv.FormatFloat(*m.Value, 'f', -1, 64)
 	}
 
-	if m.MType == domain.Counter && m.Counter != nil {
-		return strconv.FormatInt(*m.Counter, 10), true
+	if m.MType == domain.Counter {
+		return strconv.FormatInt(*m.Delta, 10)
 	}
 
-	return "", false
+	return ""
 }

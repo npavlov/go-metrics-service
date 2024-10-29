@@ -1,43 +1,62 @@
-package handlers
+package handlers_test
 
 import (
-	"github.com/go-chi/chi/v5"
-	"github.com/go-resty/resty/v2"
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/storage"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/go-resty/resty/v2"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/npavlov/go-metrics-service/internal/server/router"
+
+	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 )
 
 func TestGetRenderHandler(t *testing.T) {
-	var memStorage storage.Repository = storage.NewMemStorage()
-	var r = chi.NewRouter()
-	NewMetricsHandler(memStorage, r)
+	t.Parallel()
 
-	// Sample data to return from the mock repository
-	gauges := map[domain.MetricName]string{
-		"GaugeMetric1": "123.45",
-		"GaugeMetric2": "678.90",
-	}
-	counters := map[domain.MetricName]string{
-		"CounterMetric1": "100",
-		"CounterMetric2": "200",
+	log := testutils.GetTLogger()
+	var memStorage storage.Repository = storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(memStorage, log)
+	var cRouter router.Router = router.NewCustomRouter(log)
+	cRouter.SetRouter(mHandlers)
+
+	metrics := []model.Metric{
+		{
+			ID:    "GaugeMetric1",
+			MType: domain.Gauge,
+			Value: float64Ptr(123.45),
+		},
+		{
+			ID:    "GaugeMetric2",
+			MType: domain.Gauge,
+			Value: float64Ptr(678.90),
+		},
+		{
+			ID:    "CounterMetric1",
+			MType: domain.Counter,
+			Delta: int64Ptr(100),
+		},
+		{
+			ID:    "CounterMetric2",
+			MType: domain.Counter,
+			Delta: int64Ptr(200),
+		},
 	}
 
-	for k, v := range gauges {
-		err := memStorage.UpdateMetric(domain.Gauge, k, v)
-		assert.Nil(t, err)
+	for _, v := range metrics {
+		err := memStorage.Update(&v)
+		require.NoError(t, err)
 	}
 
-	for k, v := range counters {
-		err := memStorage.UpdateMetric(domain.Counter, k, v)
-		assert.Nil(t, err)
-	}
-
-	server := httptest.NewServer(r)
+	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
 
 	req := resty.New().R()
@@ -46,7 +65,7 @@ func TestGetRenderHandler(t *testing.T) {
 
 	res, err := req.Send()
 
-	assert.NoError(t, err)
+	require.NoError(t, err)
 	// Check the status code
 	assert.Equal(t, http.StatusOK, res.StatusCode())
 

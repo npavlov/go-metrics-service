@@ -27,3 +27,6 @@ vendor/
 metricstest
 
 bin
+temp.txt
+
+.DS_Store

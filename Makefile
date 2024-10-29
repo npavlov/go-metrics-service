@@ -5,11 +5,11 @@ GO ?= go
 
 # Build the server binary from the Go source files in the cmd/server directory
 build-server:
-	$(GO) build -o bin/server ${CURDIR}/cmd/server/*.go
+	$(GO) build -gcflags="all=-N -l" -o bin/server ${CURDIR}/cmd/server/*.go
 
 # Build the agent binary from the Go source files in the cmd/agent directory
 build-agent:
-	$(GO) build -o bin/agent ${CURDIR}/cmd/agent/*.go
+	$(GO) build -gcflags="all=-N -l" -o bin/agent ${CURDIR}/cmd/agent/*.go
 
 # Run all tests and generate a coverage profile (cover.out)
 test:
@@ -36,6 +36,10 @@ run-agent:
 lint:
 	golangci-lint run ./...
 
+# Run the linter (golangci-lint) on all Go files in the project to fix all issues
+lint-fix:
+	golangci-lint run ./... --fix
+
 # Format all Go files in the project using the built-in Go formatting tool
 fmt:
 	$(GO) fmt ./...
@@ -43,6 +47,10 @@ fmt:
 # Check for updates on Go module dependencies and update them if necessary
 deps:
 	$(GO) get -u ./...
+
+# Format all Go file in the project using Gofumpt
+gofumpt:
+	gofumpt -l -w .
 
 # Default target when 'make' is run, it formats code, runs the linter, and builds both the agent and server binaries
 all: fmt lint build-agent build-server

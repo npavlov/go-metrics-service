@@ -1,31 +1,31 @@
-package templates
+package web
 
 import (
 	"embed"
-	"fmt"
 	"html/template"
+
+	"github.com/pkg/errors"
 )
 
-//go:embed files/*
+//go:embed template/*
 var tplFolder embed.FS
 
 type Reader interface {
 	Read(filename string) (*template.Template, error)
 }
 
-type EmbedReader struct {
-}
+type EmbedReader struct{}
 
-// NewEmbedReader - constructor for MetricsHandler
+// NewEmbedReader - constructor for MetricsHandler.
 func NewEmbedReader() *EmbedReader {
 	return &EmbedReader{}
 }
 
 func (t *EmbedReader) Read(filename string) (*template.Template, error) {
-	tmpl, err := template.ParseFS(tplFolder, fmt.Sprintf("files/%s", filename))
+	tmpl, err := template.ParseFS(tplFolder, "template/"+filename)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to parse template")
 	}
 
-	return tmpl, err
+	return tmpl, nil
 }
