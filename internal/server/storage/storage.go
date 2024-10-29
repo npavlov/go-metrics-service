@@ -76,6 +76,9 @@ func (ms *MemStorage) StartBackup(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					ms.l.Info().Msg("Stopping storage backup")
+					ms.mu.RLock()
+					_ = ms.snapshot.Save(ms.metrics)
+					ms.mu.RUnlock()
 
 					return
 				default:
