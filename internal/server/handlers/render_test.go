@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/repository"
+
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
@@ -23,8 +25,11 @@ func TestGetRenderHandler(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var memStorage storage.Repository = storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(memStorage, log)
+	var memStorage storage.InMemory = storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(repository.Universal{
+		Storage: memStorage,
+		Repo:    nil,
+	}, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
 	cRouter.SetRouter(mHandlers)
 

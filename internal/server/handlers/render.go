@@ -12,7 +12,7 @@ func (mh *MetricHandler) Render(response http.ResponseWriter, _ *http.Request) {
 	page := struct {
 		Metrics map[domain.MetricName]model.Metric
 	}{
-		Metrics: mh.st.GetAll(),
+		Metrics: mh.universalDB.Storage.GetAll(),
 	}
 
 	reader := web.NewEmbedReader()

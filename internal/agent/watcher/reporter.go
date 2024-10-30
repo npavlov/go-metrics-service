@@ -63,12 +63,19 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 	defer mr.mux.Unlock()
 
 	for _, metric := range *mr.metrics {
-		if metric.Delta == nil && metric.Value == nil {
-			continue
-		}
+		func() {
+			if metric.Delta == nil && metric.Value == nil {
+				return
+			}
 
-		url := mr.cfg.Address + "/update/"
-		mr.sendPostRequest(ctx, url, metric)
+			url := mr.cfg.Address + "/update/"
+
+			// Setting up context with a timeout
+			timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+			defer cancel()
+
+			mr.sendPostRequest(timeoutCtx, url, metric)
+		}()
 	}
 }
 

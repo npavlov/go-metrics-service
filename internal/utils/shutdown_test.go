@@ -20,7 +20,7 @@ func TestWithSignalCancel(t *testing.T) {
 	// Create a context and call WithSignalCancel
 	l := testutils.GetTLogger()
 	ctx := context.Background()
-	ctxWithCancel := utils.WithSignalCancel(ctx, l)
+	ctxWithCancel, _ := utils.WithSignalCancel(ctx, l)
 
 	// Create a wait group to wait for the cancellation
 	var wg sync.WaitGroup

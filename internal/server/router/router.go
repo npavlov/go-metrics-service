@@ -10,7 +10,7 @@ import (
 )
 
 type Router interface {
-	SetRouter(mh handlers.Handlers)
+	SetRouter(mh *handlers.MetricHandler)
 	GetRouter() *chi.Mux
 }
 
@@ -28,7 +28,7 @@ func NewCustomRouter(l *zerolog.Logger) *CustomRouter {
 }
 
 // SetRouter Embedding middleware setup in the constructor.
-func (cr *CustomRouter) SetRouter(mh handlers.Handlers) {
+func (cr *CustomRouter) SetRouter(mh *handlers.MetricHandler) {
 	cr.router.Use(middlewares.LoggingMiddleware(cr.logger))
 	cr.router.Use(middleware.Recoverer)
 	cr.router.Use(middlewares.GzipMiddleware)
@@ -55,6 +55,10 @@ func (cr *CustomRouter) SetRouter(mh handlers.Handlers) {
 		router.Route("/value/{metricType}/{metricName}", func(router chi.Router) {
 			router.With(middlewares.ContentMiddleware("application/text")).
 				Get("/", mh.Retrieve)
+		})
+		router.Route("/ping", func(router chi.Router) {
+			router.With(middlewares.ContentMiddleware("application/text")).
+				Get("/", mh.Ping)
 		})
 	})
 }

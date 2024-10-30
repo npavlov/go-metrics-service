@@ -10,7 +10,7 @@ import (
 	"github.com/rs/zerolog"
 )
 
-func WithSignalCancel(ctx context.Context, log *zerolog.Logger) context.Context {
+func WithSignalCancel(ctx context.Context, log *zerolog.Logger) (context.Context, context.CancelFunc) {
 	ctx, cancel := context.WithCancel(ctx)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
@@ -21,7 +21,7 @@ func WithSignalCancel(ctx context.Context, log *zerolog.Logger) context.Context 
 		cancel()
 	}()
 
-	return ctx
+	return ctx, cancel
 }
 
 func WaitForShutdown(wg *sync.WaitGroup) {

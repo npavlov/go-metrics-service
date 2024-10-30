@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
@@ -12,6 +13,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/repository"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/utils"
@@ -31,11 +33,21 @@ func main() {
 
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
-	ctx := utils.WithSignalCancel(context.Background(), log)
+	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
 
-	var memStorage storage.Repository = storage.NewMemStorage(log).WithBackup(ctx, cfg)
+	var memStorage storage.InMemory = storage.NewMemStorage(log).WithBackup(ctx, cfg)
 
-	var mHandlers handlers.Handlers = handlers.NewMetricsHandler(memStorage, log)
+	dbpool, err := pgxpool.New(context.Background(), cfg.Database)
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to connect to database")
+	}
+	defer dbpool.Close()
+
+	dbrepository := repository.NewDBRepository(dbpool)
+
+	universal := repository.NewUniversal(dbrepository, memStorage)
+
+	mHandlers := handlers.NewMetricsHandler(*universal, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
 	cRouter.SetRouter(mHandlers)
 
@@ -61,7 +73,8 @@ func main() {
 	}()
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal().Err(err).Msg("Error starting server")
+		log.Error().Err(err).Msg("Error starting server")
+		cancel()
 	}
 
 	log.Info().Msg("Server shut down")

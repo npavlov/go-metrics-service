@@ -45,7 +45,7 @@ func main() {
 	// WaitGroup to wait for all goroutines to complete
 	var wg sync.WaitGroup
 
-	ctx := utils.WithSignalCancel(context.Background(), log)
+	ctx, _ := utils.WithSignalCancel(context.Background(), log)
 
 	log.Info().
 		Str("server_address", cfg.Address).

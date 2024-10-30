@@ -9,6 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/npavlov/go-metrics-service/internal/server/repository"
+
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
@@ -25,8 +27,11 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var serverStorage storage.Repository = storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
+	var serverStorage storage.InMemory = storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(repository.Universal{
+		Storage: serverStorage,
+		Repo:    nil,
+	}, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
 	cRouter.SetRouter(mHandlers)
 
@@ -78,8 +83,11 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var serverStorage storage.Repository = storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
+	var serverStorage storage.InMemory = storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(repository.Universal{
+		Storage: serverStorage,
+		Repo:    nil,
+	}, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
 	cRouter.SetRouter(mHandlers)
 

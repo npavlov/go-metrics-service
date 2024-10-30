@@ -61,12 +61,12 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 }
 
 func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric, error) {
-	existingMetric, found := mh.st.Get(newMetric.ID)
+	existingMetric, found := mh.universalDB.Storage.Get(newMetric.ID)
 
 	if found {
 		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
 
-		err := mh.st.Update(existingMetric)
+		err := mh.universalDB.Storage.Update(existingMetric)
 		if err != nil {
 			mh.logger.Error().Err(err).Msg("error updating existingMetric")
 
@@ -76,7 +76,7 @@ func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric
 		return existingMetric, nil
 	}
 
-	err := mh.st.Create(newMetric)
+	err := mh.universalDB.Storage.Create(newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error creating Metric")
 

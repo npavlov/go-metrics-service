@@ -18,7 +18,7 @@ const (
 	errNoValue = "no value provided"
 )
 
-type Repository interface {
+type InMemory interface {
 	Get(name domain.MetricName) (*model.Metric, bool)
 	Create(metric *model.Metric) error
 	GetAll() map[domain.MetricName]model.Metric

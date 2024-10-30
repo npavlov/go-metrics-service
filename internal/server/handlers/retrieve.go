@@ -14,7 +14,7 @@ import (
 func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Request) {
 	metricName := domain.MetricName(chi.URLParam(request, "metricName"))
 
-	metricModel, found := mh.st.Get(metricName)
+	metricModel, found := mh.universalDB.Storage.Get(metricName)
 	if !found {
 		log.Error().Msgf("Retrieve: Failed to retrieve model from memory %s", metricName)
 		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)
@@ -37,7 +37,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	}
 
 	// Prepare the updated metric to be returned
-	responseMetric, found := mh.st.Get(metric.ID)
+	responseMetric, found := mh.universalDB.Storage.Get(metric.ID)
 	if !found {
 		mh.logger.Error().Msgf("Failed to retrieve model from memory %s", metric.ID)
 		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)

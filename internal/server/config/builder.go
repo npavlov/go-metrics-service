@@ -13,6 +13,7 @@ type Config struct {
 	StoreInterval    int64  `env:"STORE_INTERVAL" envDefault:"300"`
 	StoreIntervalDur time.Duration
 	File             string `env:"FILE_STORAGE_PATH" envDefault:"temp.txt"`
+	Database         string `env:"DATABASE_DSN"      envDefault:""`
 	RestoreStorage   bool   `env:"RESTORE"           envDefault:"true"`
 }
 
@@ -31,6 +32,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			File:             "",
 			RestoreStorage:   false,
 			StoreIntervalDur: 0,
+			Database:         "",
 		},
 		logger: log,
 	}
@@ -50,6 +52,7 @@ func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.Address, "a", b.cfg.Address, "address and port to run server")
 	flag.BoolVar(&b.cfg.RestoreStorage, "r", b.cfg.RestoreStorage, "restore previous session")
 	flag.StringVar(&b.cfg.File, "f", b.cfg.File, "file where to store mem storage")
+	flag.StringVar(&b.cfg.Database, "d", b.cfg.Database, "database DSN")
 	flag.Int64Var(&b.cfg.StoreInterval, "i", b.cfg.StoreInterval, "time flushing mem storage to file (in seconds)")
 	flag.Parse()
 
