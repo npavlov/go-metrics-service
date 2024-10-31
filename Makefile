@@ -1,7 +1,11 @@
-.PHONY: build-server build-agent test clean run-server run-agent lint fmt deps
+.PHONY: build-server build-agent test clean run-server run-agent lint fmt deps atlas-migration goose-up goose-down
 
 # Define Go command, which can be overridden
 GO ?= go
+
+include server.env
+# Define variables
+MIGRATION_NAME ?= "default_migration_name"
 
 # Build the server binary from the Go source files in the cmd/server directory
 build-server:
@@ -54,3 +58,15 @@ gofumpt:
 
 # Default target when 'make' is run, it formats code, runs the linter, and builds both the agent and server binaries
 all: fmt lint build-agent build-server
+
+# Create a new migration using Atlas
+atlas-migration:
+	atlas migrate diff $(MIGRATION_NAME) --env dev
+
+# Apply migrations using Goose
+goose-up:
+	goose -dir migrations postgres "$(DATABASE_DSN)" up
+
+# Rollback migrations using Goose
+goose-down:
+	goose -dir migrations postgres "$(DATABASE_DSN)" down

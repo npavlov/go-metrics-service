@@ -5,17 +5,18 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
+	"github.com/npavlov/go-metrics-service/internal/server/repository"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
-	"github.com/npavlov/go-metrics-service/internal/server/repository"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
-	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
@@ -35,21 +36,22 @@ func main() {
 
 	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
 
-	var memStorage storage.InMemory = storage.NewMemStorage(log).WithBackup(ctx, cfg)
-
-	dbpool, err := pgxpool.New(context.Background(), cfg.Database)
+	db, err := gorm.Open(postgres.Open(cfg.Database), &gorm.Config{})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to connect to database")
 	}
-	defer dbpool.Close()
+	defer closeDB(db, log)
 
-	dbrepository := repository.NewDBRepository(dbpool)
+	memStorage := storage.NewMemStorage(log).WithBackup(ctx, cfg)
+	// set repo to dbStorage if we are using database
+	dbStorage := repository.NewDBRepository(db)
 
-	universal := repository.NewUniversal(dbrepository, memStorage)
+	stMonitor := storage.NewStorageMonitor(ctx, memStorage, dbStorage, 5*time.Second, log)
 
-	mHandlers := handlers.NewMetricsHandler(*universal, log)
+	mHandlers := handlers.NewMetricsHandler(stMonitor, log)
+	hHandlers := handlers.NewHealthHandler(dbStorage, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, hHandlers)
 
 	log.Info().
 		Str("server_address", cfg.Address).
@@ -78,4 +80,19 @@ func main() {
 	}
 
 	log.Info().Msg("Server shut down")
+}
+
+// closeDB retrieves and closes the underlying sql.DB connection
+func closeDB(gormDB *gorm.DB, log *zerolog.Logger) {
+	sqlDB, err := gormDB.DB()
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to connect to database")
+		return
+	}
+
+	if err := sqlDB.Close(); err != nil {
+		log.Error().Err(err).Msg("Failed to close database connection")
+	} else {
+		log.Info().Msg("Database connection closed")
+	}
 }

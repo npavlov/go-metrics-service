@@ -1,8 +1,10 @@
 package handlers
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
@@ -24,7 +26,7 @@ func (mh *MetricHandler) Update(response http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	_, err = mh.updateAndReturn(newMetric)
+	_, err = mh.updateAndReturn(request, newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error updating metric")
 		http.Error(response, err.Error(), http.StatusBadRequest)
@@ -44,7 +46,7 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 		return
 	}
 
-	metric, err := mh.updateAndReturn(newMetric)
+	metric, err := mh.updateAndReturn(request, newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error updating metric")
 		http.Error(response, err.Error(), http.StatusBadRequest)
@@ -60,13 +62,17 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 	}
 }
 
-func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric, error) {
-	existingMetric, found := mh.universalDB.Storage.Get(newMetric.ID)
+func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *model.Metric) (*model.Metric, error) {
+	repo := mh.sMonitor.GetRepository()
+	ctx, cancel := context.WithTimeout(request.Context(), time.Millisecond*500)
+	defer cancel()
+
+	existingMetric, found := repo.Get(ctx, newMetric.ID)
 
 	if found {
 		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
 
-		err := mh.universalDB.Storage.Update(existingMetric)
+		err := repo.Update(ctx, existingMetric)
 		if err != nil {
 			mh.logger.Error().Err(err).Msg("error updating existingMetric")
 
@@ -76,7 +82,7 @@ func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric
 		return existingMetric, nil
 	}
 
-	err := mh.universalDB.Storage.Create(newMetric)
+	err := repo.Create(ctx, newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error creating Metric")
 

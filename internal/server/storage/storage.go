@@ -18,15 +18,6 @@ const (
 	errNoValue = "no value provided"
 )
 
-type InMemory interface {
-	Get(name domain.MetricName) (*model.Metric, bool)
-	Create(metric *model.Metric) error
-	GetAll() map[domain.MetricName]model.Metric
-	Update(metric *model.Metric) error
-	WithBackup(ctx context.Context, cfg *config.Config) *MemStorage
-	StartBackup(ctx context.Context)
-}
-
 type MemStorage struct {
 	mu       *sync.RWMutex
 	metrics  map[domain.MetricName]model.Metric
@@ -49,6 +40,13 @@ func NewMemStorage(l *zerolog.Logger) *MemStorage {
 }
 
 func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemStorage {
+	// no file  provided
+	if len(cfg.File) == 0 {
+		ms.l.Warn().Msg("No file provided, running without backup")
+
+		return ms
+	}
+
 	memSnapshot := snapshot.NewMemSnapshot(cfg.File, ms.l)
 	ms.snapshot = memSnapshot
 	ms.cfg = cfg
@@ -65,6 +63,7 @@ func (ms *MemStorage) WithBackup(ctx context.Context, cfg *config.Config) *MemSt
 	}
 
 	ms.StartBackup(ctx)
+	ms.l.Info().Msgf("starting backup to file %s", cfg.File)
 
 	return ms
 }
@@ -96,7 +95,7 @@ func (ms *MemStorage) StartBackup(ctx context.Context) {
 	}
 }
 
-func (ms *MemStorage) GetAll() map[domain.MetricName]model.Metric {
+func (ms *MemStorage) GetAll(_ context.Context) map[domain.MetricName]model.Metric {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -104,7 +103,7 @@ func (ms *MemStorage) GetAll() map[domain.MetricName]model.Metric {
 }
 
 // Get - retrieves the value of a Metric.
-func (ms *MemStorage) Get(name domain.MetricName) (*model.Metric, bool) {
+func (ms *MemStorage) Get(_ context.Context, name domain.MetricName) (*model.Metric, bool) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	value, exists := ms.metrics[name]
@@ -122,7 +121,7 @@ func cloneMap(original map[domain.MetricName]model.Metric) map[domain.MetricName
 	return cloned
 }
 
-func (ms *MemStorage) Update(metric *model.Metric) error {
+func (ms *MemStorage) Update(_ context.Context, metric *model.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -142,7 +141,7 @@ func (ms *MemStorage) Update(metric *model.Metric) error {
 	return nil
 }
 
-func (ms *MemStorage) Create(metric *model.Metric) error {
+func (ms *MemStorage) Create(_ context.Context, metric *model.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
