@@ -6,8 +6,6 @@ import (
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/npavlov/go-metrics-service/internal/server/repository"
-	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"gorm.io/driver/postgres"
@@ -17,6 +15,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
@@ -35,7 +34,7 @@ func main() {
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
 	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
-
+	//nolint:exhaustruct
 	db, err := gorm.Open(postgres.Open(cfg.Database), &gorm.Config{})
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to connect to database")
@@ -44,9 +43,10 @@ func main() {
 
 	memStorage := storage.NewMemStorage(log).WithBackup(ctx, cfg)
 	// set repo to dbStorage if we are using database
-	dbStorage := repository.NewDBRepository(db)
+	dbStorage := storage.NewDBStorage(db)
 
-	stMonitor := storage.NewStorageMonitor(ctx, memStorage, dbStorage, 5*time.Second, log)
+	stMonitor := storage.NewAutoSwitchRepo(memStorage, dbStorage, cfg.HealthCheckDur, log)
+	stMonitor.StartMonitoring(ctx)
 
 	mHandlers := handlers.NewMetricsHandler(stMonitor, log)
 	hHandlers := handlers.NewHealthHandler(dbStorage, log)
@@ -82,11 +82,12 @@ func main() {
 	log.Info().Msg("Server shut down")
 }
 
-// closeDB retrieves and closes the underlying sql.DB connection
+// closeDB retrieves and closes the underlying sql.DB connection.
 func closeDB(gormDB *gorm.DB, log *zerolog.Logger) {
 	sqlDB, err := gormDB.DB()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to connect to database")
+
 		return
 	}
 

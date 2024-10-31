@@ -9,8 +9,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/npavlov/go-metrics-service/internal/server/repository"
-
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
@@ -27,13 +25,10 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var serverStorage storage.InMemory = storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(repository.Universal{
-		Storage: serverStorage,
-		Repo:    nil,
-	}, log)
+	serverStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, nil)
 
 	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
@@ -60,12 +55,12 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	for _, metric := range metrics {
 		switch metric.MType {
 		case domain.Gauge:
-			m, ok := serverStorage.Get(metric.ID)
+			m, ok := serverStorage.Get(context.Background(), metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Value)
 			assert.InDelta(t, original, *m.Value, 00000.1)
 		case domain.Counter:
-			m, ok := serverStorage.Get(metric.ID)
+			m, ok := serverStorage.Get(context.Background(), metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Delta)
 			assert.Equal(t, original, *m.Delta)
@@ -74,7 +69,7 @@ func TestMetricService_SendMetrics(t *testing.T) {
 
 	reporter.SendMetrics(context.TODO())
 	reporter.SendMetrics(context.TODO())
-	m, ok := serverStorage.Get(domain.PollCount)
+	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
 	assert.True(t, ok)
 	assert.Equal(t, int64(3), *m.Delta)
 }
@@ -83,13 +78,10 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var serverStorage storage.InMemory = storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(repository.Universal{
-		Storage: serverStorage,
-		Repo:    nil,
-	}, log)
+	serverStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, nil)
 
 	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
@@ -121,7 +113,7 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 
 	wg.Wait() // Wait for the goroutine to finish
 
-	m, ok := serverStorage.Get(domain.PollCount)
+	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
 	assert.True(t, ok)
 	assert.Equal(t, int64(1), *m.Delta)
 

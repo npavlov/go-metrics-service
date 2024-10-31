@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -9,8 +10,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/npavlov/go-metrics-service/internal/server/repository"
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
@@ -25,13 +24,10 @@ func TestGetRenderHandler(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var memStorage storage.InMemory = storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(repository.Universal{
-		Storage: memStorage,
-		Repo:    nil,
-	}, log)
+	memStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(memStorage, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, nil)
 
 	metrics := []model.Metric{
 		{
@@ -57,7 +53,7 @@ func TestGetRenderHandler(t *testing.T) {
 	}
 
 	for _, v := range metrics {
-		err := memStorage.Update(&v)
+		err := memStorage.Update(context.Background(), &v)
 		require.NoError(t, err)
 	}
 

@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,8 +9,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/npavlov/go-metrics-service/internal/server/repository"
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
@@ -111,13 +110,10 @@ func TestUpdateHandler(t *testing.T) {
 			t.Parallel()
 			// Initialize storage and router
 			log := testutils.GetTLogger()
-			var memStorage storage.InMemory = storage.NewMemStorage(log)
-			mHandlers := handlers.NewMetricsHandler(repository.Universal{
-				Storage: memStorage,
-				Repo:    nil,
-			}, log)
+			memStorage := storage.NewMemStorage(log)
+			mHandlers := handlers.NewMetricsHandler(memStorage, log)
 			var cRouter router.Router = router.NewCustomRouter(log)
-			cRouter.SetRouter(mHandlers)
+			cRouter.SetRouter(mHandlers, nil)
 
 			// Start the test server
 			server := httptest.NewServer(cRouter.GetRouter())
@@ -126,7 +122,7 @@ func TestUpdateHandler(t *testing.T) {
 			testUpdateRequest(t, server, tt.request, tt.want.statusCode)
 
 			if tt.want.result != nil {
-				metric, exist := memStorage.Get(tt.want.result.name)
+				metric, exist := memStorage.Get(context.Background(), tt.want.result.name)
 				assert.True(t, exist)
 
 				switch metric.MType {

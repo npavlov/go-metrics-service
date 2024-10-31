@@ -26,19 +26,22 @@ func main() {
 	envJSON, err := json.Marshal(envs)
 	if err != nil {
 		log.Error().Err(err).Msg("Error marshalling envs to JSON")
+
 		return
 	}
 
 	// Output the JSON string
+	//nolint:forbidigo
 	fmt.Println(string(envJSON))
 }
 
-// splitEnv splits an environment variable into key and value parts
+// splitEnv splits an environment variable into key and value parts.
 func splitEnv(env string) []string {
 	for i := range env {
 		if env[i] == '=' {
 			return []string{env[:i], env[i+1:]}
 		}
 	}
+
 	return []string{env, ""}
 }

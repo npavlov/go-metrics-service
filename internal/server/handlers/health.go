@@ -3,17 +3,18 @@ package handlers
 import (
 	"net/http"
 
-	"github.com/npavlov/go-metrics-service/internal/server/repository"
 	"github.com/rs/zerolog"
+
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
 )
 
 type HealthHandler struct {
 	logger   *zerolog.Logger
-	database *repository.DBRepository
+	database *storage.DBStorage
 }
 
 // NewHealthHandler - constructor for HealthHandler.
-func NewHealthHandler(database *repository.DBRepository, l *zerolog.Logger) *HealthHandler {
+func NewHealthHandler(database *storage.DBStorage, l *zerolog.Logger) *HealthHandler {
 	return &HealthHandler{
 		logger:   l,
 		database: database,

@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,8 +9,6 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	"github.com/npavlov/go-metrics-service/internal/server/repository"
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
@@ -86,20 +85,17 @@ func TestRetrieveHandler(t *testing.T) {
 
 			// Initialize storage and router
 			log := testutils.GetTLogger()
-			var memStorage storage.InMemory = storage.NewMemStorage(log)
-			mHandlers := handlers.NewMetricsHandler(repository.Universal{
-				Storage: memStorage,
-				Repo:    nil,
-			}, log)
+			memStorage := storage.NewMemStorage(log)
+			mHandlers := handlers.NewMetricsHandler(memStorage, log)
 			var cRouter router.Router = router.NewCustomRouter(log)
-			cRouter.SetRouter(mHandlers)
+			cRouter.SetRouter(mHandlers, nil)
 
 			// Start the test server
 			server := httptest.NewServer(cRouter.GetRouter())
 			defer server.Close()
 
 			if tt.data != nil {
-				err := memStorage.Update(tt.data)
+				err := memStorage.Update(context.Background(), tt.data)
 				if err != nil {
 					t.Fatal(err)
 				}

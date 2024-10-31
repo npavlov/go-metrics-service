@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
-	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
@@ -63,16 +62,15 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 }
 
 func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *model.Metric) (*model.Metric, error) {
-	repo := mh.sMonitor.GetRepository()
-	ctx, cancel := context.WithTimeout(request.Context(), time.Millisecond*500)
+	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
 	defer cancel()
 
-	existingMetric, found := repo.Get(ctx, newMetric.ID)
+	existingMetric, found := mh.repo.Get(ctx, newMetric.ID)
 
 	if found {
 		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
 
-		err := repo.Update(ctx, existingMetric)
+		err := mh.repo.Update(ctx, existingMetric)
 		if err != nil {
 			mh.logger.Error().Err(err).Msg("error updating existingMetric")
 
@@ -82,7 +80,7 @@ func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *model
 		return existingMetric, nil
 	}
 
-	err := repo.Create(ctx, newMetric)
+	err := mh.repo.Create(ctx, newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error creating Metric")
 

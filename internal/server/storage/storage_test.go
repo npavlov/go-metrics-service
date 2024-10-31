@@ -23,8 +23,8 @@ func TestMemStorageInitialization(t *testing.T) {
 	memStorage := storage.NewMemStorage(testutils.GetTLogger())
 
 	assert.NotNil(t, memStorage)
-	assert.NotNil(t, memStorage.GetAll())
-	assert.Empty(t, memStorage.GetAll())
+	assert.NotNil(t, memStorage.GetAll(context.Background()))
+	assert.Empty(t, memStorage.GetAll(context.Background()))
 }
 
 func TestMemStorageUpdateAndGet(t *testing.T) {
@@ -47,19 +47,19 @@ func TestMemStorageUpdateAndGet(t *testing.T) {
 	}
 
 	// Test updating counter metric
-	err := memStorage.Update(metric1)
+	err := memStorage.Update(context.Background(), metric1)
 	require.NoError(t, err)
 
 	// Test updating gauge metric
-	err = memStorage.Update(metric2)
+	err = memStorage.Update(context.Background(), metric2)
 	require.NoError(t, err)
 
 	// Check if they are retrievable
-	retrievedMetric1, exists := memStorage.Get(domain.MetricName("test_counter"))
+	retrievedMetric1, exists := memStorage.Get(context.Background(), domain.MetricName("test_counter"))
 	assert.True(t, exists)
 	assert.Equal(t, delta, *retrievedMetric1.Delta)
 
-	retrievedMetric2, exists := memStorage.Get(domain.MetricName("test_gauge"))
+	retrievedMetric2, exists := memStorage.Get(context.Background(), domain.MetricName("test_gauge"))
 	assert.True(t, exists)
 	assert.InDelta(t, gaugeValue, *retrievedMetric2.Value, 0.0001)
 }
@@ -84,11 +84,11 @@ func TestMemStorageGetAll(t *testing.T) {
 	}
 
 	// Update storage
-	_ = memStorage.Update(metric1)
-	_ = memStorage.Update(metric2)
+	_ = memStorage.Update(context.Background(), metric1)
+	_ = memStorage.Update(context.Background(), metric2)
 
 	// Get all metrics
-	allMetrics := memStorage.GetAll()
+	allMetrics := memStorage.GetAll(context.Background())
 
 	assert.Len(t, allMetrics, 2)
 	assert.Equal(t, delta, *allMetrics["counter_metric"].Delta)
@@ -129,8 +129,8 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	}
 
 	// Update storage and force save
-	_ = memStorage.Update(metric1)
-	_ = memStorage.Update(metric2)
+	_ = memStorage.Update(context.Background(), metric1)
+	_ = memStorage.Update(context.Background(), metric2)
 
 	// Verify file exists
 	_, err := os.Stat(tmpFile)
@@ -154,7 +154,7 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	}
 	// Test restore functionality
 	memStorageRestored := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(context.Background(), cfgRestore)
-	assert.Len(t, memStorageRestored.GetAll(), 2)
+	assert.Len(t, memStorageRestored.GetAll(context.Background()), 2)
 }
 
 func TestMemStorageConcurrentUpdate(t *testing.T) {
@@ -173,12 +173,12 @@ func TestMemStorageConcurrentUpdate(t *testing.T) {
 				MType: domain.Counter,
 				Delta: &delta,
 			}
-			_ = memStorage.Update(metric)
+			_ = memStorage.Update(context.Background(), metric)
 		}()
 	}
 
 	wg.Wait()
-	retrievedMetric, exists := memStorage.Get("concurrent_counter")
+	retrievedMetric, exists := memStorage.Get(context.Background(), "concurrent_counter")
 	assert.True(t, exists)
 	assert.Equal(t, delta, *retrievedMetric.Delta)
 }
@@ -192,7 +192,7 @@ func TestMemStorageUpdateWithNoValue(t *testing.T) {
 		MType: domain.Counter,
 	}
 
-	err := memStorage.Update(metric)
+	err := memStorage.Update(context.Background(), metric)
 	require.Error(t, err)
 	assert.Equal(t, "no value provided", err.Error())
 }
@@ -217,13 +217,13 @@ func TestMemStorageCreate(t *testing.T) {
 	}
 
 	// Update storage
-	err := memStorage.Create(metric1)
+	err := memStorage.Create(context.Background(), metric1)
 	require.NoError(t, err)
-	err = memStorage.Create(metric2)
+	err = memStorage.Create(context.Background(), metric2)
 	require.NoError(t, err)
 
 	// Get all metrics
-	allMetrics := memStorage.GetAll()
+	allMetrics := memStorage.GetAll(context.Background())
 
 	assert.Len(t, allMetrics, 2)
 	assert.Equal(t, delta, *allMetrics["counter_metric"].Delta)

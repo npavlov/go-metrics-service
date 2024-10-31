@@ -6,10 +6,12 @@ import (
 	"os"
 
 	"ariga.io/atlas-provider-gorm/gormschema"
+
 	"github.com/npavlov/go-metrics-service/internal/model"
 )
 
 func main() {
+	//nolint:exhaustruct
 	stmts, err := gormschema.New("postgres").Load(&model.Metric{})
 	if err != nil {
 		slog.Error("Failed to load gorm schema", "err", err.Error())

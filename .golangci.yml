@@ -25,6 +25,10 @@ issues:
     - path: '(.+)validator\.go'
       linters:
         - err113
+    - path: '(.+)metric\.go'
+      linters:
+        - lll
+        - exhaustruct
 linters-settings:
   varnamelen:
     min-name-length: 2  # Adjust the minimum length as needed
