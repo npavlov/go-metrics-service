@@ -8,6 +8,7 @@ import (
 
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
+	"github.com/pressly/goose"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
@@ -102,6 +103,13 @@ func getDB(connectionString string) (*gorm.DB, error) {
 
 		return nil, errors.Wrap(err, "failed to connect to database")
 	}
+
+	// Run migrations
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		log.Error().Err(err).Msg("Failed to up migrations")
+	}
+
+	log.Info().Msg("Migrations completed")
 
 	return db, nil
 }
