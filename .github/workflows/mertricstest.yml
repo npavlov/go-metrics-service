@@ -181,6 +181,7 @@ jobs:
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
+          USE_BATCH=true
           metricstest -test.v -test.run=^TestIteration12$ \
             -agent-binary-path=$AGENT_BINARY_PATH \
             -binary-path=$SERVER_BINARY_PATH \
