@@ -44,6 +44,10 @@ func (cr *CustomRouter) SetRouter(mh *handlers.MetricHandler, hh *handlers.Healt
 			router.With(middlewares.ContentMiddleware("application/json")).
 				Post("/", mh.UpdateModel)
 		})
+		router.Route("/updates", func(router chi.Router) {
+			router.With(middlewares.ContentMiddleware("application/json")).
+				Post("/", mh.UpdateModels)
+		})
 		router.Route("/update/{metricType}/{metricName}/{value}", func(router chi.Router) {
 			router.With(middlewares.ContentMiddleware("application/text")).
 				Post("/", mh.Update)

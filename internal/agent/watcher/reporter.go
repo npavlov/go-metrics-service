@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"sync"
@@ -16,6 +17,9 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/model"
 )
+
+// ErrPostRequestFailed Define a static error for failed POST requests.
+var ErrPostRequestFailed = errors.New("failed to send post request")
 
 // Reporter interface defines the contract for sending watcher.
 type Reporter interface {
@@ -51,7 +55,11 @@ func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup)
 			return
 		default:
 			// Add your watcher reporting logic here
-			mr.SendMetrics(ctx)
+			if mr.cfg.UseBatch {
+				mr.SendMetricsBatch(ctx)
+			} else {
+				mr.SendMetrics(ctx)
+			}
 			time.Sleep(mr.cfg.ReportIntervalDur)
 		}
 	}
@@ -74,25 +82,51 @@ func (mr *MetricReporter) SendMetrics(ctx context.Context) {
 			timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
 			defer cancel()
 
-			mr.sendPostRequest(timeoutCtx, url, metric)
+			response, err := mr.sendPostRequest(timeoutCtx, url, metric)
+			if err != nil {
+				mr.l.Info().Err(err).Msg("Error sending metric")
+			}
+			mr.read(response)
 		}()
 	}
 }
 
-func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metric model.Metric) {
+// SendMetricsBatch sends the collected watcher to the server.
+func (mr *MetricReporter) SendMetricsBatch(ctx context.Context) {
+	mr.mux.Lock()
+	defer mr.mux.Unlock()
+
+	url := mr.cfg.Address + "/updates/"
+
+	// Setting up context with a timeout
+	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
+	defer cancel()
+
+	if len(*mr.metrics) == 0 {
+		return
+	}
+
+	response, err := mr.sendPostRequest(timeoutCtx, url, *mr.metrics)
+	if err != nil {
+		mr.l.Info().Err(err).Msg("Error sending metrics batch")
+	}
+	mr.readMany(response)
+}
+
+func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, data interface{}) ([]byte, error) {
 	// Marshal the metric to JSON
-	payload, err := json.Marshal(&metric)
+	payload, err := json.Marshal(data)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to marshal metric")
 
-		return
+		return nil, err
 	}
 
 	compressed, err := mr.compressRequest(payload)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to compress payload")
 
-		return
+		return nil, err
 	}
 
 	// Create a new Resty client and send the POST request
@@ -108,23 +142,29 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metri
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to send post request")
 
-		return
+		return nil, err
 	}
 
 	if resp.StatusCode() != http.StatusOK {
 		mr.l.Error().Int("statusCode", resp.StatusCode()).Msg("Failed to send post request")
 
-		return
+		return nil, ErrPostRequestFailed
 	}
 
 	responseBody, err := mr.decompressResult(resp.RawBody())
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to decompress response")
+
+		return nil, err
 	}
 
+	return responseBody, nil
+}
+
+func (mr *MetricReporter) read(data []byte) {
 	// Unmarshal the decompressed response into a Metric struct
 	var rMetric model.Metric
-	err = json.Unmarshal(responseBody, &rMetric)
+	err := json.Unmarshal(data, &rMetric)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
 
@@ -133,10 +173,24 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, metri
 
 	// Log the successful transmission
 	mr.l.Info().
-		Str("url", url).
-		Str("status", resp.Status()).
 		Interface("metric", rMetric).
-		Msg("Metric is sent")
+		Msg("Server response")
+}
+
+func (mr *MetricReporter) readMany(data []byte) {
+	// Unmarshal the decompressed response into a Metric struct
+	var rMetrics []model.Metric
+	err := json.Unmarshal(data, &rMetrics)
+	if err != nil {
+		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
+
+		return
+	}
+
+	// Log the successful transmission
+	mr.l.Info().
+		Interface("metrics", rMetrics).
+		Msg("Server response")
 }
 
 func (mr *MetricReporter) compressRequest(data []byte) (*bytes.Buffer, error) {

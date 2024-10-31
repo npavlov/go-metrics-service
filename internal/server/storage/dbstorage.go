@@ -53,6 +53,24 @@ func (repo *DBStorage) Get(context context.Context, name domain.MetricName) (*mo
 	return &metric, true
 }
 
+// GetMany fetches a single metric by name.
+//
+//nolint:lll
+func (repo *DBStorage) GetMany(context context.Context, names []domain.MetricName) (*map[domain.MetricName]model.Metric, error) {
+	var metrics []model.Metric
+	if err := repo.db.WithContext(context).Where("id IN ?", names).Find(&metrics).Error; err != nil {
+		return nil, errors.Wrap(err, "failed to get metrics")
+	}
+
+	results := make(map[domain.MetricName]model.Metric)
+
+	for _, metric := range metrics {
+		results[metric.ID] = metric
+	}
+
+	return &results, nil
+}
+
 // GetAll fetches all metrics from the database.
 func (repo *DBStorage) GetAll(context context.Context) map[domain.MetricName]model.Metric {
 	var metrics []model.Metric
@@ -73,6 +91,32 @@ func (repo *DBStorage) GetAll(context context.Context) map[domain.MetricName]mod
 func (repo *DBStorage) Update(context context.Context, metric *model.Metric) error {
 	if err := repo.db.WithContext(context).Save(metric).Error; err != nil {
 		return fmt.Errorf("failed to update metric: %w", err)
+	}
+
+	return nil
+}
+
+// UpdateMany inserts or updates multiple metrics in the database.
+func (repo *DBStorage) UpdateMany(ctx context.Context, metrics *[]model.Metric) error {
+	// Start a transaction
+	tx := repo.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return fmt.Errorf("failed to start transaction: %w", tx.Error)
+	}
+
+	// Attempt to save each metric
+	for _, metric := range *metrics {
+		if err := tx.Save(&metric).Error; err != nil {
+			// Rollback transaction if any save fails
+			tx.Rollback()
+
+			return fmt.Errorf("failed to save metric with ID %s: %w", metric.ID, err)
+		}
+	}
+
+	// Commit the transaction if all saves are successful
+	if err := tx.Commit().Error; err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
 	return nil

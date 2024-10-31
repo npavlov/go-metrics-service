@@ -75,10 +75,31 @@ func (awr *AutoSwitchRepo) Get(ctx context.Context, name domain.MetricName) (*mo
 	return awr.current.Get(ctx, name)
 }
 
+// GetMany - retrieves the value of a Metric.
+//
+//nolint:lll
+func (awr *AutoSwitchRepo) GetMany(ctx context.Context, names []domain.MetricName) (*map[domain.MetricName]model.Metric, error) {
+	many, err := awr.current.GetMany(ctx, names)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get all metrics")
+	}
+
+	return many, nil
+}
+
 func (awr *AutoSwitchRepo) Update(ctx context.Context, metric *model.Metric) error {
 	err := awr.current.Update(ctx, metric)
 	if err != nil {
 		return errors.Wrap(err, "failed to update metric")
+	}
+
+	return nil
+}
+
+func (awr *AutoSwitchRepo) UpdateMany(context context.Context, metrics *[]model.Metric) error {
+	err := awr.current.UpdateMany(context, metrics)
+	if err != nil {
+		return errors.Wrap(err, "failed to update metrics")
 	}
 
 	return nil

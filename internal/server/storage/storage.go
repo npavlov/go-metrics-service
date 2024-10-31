@@ -111,6 +111,31 @@ func (ms *MemStorage) Get(_ context.Context, name domain.MetricName) (*model.Met
 	return &value, exists
 }
 
+// GetMany retrieves multiple metrics by their names.
+//
+//nolint:lll
+func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (*map[domain.MetricName]model.Metric, error) {
+	ms.mu.RLock()
+	defer ms.mu.RUnlock()
+
+	results := make(map[domain.MetricName]model.Metric)
+	for _, name := range names {
+		metric, exists := ms.metrics[name]
+		if exists {
+			results[metric.ID] = metric
+		}
+	}
+
+	// If no metrics found, you may want to return a specific error or an empty result.
+	if len(results) == 0 {
+		ms.l.Warn().Msg("No metrics found for the given names")
+
+		return nil, errors.New("no metrics found for the given names")
+	}
+
+	return &results, nil
+}
+
 // Generic function to clone a map of Metrics.
 func cloneMap(original map[domain.MetricName]model.Metric) map[domain.MetricName]model.Metric {
 	cloned := make(map[domain.MetricName]model.Metric)
@@ -156,6 +181,17 @@ func (ms *MemStorage) Create(_ context.Context, metric *model.Metric) error {
 		if err != nil {
 			return errors.Wrap(err, "failed to save metrics")
 		}
+	}
+
+	return nil
+}
+
+func (ms *MemStorage) UpdateMany(_ context.Context, metrics *[]model.Metric) error {
+	ms.mu.Lock()
+	defer ms.mu.Unlock()
+
+	for _, metric := range *metrics {
+		ms.metrics[metric.ID] = metric
 	}
 
 	return nil

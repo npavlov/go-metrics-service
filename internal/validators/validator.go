@@ -17,6 +17,7 @@ import (
 type MValidator interface {
 	FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error)
 	FromBody(body io.ReadCloser) (*model.Metric, error)
+	ManyFromBody(body io.ReadCloser) ([]*model.Metric, error)
 	ValidateStructure(metric *model.Metric) error
 }
 
@@ -119,6 +120,32 @@ func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
 	}
 
 	return metric, nil
+}
+
+// ManyFromBody - the function that parses many metric structures from reader.
+func (v *MValidatorImpl) ManyFromBody(body io.ReadCloser) ([]*model.Metric, error) {
+	var metrics []*model.Metric
+
+	err := json.NewDecoder(body).Decode(&metrics)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse metric json")
+	}
+
+	for _, metric := range metrics {
+		if metric.MType != domain.Counter && metric.MType != domain.Gauge {
+			return nil, fmt.Errorf("failed to validate metric type: %s", metric.MType)
+		}
+
+		if metric.MType == domain.Counter {
+			metric.Value = nil
+		}
+
+		if metric.MType == domain.Gauge {
+			metric.Delta = nil
+		}
+	}
+
+	return metrics, nil
 }
 
 func (v *MValidatorImpl) ValidateStructure(metric *model.Metric) error {

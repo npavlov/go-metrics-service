@@ -13,6 +13,7 @@ type Config struct {
 	Address           string `env:"ADDRESS"         envDefault:"localhost:8080"`
 	ReportInterval    int64  `env:"REPORT_INTERVAL" envDefault:"10"`
 	PollInterval      int64  `env:"POLL_INTERVAL"   envDefault:"2"`
+	UseBatch          bool   `env:"USE_BATCH"       envDefault:"true"`
 	ReportIntervalDur time.Duration
 	PollIntervalDur   time.Duration
 }
@@ -32,6 +33,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			PollInterval:      0,
 			PollIntervalDur:   0,
 			ReportIntervalDur: 0,
+			UseBatch:          false,
 		},
 		logger: log,
 	}

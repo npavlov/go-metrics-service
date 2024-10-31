@@ -177,11 +177,6 @@ jobs:
             -source-path=.
 
       - name: "Code increment #12"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
