@@ -2,12 +2,14 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"net/http"
 	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -34,10 +36,10 @@ func main() {
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
 	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
-	//nolint:exhaustruct
-	db, err := gorm.Open(postgres.Open(cfg.Database), &gorm.Config{})
+
+	db, err := getDB(cfg.Database)
 	if err != nil {
-		log.Error().Err(err).Msg("Failed to connect to database")
+		log.Warn().Err(err).Msg("Error connecting to database")
 	}
 	defer closeDB(db, log)
 
@@ -82,8 +84,34 @@ func main() {
 	log.Info().Msg("Server shut down")
 }
 
+func getDB(connectionString string) (*gorm.DB, error) {
+	if connectionString == "" {
+		return nil, errors.New("no connection string provided")
+	}
+
+	sqlDB, err := sql.Open("pgx", connectionString)
+	if err != nil {
+		return nil, errors.Wrap(err, "error connecting to database")
+	}
+	//nolint:exhaustruct
+	db, err := gorm.Open(postgres.New(postgres.Config{
+		Conn: sqlDB,
+	}), &gorm.Config{})
+	if err != nil {
+		log.Error().Err(err).Msg("Failed to connect to database")
+
+		return nil, errors.Wrap(err, "failed to connect to database")
+	}
+
+	return db, nil
+}
+
 // closeDB retrieves and closes the underlying sql.DB connection.
 func closeDB(gormDB *gorm.DB, log *zerolog.Logger) {
+	if gormDB == nil {
+		return
+	}
+
 	sqlDB, err := gormDB.DB()
 	if err != nil {
 		log.Error().Err(err).Msg("Failed to connect to database")

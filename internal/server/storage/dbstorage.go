@@ -22,6 +22,10 @@ func NewDBStorage(db *gorm.DB) *DBStorage {
 }
 
 func (repo *DBStorage) Ping() error {
+	if repo.db == nil {
+		return errors.New("db is nil")
+	}
+
 	db, err := repo.db.DB()
 	if err != nil {
 		return errors.Wrap(err, "failed to connect to database")
