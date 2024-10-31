@@ -90,14 +90,21 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 	}
 
 	// Prepare new metrics by updating existing ones or creating new entries
-	newMetrics := make([]model.Metric, len(metrics))
-	for i, metric := range metrics {
+	for _, metric := range metrics {
 		if oldMetric, found := (*oldMetrics)[metric.ID]; found {
 			oldMetric.SetValue(metric.Delta, metric.Value)
-			newMetrics[i] = oldMetric
+			(*oldMetrics)[metric.ID] = oldMetric
 		} else {
-			newMetrics[i] = *metric
+			(*oldMetrics)[metric.ID] = *metric
 		}
+	}
+
+	// Prepare the newMetrics slice with the updated oldMetrics
+	newMetrics := make([]model.Metric, 0, len(*oldMetrics))
+
+	// Add all metrics from oldMetrics to newMetrics
+	for _, oldMetric := range *oldMetrics {
+		newMetrics = append(newMetrics, oldMetric)
 	}
 
 	// Update all metrics in the repository
@@ -110,7 +117,7 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 
 	// Send the response with updated metrics
 	response.WriteHeader(http.StatusOK)
-	if err = json.NewEncoder(response).Encode(metrics); err != nil {
+	if err = json.NewEncoder(response).Encode(newMetrics); err != nil {
 		mh.logger.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(response, "Failed to process response", http.StatusInternalServerError)
 	}

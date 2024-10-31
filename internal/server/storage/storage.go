@@ -126,13 +126,6 @@ func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (*ma
 		}
 	}
 
-	// If no metrics found, you may want to return a specific error or an empty result.
-	if len(results) == 0 {
-		ms.l.Warn().Msg("No metrics found for the given names")
-
-		return nil, errors.New("no metrics found for the given names")
-	}
-
 	return &results, nil
 }
 
