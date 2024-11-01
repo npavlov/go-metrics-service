@@ -246,7 +246,6 @@ func TestMemStorageStartBackup(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	memStorage := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(ctx, cfg)
 
 	// Prepare and update a metric
@@ -262,6 +261,8 @@ func TestMemStorageStartBackup(t *testing.T) {
 
 	// Wait a bit to ensure backup happens
 	time.Sleep(2 * time.Second)
+
+	cancel()
 
 	// Verify the backup file exists and has the expected metric data
 	fileContent, err := os.ReadFile(tmpFile)
@@ -355,7 +356,6 @@ func TestMemStorageConcurrentBackup(t *testing.T) {
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 
 	memStorage := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(ctx, cfg)
 
@@ -372,6 +372,8 @@ func TestMemStorageConcurrentBackup(t *testing.T) {
 
 	// Wait for backups to run
 	time.Sleep(3 * time.Second)
+
+	cancel()
 
 	// Check that the backup file exists
 	fileContent, err := os.ReadFile(tmpFile)
