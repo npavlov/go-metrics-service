@@ -240,8 +240,9 @@ func TestMemStorageStartBackup(t *testing.T) {
 	tmpFile := filepath.Join(tempDir, "test_backup_metrics.json")
 
 	cfg := &config.Config{
-		File:          tmpFile,
-		StoreInterval: 1, // Set a short interval for testing
+		File:             tmpFile,
+		StoreInterval:    1, // Set a short interval for testing
+		StoreIntervalDur: 1 * time.Second,
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -264,9 +265,6 @@ func TestMemStorageStartBackup(t *testing.T) {
 
 	// Verify the backup file exists and has the expected metric data
 	fileContent, err := os.ReadFile(tmpFile)
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(tmpFile)
 	require.NoError(t, err)
 
 	var restoredData map[domain.MetricName]model.Metric
