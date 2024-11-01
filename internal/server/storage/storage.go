@@ -114,7 +114,7 @@ func (ms *MemStorage) Get(_ context.Context, name domain.MetricName) (*model.Met
 // GetMany retrieves multiple metrics by their names.
 //
 //nolint:lll
-func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (*map[domain.MetricName]model.Metric, error) {
+func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (map[domain.MetricName]model.Metric, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -126,7 +126,7 @@ func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (*ma
 		}
 	}
 
-	return &results, nil
+	return results, nil
 }
 
 // Generic function to clone a map of Metrics.

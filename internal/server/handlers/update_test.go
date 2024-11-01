@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/model"
+
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
@@ -35,6 +37,7 @@ func TestUpdateHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		request string
+		initial *metric
 		want    want
 	}{
 		{
@@ -103,6 +106,25 @@ func TestUpdateHandler(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "Update counter if found",
+			request: "/update/counter/PollCount/2",
+			want: want{
+				statusCode: http.StatusOK,
+				result: &metric{
+					name:       "PollCount",
+					metricType: "counter",
+					counter:    3,
+					gauge:      0,
+				},
+			},
+			initial: &metric{
+				name:       "PollCount",
+				metricType: "counter",
+				counter:    1,
+				gauge:      0,
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -114,6 +136,16 @@ func TestUpdateHandler(t *testing.T) {
 			mHandlers := handlers.NewMetricsHandler(memStorage, log)
 			var cRouter router.Router = router.NewCustomRouter(log)
 			cRouter.SetRouter(mHandlers, nil)
+
+			if tt.initial != nil {
+				mod := model.Metric{
+					ID:    tt.initial.name,
+					MType: tt.initial.metricType,
+					Value: float64Ptr(tt.initial.gauge),
+					Delta: int64Ptr(tt.initial.counter),
+				}
+				_ = memStorage.Create(context.Background(), &mod)
+			}
 
 			// Start the test server
 			server := httptest.NewServer(cRouter.GetRouter())

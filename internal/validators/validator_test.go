@@ -154,6 +154,76 @@ func TestMValidatorImpl_FromBody(t *testing.T) {
 	}
 }
 
+func TestMValidatorImpl_ManyFromBody(t *testing.T) {
+	t.Parallel()
+
+	validator := validators.NewMetricsValidator()
+
+	tests := []struct {
+		name    string
+		body    string
+		want    []*model.Metric
+		wantErr bool
+	}{
+		{
+			name: "Valid metrics list",
+			body: `[{"id":"metric1","type":"counter","delta":10},{"id":"metric2","type":"gauge","value":20.5}]`,
+			want: []*model.Metric{
+				{ID: "metric1", MType: domain.Counter, Delta: int64Ptr(10)},
+				{ID: "metric2", MType: domain.Gauge, Value: float64Ptr(20.5)},
+			},
+			wantErr: false,
+		},
+		{
+			name:    "Mixed valid and invalid metric types",
+			body:    `[{"id":"metric1","type":"counter","delta":10},{"id":"metric2","type":"invalid","value":20.5}]`,
+			wantErr: true,
+		},
+		{
+			name:    "Invalid JSON structure",
+			body:    `[{"id":"metric1","type":"counter","delta":10,]`,
+			wantErr: true,
+		},
+		{
+			name:    "Empty metrics list",
+			body:    `[]`,
+			want:    []*model.Metric{},
+			wantErr: false,
+		},
+		{
+			name: "Gauge metric without value field",
+			body: `[{"id":"metric2","type":"gauge"}]`,
+			want: []*model.Metric{
+				{ID: "metric2", MType: domain.Gauge, Value: nil},
+			},
+			wantErr: false,
+		},
+		{
+			name: "Counter metric without delta field",
+			body: `[{"id":"metric1","type":"counter"}]`,
+			want: []*model.Metric{
+				{ID: "metric1", MType: domain.Counter, Delta: nil},
+			},
+			wantErr: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			body := io.NopCloser(bytes.NewBufferString(tt.body))
+			got, err := validator.ManyFromBody(body)
+			if tt.wantErr {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, got)
+			}
+		})
+	}
+}
+
 // Helper function to create float64 pointer.
 func float64Ptr(f float64) *float64 {
 	return &f

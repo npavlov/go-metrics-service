@@ -100,7 +100,7 @@ func (repo *DBStorage) Get(context context.Context, name domain.MetricName) (*mo
 // GetMany fetches a single metric by name.
 //
 //nolint:lll
-func (repo *DBStorage) GetMany(context context.Context, names []domain.MetricName) (*map[domain.MetricName]model.Metric, error) {
+func (repo *DBStorage) GetMany(context context.Context, names []domain.MetricName) (map[domain.MetricName]model.Metric, error) {
 	var metrics []model.Metric
 	err := retryOperation(func() error {
 		return repo.db.WithContext(context).Where("id IN ?", names).Find(&metrics).Error
@@ -115,7 +115,7 @@ func (repo *DBStorage) GetMany(context context.Context, names []domain.MetricNam
 		results[metric.ID] = metric
 	}
 
-	return &results, nil
+	return results, nil
 }
 
 // GetAll fetches all metrics from the database.

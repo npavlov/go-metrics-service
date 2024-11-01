@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"os"
+	"path/filepath"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -99,10 +101,9 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	t.Parallel()
 
 	// Setup temporary file for testing backup/restore
-	tmpFile := "test_metrics.json"
-	defer func(name string) {
-		_ = os.Remove(name)
-	}(tmpFile)
+	tempDir := t.TempDir()
+	// Define the path for the temporary file
+	tmpFile := filepath.Join(tempDir, "test_metrics.json")
 
 	cfg := &config.Config{
 		File:           tmpFile,
@@ -228,4 +229,160 @@ func TestMemStorageCreate(t *testing.T) {
 	assert.Len(t, allMetrics, 2)
 	assert.Equal(t, delta, *allMetrics["counter_metric"].Delta)
 	assert.InDelta(t, gaugeValue, *allMetrics["gauge_metric"].Value, 0000.1)
+}
+
+func TestMemStorageStartBackup(t *testing.T) {
+	t.Parallel()
+
+	// Setup temporary file for testing backup/restore
+	tempDir := t.TempDir()
+	// Define the path for the temporary file
+	tmpFile := filepath.Join(tempDir, "test_backup_metrics.json")
+
+	cfg := &config.Config{
+		File:          tmpFile,
+		StoreInterval: 1, // Set a short interval for testing
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	memStorage := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(ctx, cfg)
+
+	// Prepare and update a metric
+	delta := int64(200)
+	metric := &model.Metric{
+		ID:    domain.MetricName("backup_counter_metric"),
+		MType: domain.Counter,
+		Delta: &delta,
+	}
+
+	err := memStorage.Update(context.Background(), metric)
+	require.NoError(t, err)
+
+	// Wait a bit to ensure backup happens
+	time.Sleep(2 * time.Second)
+
+	// Verify the backup file exists and has the expected metric data
+	fileContent, err := os.ReadFile(tmpFile)
+	defer func(name string) {
+		_ = os.Remove(name)
+	}(tmpFile)
+	require.NoError(t, err)
+
+	var restoredData map[domain.MetricName]model.Metric
+	err = json.Unmarshal(fileContent, &restoredData)
+	require.NoError(t, err)
+
+	assert.Equal(t, delta, *restoredData["backup_counter_metric"].Delta)
+}
+
+func TestMemStorageGetMany(t *testing.T) {
+	t.Parallel()
+
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
+
+	// Add some metrics
+	delta1 := int64(100)
+	delta2 := int64(200)
+	metric1 := &model.Metric{
+		ID:    domain.MetricName("metric1"),
+		MType: domain.Counter,
+		Delta: &delta1,
+	}
+	metric2 := &model.Metric{
+		ID:    domain.MetricName("metric2"),
+		MType: domain.Counter,
+		Delta: &delta2,
+	}
+
+	_ = memStorage.Update(context.Background(), metric1)
+	_ = memStorage.Update(context.Background(), metric2)
+
+	// Test GetMany with multiple metric names
+	metricIDs := []domain.MetricName{"metric1", "metric2"}
+	retrievedMetrics, err := memStorage.GetMany(context.Background(), metricIDs)
+	require.NoError(t, err)
+
+	assert.Len(t, retrievedMetrics, 2)
+	assert.Equal(t, delta1, *retrievedMetrics["metric1"].Delta)
+	assert.Equal(t, delta2, *retrievedMetrics["metric2"].Delta)
+}
+
+func TestMemStorageUpdateMany(t *testing.T) {
+	t.Parallel()
+
+	memStorage := storage.NewMemStorage(testutils.GetTLogger())
+
+	// Prepare multiple metrics
+	delta1 := int64(300)
+	delta2 := int64(400)
+	metric1 := model.Metric{
+		ID:    domain.MetricName("update_metric1"),
+		MType: domain.Counter,
+		Delta: &delta1,
+	}
+	metric2 := model.Metric{
+		ID:    domain.MetricName("update_metric2"),
+		MType: domain.Counter,
+		Delta: &delta2,
+	}
+
+	metricsToUpdate := []model.Metric{metric1, metric2}
+
+	// Use UpdateMany to add both metrics
+	err := memStorage.UpdateMany(context.Background(), &metricsToUpdate)
+	require.NoError(t, err)
+
+	// Verify both metrics have been added/updated
+	ids := []domain.MetricName{"update_metric1", "update_metric2"}
+	allMetrics, _ := memStorage.GetMany(context.Background(), ids)
+	assert.Len(t, allMetrics, 2)
+	assert.Equal(t, delta1, *allMetrics["update_metric1"].Delta)
+	assert.Equal(t, delta2, *allMetrics["update_metric2"].Delta)
+}
+
+func TestMemStorageConcurrentBackup(t *testing.T) {
+	t.Parallel()
+
+	// Setup temporary file for testing backup
+	// Setup temporary file for testing backup/restore
+	tempDir := t.TempDir()
+	// Define the path for the temporary file
+	tmpFile := filepath.Join(tempDir, "test_concurrent_backup_metrics.json")
+
+	cfg := &config.Config{
+		File:             tmpFile,
+		StoreInterval:    1, // Short interval to allow multiple backups
+		StoreIntervalDur: 1 * time.Second,
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	memStorage := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(ctx, cfg)
+
+	// Prepare metrics
+	delta := int64(50)
+	for range 5 {
+		metric := model.Metric{
+			ID:    domain.MetricName("concurrent_backup_metric"),
+			MType: domain.Counter,
+			Delta: &delta,
+		}
+		_ = memStorage.Update(context.Background(), &metric)
+	}
+
+	// Wait for backups to run
+	time.Sleep(3 * time.Second)
+
+	// Check that the backup file exists
+	fileContent, err := os.ReadFile(tmpFile)
+	require.NoError(t, err)
+
+	// Verify the file has the latest data
+	var restoredData map[domain.MetricName]model.Metric
+	err = json.Unmarshal(fileContent, &restoredData)
+	require.NoError(t, err)
+
+	assert.Equal(t, delta, *restoredData["concurrent_backup_metric"].Delta)
 }
