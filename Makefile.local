@@ -1,0 +1,7 @@
+# Define variables
+MIGRATION_NAME ?= "default_migration_name"
+TEMP_DB=
+
+# Export the variables
+export MIGRATION_NAME
+export TEMP_DB

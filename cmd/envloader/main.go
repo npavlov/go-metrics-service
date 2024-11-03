@@ -5,15 +5,11 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/joho/godotenv"
 	"github.com/rs/zerolog/log"
 )
 
 func main() {
-	err := godotenv.Load("server.env")
-	if err != nil {
-		log.Error().Err(err).Msg("Error loading server.env file")
-	}
+
 	// Get all environment variables
 	envs := make(map[string]string)
 	for _, env := range os.Environ() {

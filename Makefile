@@ -3,9 +3,7 @@
 # Define Go command, which can be overridden
 GO ?= go
 
-include server.env
-# Define variables
-MIGRATION_NAME ?= "default_migration_name"
+include Makefile.local
 
 # Build the server binary from the Go source files in the cmd/server directory
 build-server:

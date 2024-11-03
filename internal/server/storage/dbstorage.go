@@ -2,169 +2,190 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
-	"time"
-
-	"github.com/jackc/pgerrcode"
-	"github.com/jackc/pgx/v5/pgconn"
-	"github.com/pkg/errors"
-	"gorm.io/gorm"
+	"strings"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/pkg/errors"
+	"github.com/rs/zerolog"
 )
 
 type DBStorage struct {
-	db *gorm.DB
+	db *sql.DB
+	l  *zerolog.Logger
 }
 
-func NewDBStorage(db *gorm.DB) *DBStorage {
+// NewDBStorage initializes a new DBStorage instance.
+func NewDBStorage(db *sql.DB, l *zerolog.Logger) *DBStorage {
+	gg := db.Ping()
+	if gg != nil {
+		l.Error().Msg("TEGGE")
+	}
+
 	return &DBStorage{
 		db: db,
+		l:  l,
 	}
 }
 
-func retryOperation(operation func() error) error {
-	maxRetries := 3
-	retryDelays := []time.Duration{1 * time.Second, 3 * time.Second, 5 * time.Second}
+// GetAll retrieves all metrics from the database.
+func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]model.Metric {
+	query := `SELECT id, type, delta, value FROM public.mtr_metrics`
+	rows, err := ds.db.QueryContext(ctx, query)
+	if err != nil {
+		ds.l.Error().Err(err).Msg("error getting metrics")
+		return nil
+	}
+	defer rows.Close()
 
-	for idx := 0; idx <= maxRetries; idx++ {
-		err := operation()
-		if err == nil {
+	metrics := make(map[domain.MetricName]model.Metric)
+	for rows.Next() {
+		var metric model.Metric
+		if err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value); err != nil {
+			ds.l.Error().Err(err).Msg("error getting metrics")
 			return nil
 		}
-
-		// Проверяем, является ли ошибка retriable
-		if !isRetriableError(err) {
-			return err
-		}
-
-		// Ждём перед следующей попыткой
-		if idx < maxRetries {
-			time.Sleep(retryDelays[idx])
-		}
+		metrics[metric.ID] = metric
 	}
 
-	return errors.New("operation failed after retries")
-}
-
-func isRetriableError(err error) bool {
-	var pgErr *pgconn.PgError
-	if errors.As(err, &pgErr) {
-		switch pgErr.Code {
-		case pgerrcode.ConnectionException, pgerrcode.ConnectionFailure, pgerrcode.CrashShutdown:
-			return true
-		}
-	}
-
-	return false
-}
-
-func (repo *DBStorage) Ping() error {
-	if repo.db == nil {
-		return errors.New("db is nil")
-	}
-
-	db, err := repo.db.DB()
-	if err != nil {
-		return errors.Wrap(err, "failed to connect to database")
-	}
-
-	return errors.Wrap(db.Ping(), "failed to ping DB")
-}
-
-// Create inserts a new metric into the database.
-func (repo *DBStorage) Create(context context.Context, metric *model.Metric) error {
-	return retryOperation(func() error {
-		if err := repo.db.WithContext(context).Create(metric).Error; err != nil {
-			return fmt.Errorf("failed to create metric: %w", err)
-		}
-
+	if err := rows.Err(); err != nil {
+		ds.l.Error().Err(err).Msg("error getting metrics")
 		return nil
-	})
+	}
+
+	return metrics
 }
 
-// Get fetches a single metric by name.
-func (repo *DBStorage) Get(context context.Context, name domain.MetricName) (*model.Metric, bool) {
+// Get retrieves a single metric by its name.
+func (ds *DBStorage) Get(ctx context.Context, name domain.MetricName) (*model.Metric, bool) {
+	query := `SELECT id, type, delta, value FROM public.mtr_metrics WHERE id = $1`
+	row := ds.db.QueryRowContext(ctx, query, name)
+
 	var metric model.Metric
-	err := retryOperation(func() error {
-		return repo.db.WithContext(context).First(&metric, "id = ?", name).Error
-	})
-	if err != nil {
+	if err := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value); err != nil {
+		ds.l.Error().Err(err).Msg("failed to retrieve metric")
 		return nil, false
 	}
 
 	return &metric, true
 }
 
-// GetMany fetches a single metric by name.
-//
-//nolint:lll
-func (repo *DBStorage) GetMany(context context.Context, names []domain.MetricName) (map[domain.MetricName]model.Metric, error) {
-	var metrics []model.Metric
-	err := retryOperation(func() error {
-		return repo.db.WithContext(context).Where("id IN ?", names).Find(&metrics).Error
-	})
+// GetMany retrieves multiple metrics based on their names.
+func (ds *DBStorage) GetMany(ctx context.Context, names []domain.MetricName) (map[domain.MetricName]model.Metric, error) {
+	// Return an empty result if no names are provided
+	if len(names) == 0 {
+		return map[domain.MetricName]model.Metric{}, nil
+	}
+
+	// Create placeholders and arguments for each name in the slice
+	placeholders := make([]string, len(names))
+	args := make([]interface{}, len(names))
+	for i, name := range names {
+		placeholders[i] = fmt.Sprintf("$%d", i+1)
+		args[i] = name
+	}
+
+	// Build the SQL query with placeholders
+	query := fmt.Sprintf(`SELECT id, type, delta, value FROM public.mtr_metrics WHERE id IN (%s)`, strings.Join(placeholders, ", "))
+
+	// Execute the query
+	rows, err := ds.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to get metrics")
+		return nil, errors.Wrap(err, "failed to retrieve multiple metrics")
+	}
+	defer rows.Close()
+
+	// Prepare a map to hold the results
+	metrics := make(map[domain.MetricName]model.Metric)
+	for rows.Next() {
+		var metric model.Metric
+		if err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value); err != nil {
+			return nil, errors.Wrap(err, "failed to scan metric row")
+		}
+		metrics[metric.ID] = metric
 	}
 
-	results := make(map[domain.MetricName]model.Metric)
-
-	for _, metric := range metrics {
-		results[metric.ID] = metric
+	// Check for errors that might have occurred during row iteration
+	if err := rows.Err(); err != nil {
+		return nil, errors.Wrap(err, "error occurred during row iteration")
 	}
 
-	return results, nil
-}
-
-// GetAll fetches all metrics from the database.
-func (repo *DBStorage) GetAll(context context.Context) map[domain.MetricName]model.Metric {
-	var metrics []model.Metric
-	result := make(map[domain.MetricName]model.Metric)
-
-	if err := repo.db.WithContext(context).Find(&metrics).Error; err != nil {
-		return result
-	}
-
-	for _, metric := range metrics {
-		result[metric.ID] = metric
-	}
-
-	return result
+	return metrics, nil
 }
 
 // Update modifies an existing metric in the database.
-func (repo *DBStorage) Update(context context.Context, metric *model.Metric) error {
-	return retryOperation(func() error {
-		if err := repo.db.WithContext(context).Save(metric).Error; err != nil {
-			return fmt.Errorf("failed to update metric: %w", err)
-		}
-
-		return nil
-	})
+func (ds *DBStorage) Update(ctx context.Context, metric *model.Metric) error {
+	query := `
+		UPDATE public.mtr_metrics 
+		SET delta = $2, value = $3 
+		WHERE id = $1 AND type = $4`
+	_, err := ds.db.ExecContext(ctx, query, metric.ID, metric.Delta, metric.Value, metric.MType)
+	if err != nil {
+		return errors.Wrap(err, "failed to update metric")
+	}
+	return nil
 }
 
-// UpdateMany inserts or updates multiple metrics in the database.
-func (repo *DBStorage) UpdateMany(ctx context.Context, metrics *[]model.Metric) error {
-	return retryOperation(func() error {
-		tx := repo.db.WithContext(ctx).Begin()
-		if tx.Error != nil {
-			return fmt.Errorf("failed to start transaction: %w", tx.Error)
+// Create inserts a new metric into the database.
+func (ds *DBStorage) Create(ctx context.Context, metric *model.Metric) error {
+	query := `
+		INSERT INTO public.mtr_metrics (id, type, delta, value) 
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (id, type) DO NOTHING`
+	_, err := ds.db.ExecContext(ctx, query, metric.ID, metric.MType, metric.Delta, metric.Value)
+	if err != nil {
+		ds.l.Error().Err(err).Msg("failed to insert metric")
+		return errors.Wrap(err, "failed to create metric")
+	}
+	return nil
+}
+
+// UpdateMany updates multiple metrics in the database.
+func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]model.Metric) error {
+	tx, err := ds.db.BeginTx(ctx, nil) // Start a transaction
+	if err != nil {
+		return errors.Wrap(err, "failed to begin transaction")
+	}
+	defer func() {
+		if err != nil {
+			_ = tx.Rollback() // Rollback if there's an error
 		}
+	}()
 
-		for _, metric := range *metrics {
-			if err := tx.Save(&metric).Error; err != nil {
-				tx.Rollback()
+	// Prepare an upsert statement using ON CONFLICT
+	stmt, err := tx.PrepareContext(ctx, `
+		INSERT INTO public.mtr_metrics (id, type, delta, value) 
+		VALUES ($1, $2, $3, $4)
+		ON CONFLICT (id, type) DO UPDATE
+		SET delta = EXCLUDED.delta, value = EXCLUDED.value
+	`)
+	if err != nil {
+		return errors.Wrap(err, "failed to prepare upsert statement")
+	}
+	defer stmt.Close()
 
-				return fmt.Errorf("failed to save metric with ID %s: %w", metric.ID, err)
-			}
+	// Execute the upsert statement for each metric in the list
+	for _, metric := range *metrics {
+		_, err := stmt.ExecContext(ctx, metric.ID, metric.MType, metric.Delta, metric.Value)
+		if err != nil {
+			return errors.Wrapf(err, "failed to upsert metric with ID %s", metric.ID)
 		}
+	}
 
-		if err := tx.Commit().Error; err != nil {
-			return fmt.Errorf("failed to commit transaction: %w", err)
-		}
+	// Commit the transaction if everything is successful
+	if err = tx.Commit(); err != nil {
+		return errors.Wrap(err, "failed to commit transaction")
+	}
 
-		return nil
-	})
+	return nil
+}
+
+func (ds *DBStorage) Ping() error {
+	if ds.db == nil {
+		return errors.New("db is nil")
+	}
+
+	return ds.db.Ping()
 }

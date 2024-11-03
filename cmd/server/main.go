@@ -6,20 +6,18 @@ import (
 	"net/http"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
-	"github.com/pkg/errors"
-	"github.com/pressly/goose"
-	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
-
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	"github.com/npavlov/go-metrics-service/internal/utils"
+	"github.com/pkg/errors"
+	"github.com/pressly/goose"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 func main() {
@@ -46,7 +44,7 @@ func main() {
 
 	memStorage := storage.NewMemStorage(log).WithBackup(ctx, cfg)
 	// set repo to dbStorage if we are using database
-	dbStorage := storage.NewDBStorage(db)
+	dbStorage := storage.NewDBStorage(db, log)
 
 	stMonitor := storage.NewAutoSwitchRepo(memStorage, dbStorage, cfg.HealthCheckDur, log)
 	stMonitor.StartMonitoring(ctx)
@@ -85,7 +83,7 @@ func main() {
 	log.Info().Msg("Server shut down")
 }
 
-func getDB(connectionString string) (*gorm.DB, error) {
+func getDB(connectionString string) (*sql.DB, error) {
 	if connectionString == "" {
 		return nil, errors.New("no connection string provided")
 	}
@@ -93,15 +91,6 @@ func getDB(connectionString string) (*gorm.DB, error) {
 	sqlDB, err := sql.Open("pgx", connectionString)
 	if err != nil {
 		return nil, errors.Wrap(err, "error connecting to database")
-	}
-	//nolint:exhaustruct
-	db, err := gorm.Open(postgres.New(postgres.Config{
-		Conn: sqlDB,
-	}), &gorm.Config{})
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to connect to database")
-
-		return nil, errors.Wrap(err, "failed to connect to database")
 	}
 
 	// Run migrations
@@ -111,23 +100,16 @@ func getDB(connectionString string) (*gorm.DB, error) {
 
 	log.Info().Msg("Migrations completed")
 
-	return db, nil
+	return sqlDB, nil
 }
 
 // closeDB retrieves and closes the underlying sql.DB connection.
-func closeDB(gormDB *gorm.DB, log *zerolog.Logger) {
-	if gormDB == nil {
+func closeDB(db *sql.DB, log *zerolog.Logger) {
+	if db == nil {
 		return
 	}
 
-	sqlDB, err := gormDB.DB()
-	if err != nil {
-		log.Error().Err(err).Msg("Failed to connect to database")
-
-		return
-	}
-
-	if err := sqlDB.Close(); err != nil {
+	if err := db.Close(); err != nil {
 		log.Error().Err(err).Msg("Failed to close database connection")
 	} else {
 		log.Info().Msg("Database connection closed")
