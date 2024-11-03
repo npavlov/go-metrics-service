@@ -11,11 +11,11 @@ import (
 type Metric struct {
 	// Standard fields for gorm
 	gorm.Model `json:"-"`
-	ID         domain.MetricName   `gorm:"primaryKey;type:varchar(255);column:id;not null" json:"id"              validate:"required"`
-	MType      domain.MetricType   `gorm:"column:type;not null"                            json:"type"            validate:"required,oneof=counter gauge"`
-	MSource    domain.MetricSource `gorm:"-"                                               json:"-"`
-	Delta      *int64              `gorm:"column:delta;type:bigint"                        json:"delta,omitempty"`
-	Value      *float64            `gorm:"column:value;type:double precision"              json:"value,omitempty"`
+	ID         domain.MetricName   `db:"id"    json:"id"              validate:"required"`
+	MType      domain.MetricType   `db:"type"  json:"type"            validate:"required,oneof=counter gauge"`
+	MSource    domain.MetricSource `json:"-"`
+	Delta      *int64              `db:"delta" json:"delta,omitempty"`
+	Value      *float64            `db:"value" json:"value,omitempty"`
 }
 
 // SetValue - the method that allows to encapsulate value set logic for different types.

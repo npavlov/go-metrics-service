@@ -61,7 +61,7 @@ all: fmt lint build-agent build-server
 
 # Create a new migration using Atlas
 atlas-migration:
-	atlas migrate diff $(MIGRATION_NAME) --env dev
+	atlas migrate diff $(MIGRATION_NAME) --env dev --var path="sql/"
 
 # Apply migrations using Goose
 goose-up:
