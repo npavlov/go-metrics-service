@@ -35,7 +35,7 @@ func NewMetricsValidator() *MValidatorImpl {
 
 // FromVars - the function that parses metric structure from map object.
 func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error) {
-	//nolint:exhaustruct
+	
 	metric := &model.Metric{
 		ID:      "",
 		MSource: "",
@@ -93,7 +93,7 @@ func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricTy
 
 // FromBody - the function that parses metric structure from reader.
 func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
-	//nolint:exhaustruct
+	
 	metric := &model.Metric{
 		ID:      "",
 		MSource: "",

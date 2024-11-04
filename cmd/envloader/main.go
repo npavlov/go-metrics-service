@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
 	// Get all environment variables
 	envs := make(map[string]string)
 	for _, env := range os.Environ() {

@@ -53,7 +53,7 @@ func (s *Stats) StatsToMetrics() []model.Metric {
 	for index := range t.NumField() {
 		fieldType := t.Field(index)
 		fieldName := fieldType.Name
-		//nolint:exhaustruct
+		
 		metric := model.Metric{
 			ID:      domain.MetricName(fieldName),
 			MType:   domain.MetricType(fieldType.Tag.Get("metricType")),

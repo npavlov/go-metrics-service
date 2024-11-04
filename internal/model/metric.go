@@ -3,19 +3,15 @@ package model
 import (
 	"strconv"
 
-	"gorm.io/gorm"
-
 	"github.com/npavlov/go-metrics-service/internal/domain"
 )
 
 type Metric struct {
-	// Standard fields for gorm
-	gorm.Model `json:"-"`
-	ID         domain.MetricName   `db:"id"    json:"id"              validate:"required"`
-	MType      domain.MetricType   `db:"type"  json:"type"            validate:"required,oneof=counter gauge"`
-	MSource    domain.MetricSource `json:"-"`
-	Delta      *int64              `db:"delta" json:"delta,omitempty"`
-	Value      *float64            `db:"value" json:"value,omitempty"`
+	ID      domain.MetricName   `db:"id"    json:"id"              validate:"required"`
+	MType   domain.MetricType   `db:"type"  json:"type"            validate:"required,oneof=counter gauge"`
+	MSource domain.MetricSource `json:"-"`
+	Delta   *int64              `db:"delta" json:"delta,omitempty"`
+	Value   *float64            `db:"value" json:"value,omitempty"`
 }
 
 // SetValue - the method that allows to encapsulate value set logic for different types.
