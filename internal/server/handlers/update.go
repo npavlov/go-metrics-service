@@ -9,7 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 func (mh *MetricHandler) Update(response http.ResponseWriter, request *http.Request) {
@@ -61,7 +61,7 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 	}
 }
 
-func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *model.Metric) (*model.Metric, error) {
+func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *db.MtrMetric) (*db.MtrMetric, error) {
 	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
 	defer cancel()
 

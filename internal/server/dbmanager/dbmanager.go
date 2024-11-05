@@ -30,12 +30,14 @@ func (m *DBManager) Connect() *DBManager {
 	sqlDB, err := sql.Open("pgx", m.connectionString)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to connect to database")
+
 		return m
 	}
 
 	err = sqlDB.Ping()
 	if err != nil {
 		log.Error().Err(err).Msg("failed to connect to database")
+
 		return m
 	}
 

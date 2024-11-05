@@ -3,8 +3,9 @@ package stats
 import (
 	"reflect"
 
+	"github.com/npavlov/go-metrics-service/internal/agent/model"
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 type Stats struct {
@@ -53,13 +54,15 @@ func (s *Stats) StatsToMetrics() []model.Metric {
 	for index := range t.NumField() {
 		fieldType := t.Field(index)
 		fieldName := fieldType.Name
-		
+
 		metric := model.Metric{
-			ID:      domain.MetricName(fieldName),
-			MType:   domain.MetricType(fieldType.Tag.Get("metricType")),
+			MtrMetric: db.MtrMetric{
+				ID:    domain.MetricName(fieldName),
+				MType: domain.MetricType(fieldType.Tag.Get("metricType")),
+				Value: nil,
+				Delta: nil,
+			},
 			MSource: domain.MetricSource(fieldType.Tag.Get("metricSource")),
-			Value:   nil,
-			Delta:   nil,
 		}
 
 		if metric.MType != domain.Gauge && metric.MType != domain.Counter {

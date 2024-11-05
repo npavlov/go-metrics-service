@@ -35,6 +35,11 @@ const (
 
 type MetricName string
 
+// Implement the Stringer interface.
+func (m MetricName) String() string {
+	return string(m)
+}
+
 const (
 	Alloc         MetricName = "Alloc"
 	BuckHashSys   MetricName = "BuckHashSys"

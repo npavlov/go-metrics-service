@@ -8,9 +8,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/validators"
+
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
+	"github.com/npavlov/go-metrics-service/internal/domain"
 )
 
 func TestMValidatorImpl_FromVars(t *testing.T) {
@@ -23,7 +25,7 @@ func TestMValidatorImpl_FromVars(t *testing.T) {
 		mName   domain.MetricName
 		mType   domain.MetricType
 		val     string
-		want    *model.Metric
+		want    *db.MtrMetric
 		wantErr bool
 	}{
 		{
@@ -31,7 +33,7 @@ func TestMValidatorImpl_FromVars(t *testing.T) {
 			mName: "test_counter",
 			mType: domain.Counter,
 			val:   "123",
-			want: &model.Metric{
+			want: &db.MtrMetric{
 				ID:    "test_counter",
 				MType: domain.Counter,
 				Delta: int64Ptr(123),
@@ -43,7 +45,7 @@ func TestMValidatorImpl_FromVars(t *testing.T) {
 			mName: "test_gauge",
 			mType: domain.Gauge,
 			val:   "123.45",
-			want: &model.Metric{
+			want: &db.MtrMetric{
 				ID:    "test_gauge",
 				MType: domain.Gauge,
 				Value: float64Ptr(123.45),
@@ -103,13 +105,13 @@ func TestMValidatorImpl_FromBody(t *testing.T) {
 	tests := []struct {
 		name    string
 		body    string
-		want    *model.Metric
+		want    *db.MtrMetric
 		wantErr bool
 	}{
 		{
 			name: "Valid counter metric",
 			body: `{"id":"test_counter","type":"counter","delta":123}`,
-			want: &model.Metric{
+			want: &db.MtrMetric{
 				ID:    "test_counter",
 				MType: domain.Counter,
 				Delta: int64Ptr(123),
@@ -119,7 +121,7 @@ func TestMValidatorImpl_FromBody(t *testing.T) {
 		{
 			name: "Valid gauge metric",
 			body: `{"id":"test_gauge","type":"gauge","value":123.45}`,
-			want: &model.Metric{
+			want: &db.MtrMetric{
 				ID:    "test_gauge",
 				MType: domain.Gauge,
 				Value: float64Ptr(123.45),
@@ -162,13 +164,13 @@ func TestMValidatorImpl_ManyFromBody(t *testing.T) {
 	tests := []struct {
 		name    string
 		body    string
-		want    []*model.Metric
+		want    []*db.MtrMetric
 		wantErr bool
 	}{
 		{
 			name: "Valid metrics list",
 			body: `[{"id":"metric1","type":"counter","delta":10},{"id":"metric2","type":"gauge","value":20.5}]`,
-			want: []*model.Metric{
+			want: []*db.MtrMetric{
 				{ID: "metric1", MType: domain.Counter, Delta: int64Ptr(10)},
 				{ID: "metric2", MType: domain.Gauge, Value: float64Ptr(20.5)},
 			},
@@ -187,13 +189,13 @@ func TestMValidatorImpl_ManyFromBody(t *testing.T) {
 		{
 			name:    "Empty metrics list",
 			body:    `[]`,
-			want:    []*model.Metric{},
+			want:    []*db.MtrMetric{},
 			wantErr: false,
 		},
 		{
 			name: "Gauge metric without value field",
 			body: `[{"id":"metric2","type":"gauge"}]`,
-			want: []*model.Metric{
+			want: []*db.MtrMetric{
 				{ID: "metric2", MType: domain.Gauge, Value: nil},
 			},
 			wantErr: false,
@@ -201,7 +203,7 @@ func TestMValidatorImpl_ManyFromBody(t *testing.T) {
 		{
 			name: "Counter metric without delta field",
 			body: `[{"id":"metric1","type":"counter"}]`,
-			want: []*model.Metric{
+			want: []*db.MtrMetric{
 				{ID: "metric1", MType: domain.Counter, Delta: nil},
 			},
 			wantErr: false,

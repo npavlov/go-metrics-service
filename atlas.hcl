@@ -1,16 +1,4 @@
-variable "path" {
-  type        = string
-  description = "A path to the template directory"
-}
 
-data "template_dir" "schema" {
-  path = var.path
-  vars = {
-    key = "value"
-    // Pass the --env value as a template variable.
-    env  = atlas.env
-  }
-}
 
 data "external" "dot_env" {
   program = [
@@ -26,7 +14,7 @@ locals {
 }
 
 env "dev" {
-    src = data.template_dir.schema.url
+    src = "sql/schema.tmpl.sql"
     dev = local.dot_env.TEMP_DB
     migration {
         dir = "file://migrations?format=goose"

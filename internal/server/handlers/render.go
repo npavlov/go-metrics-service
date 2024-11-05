@@ -5,7 +5,7 @@ import (
 	"net/http"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/web"
 )
 
@@ -14,7 +14,7 @@ func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Requ
 	defer cancel()
 
 	page := struct {
-		Metrics map[domain.MetricName]model.Metric
+		Metrics map[domain.MetricName]db.MtrMetric
 	}{
 		Metrics: mh.repo.GetAll(ctx),
 	}

@@ -15,7 +15,8 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/agent/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 // ErrPostRequestFailed Define a static error for failed POST requests.
@@ -163,7 +164,7 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, data 
 
 func (mr *MetricReporter) read(data []byte) {
 	// Unmarshal the decompressed response into a Metric struct
-	var rMetric model.Metric
+	var rMetric db.MtrMetric
 	err := json.Unmarshal(data, &rMetric)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
@@ -179,7 +180,7 @@ func (mr *MetricReporter) read(data []byte) {
 
 func (mr *MetricReporter) readMany(data []byte) {
 	// Unmarshal the decompressed response into a Metric struct
-	var rMetrics []model.Metric
+	var rMetrics []db.MtrMetric
 	err := json.Unmarshal(data, &rMetrics)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")

@@ -11,10 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
@@ -29,7 +30,7 @@ func TestGetRenderHandler(t *testing.T) {
 	var cRouter router.Router = router.NewCustomRouter(log)
 	cRouter.SetRouter(mHandlers, nil)
 
-	metrics := []model.Metric{
+	metrics := []db.MtrMetric{
 		{
 			ID:    "GaugeMetric1",
 			MType: domain.Gauge,

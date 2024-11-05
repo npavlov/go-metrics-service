@@ -1,4 +1,4 @@
-.PHONY: build-server build-agent test clean run-server run-agent lint fmt deps atlas-migration goose-up goose-down
+.PHONY: build-server build-agent test clean run-server run-agent lint fmt deps atlas-migration goose-up goose-down sqlc
 
 # Define Go command, which can be overridden
 GO ?= go
@@ -59,7 +59,7 @@ all: fmt lint build-agent build-server
 
 # Create a new migration using Atlas
 atlas-migration:
-	atlas migrate diff $(MIGRATION_NAME) --env dev --var path="sql/"
+	atlas migrate diff $(MIGRATION_NAME) --env dev
 
 # Apply migrations using Goose
 goose-up:
@@ -68,3 +68,6 @@ goose-up:
 # Rollback migrations using Goose
 goose-down:
 	goose -dir migrations postgres "$(DATABASE_DSN)" down
+
+sqlc:
+	sqlc generate

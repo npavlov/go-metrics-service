@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
@@ -138,7 +138,7 @@ func TestUpdateHandler(t *testing.T) {
 			cRouter.SetRouter(mHandlers, nil)
 
 			if tt.initial != nil {
-				mod := model.Metric{
+				mod := db.MtrMetric{
 					ID:    tt.initial.name,
 					MType: tt.initial.metricType,
 					Value: float64Ptr(tt.initial.gauge),

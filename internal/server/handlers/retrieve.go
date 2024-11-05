@@ -9,7 +9,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Request) {
@@ -33,7 +33,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
 	defer cancel()
 	// Decode the incoming JSON request into the Metric struct
-	var metric *model.Metric
+	var metric *db.MtrMetric
 	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
 		mh.logger.Error().Err(err).Msg("Invalid JSON input")
 		http.Error(response, "Invalid JSON input", http.StatusNotFound)

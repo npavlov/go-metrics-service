@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *http.Request) {
@@ -48,7 +48,7 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 	}
 
 	// Prepare the newMetrics slice with the updated oldMetrics
-	newMetrics := make([]model.Metric, 0, len(oldMetrics))
+	newMetrics := make([]db.MtrMetric, 0, len(oldMetrics))
 
 	// Add all metrics from oldMetrics to newMetrics
 	for _, oldMetric := range oldMetrics {

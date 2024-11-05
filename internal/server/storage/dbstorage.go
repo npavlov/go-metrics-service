@@ -3,8 +3,6 @@ package storage
 import (
 	"context"
 	"database/sql"
-	"fmt"
-	"strings"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
@@ -14,41 +12,53 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+)
+
+const (
+	maxRetries = 3
 )
 
 type DBStorage struct {
-	Db *sql.DB
-	l  *zerolog.Logger
+	Queries *db.Queries
+	l       *zerolog.Logger
+	dbCon   *sql.DB
 }
 
 // NewDBStorage initializes a new DBStorage instance.
-func NewDBStorage(db *sql.DB, l *zerolog.Logger) *DBStorage {
+func NewDBStorage(dbCon *sql.DB, l *zerolog.Logger) *DBStorage {
 	return &DBStorage{
-		Db: db,
-		l:  l,
+		dbCon:   dbCon,
+		Queries: db.New(dbCon),
+		l:       l,
 	}
 }
 
-// retryOperation is a helper function to execute a database operation with retry logic.
+// retryOperation executes a database operation with retry logic, handling transient errors automatically.
 func (ds *DBStorage) retryOperation(ctx context.Context, operation func() error) error {
-	// Configure exponential backoff strategy
 	backoffConfig := backoff.NewExponentialBackOff()
 	backoffConfig.InitialInterval = 1 * time.Second
-	backoffConfig.Multiplier = 3 // To approximate delays of 1s, 3s, and 5s
+	backoffConfig.Multiplier = 3
+	retryWithLimit := backoff.WithMaxRetries(backoffConfig, maxRetries)
 
-	// Limit to a maximum of 3 retries
-	retryWithLimit := backoff.WithMaxRetries(backoffConfig, 3)
+	err := backoff.Retry(func() error {
+		err := operation()
+		if err != nil && ds.isRetryableError(err) {
+			ds.l.Warn().Err(err).Msg("transient error, retrying operation")
 
-	// Run the operation with retry logic
-	return backoff.Retry(operation, backoff.WithContext(retryWithLimit, ctx))
+			return err
+		}
+
+		return backoff.Permanent(err) // Stop retrying on non-retryable error
+	}, backoff.WithContext(retryWithLimit, ctx))
+
+	return errors.Wrap(err, "failed to execute operation after retry")
 }
 
-// isRetriableError determines if an error is retriable by checking PostgreSQL-specific error codes.
-func isRetriableError(err error) bool {
+// isRetryableError checks if an error is retryable based on PostgreSQL-specific error codes.
+func (ds *DBStorage) isRetryableError(err error) bool {
 	var pgErr *pgconn.PgError
 	if errors.As(err, &pgErr) {
-		// Check for retriable PostgreSQL error codes, such as connection errors.
 		switch pgErr.Code {
 		case pgerrcode.ConnectionException,
 			pgerrcode.ConnectionDoesNotExist,
@@ -60,39 +70,31 @@ func isRetriableError(err error) bool {
 			return true
 		}
 	}
+
 	return false
 }
 
 // GetAll retrieves all metrics from the database with retry logic.
-func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]model.Metric {
-	query := `SELECT id, type, delta, value FROM mtr_metrics`
-	metrics := make(map[domain.MetricName]model.Metric)
+func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]db.MtrMetric {
+	metrics := make(map[domain.MetricName]db.MtrMetric)
 
 	err := ds.retryOperation(ctx, func() error {
-		rows, err := ds.Db.QueryContext(ctx, query)
+		results, err := ds.Queries.GetAllMetrics(ctx)
 		if err != nil {
-			if isRetriableError(err) {
-				ds.l.Warn().Err(err).Msg("transient error on QueryContext, retrying")
-				return err
-			}
 			ds.l.Error().Err(err).Msg("error getting metrics")
-			return backoff.Permanent(err)
-		}
-		defer rows.Close()
 
-		for rows.Next() {
-			var metric model.Metric
-			if err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value); err != nil {
-				ds.l.Error().Err(err).Msg("error scanning metric")
-				return backoff.Permanent(err)
-			}
-			metrics[metric.ID] = metric
+			return errors.Wrap(err, "error getting metrics")
 		}
 
-		return rows.Err()
+		for _, m := range results {
+			metrics[m.ID] = m
+		}
+
+		return nil
 	})
 	if err != nil {
 		ds.l.Error().Err(err).Msg("failed to retrieve metrics after retries")
+
 		return nil
 	}
 
@@ -100,21 +102,18 @@ func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]model.Met
 }
 
 // Get retrieves a single metric by its name with retry logic.
-func (ds *DBStorage) Get(ctx context.Context, name domain.MetricName) (*model.Metric, bool) {
-	query := `SELECT id, type, delta, value FROM mtr_metrics WHERE id = $1`
-	var metric model.Metric
+func (ds *DBStorage) Get(ctx context.Context, name domain.MetricName) (*db.MtrMetric, bool) {
+	var metric db.MtrMetric
 
 	err := ds.retryOperation(ctx, func() error {
-		row := ds.Db.QueryRowContext(ctx, query, name)
-		err := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
+		result, err := ds.Queries.GetMetric(ctx, name)
 		if err != nil {
-			if isRetriableError(err) {
-				ds.l.Warn().Err(err).Msg("transient error on QueryRowContext, retrying")
-				return err
-			}
 			ds.l.Error().Err(err).Msg("failed to retrieve metric")
-			return backoff.Permanent(err)
+
+			return errors.Wrap(err, "failed to retrieve metric")
 		}
+		metric = result
+
 		return nil
 	})
 	if err != nil {
@@ -125,40 +124,33 @@ func (ds *DBStorage) Get(ctx context.Context, name domain.MetricName) (*model.Me
 }
 
 // GetMany retrieves multiple metrics based on their names with retry logic.
-func (ds *DBStorage) GetMany(ctx context.Context, names []domain.MetricName) (map[domain.MetricName]model.Metric, error) {
+//
+//nolint:lll
+func (ds *DBStorage) GetMany(ctx context.Context, names []domain.MetricName) (map[domain.MetricName]db.MtrMetric, error) {
 	if len(names) == 0 {
-		return map[domain.MetricName]model.Metric{}, nil
+		return map[domain.MetricName]db.MtrMetric{}, nil
 	}
 
-	placeholders := make([]string, len(names))
-	args := make([]interface{}, len(names))
+	nameStrings := make([]string, len(names))
 	for i, name := range names {
-		placeholders[i] = fmt.Sprintf("$%d", i+1)
-		args[i] = name
+		nameStrings[i] = string(name)
 	}
 
-	query := fmt.Sprintf(`SELECT id, type, delta, value FROM mtr_metrics WHERE id IN (%s)`, strings.Join(placeholders, ", "))
-	metrics := make(map[domain.MetricName]model.Metric)
+	metrics := make(map[domain.MetricName]db.MtrMetric)
 
 	err := ds.retryOperation(ctx, func() error {
-		rows, err := ds.Db.QueryContext(ctx, query, args...)
+		results, err := ds.Queries.GetManyMetrics(ctx, nameStrings)
 		if err != nil {
-			if isRetriableError(err) {
-				ds.l.Warn().Err(err).Msg("transient error on QueryContext, retrying")
-				return err
-			}
-			return backoff.Permanent(err)
-		}
-		defer rows.Close()
+			ds.l.Error().Err(err).Msg("error getting multiple metrics")
 
-		for rows.Next() {
-			var metric model.Metric
-			if err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value); err != nil {
-				return backoff.Permanent(err)
-			}
-			metrics[metric.ID] = metric
+			return errors.Wrap(err, "error getting multiple metrics")
 		}
-		return rows.Err()
+
+		for _, m := range results {
+			metrics[m.ID] = m
+		}
+
+		return nil
 	})
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to retrieve multiple metrics after retries")
@@ -168,78 +160,55 @@ func (ds *DBStorage) GetMany(ctx context.Context, names []domain.MetricName) (ma
 }
 
 // Update modifies an existing metric in the database with retry logic.
-func (ds *DBStorage) Update(ctx context.Context, metric *model.Metric) error {
-	query := `
-		UPDATE mtr_metrics 
-		SET delta = $2, value = $3 
-		WHERE id = $1 AND type = $4`
-
+func (ds *DBStorage) Update(ctx context.Context, metric *db.MtrMetric) error {
 	return ds.retryOperation(ctx, func() error {
-		_, err := ds.Db.ExecContext(ctx, query, metric.ID, metric.Delta, metric.Value, metric.MType)
+		err := ds.Queries.UpdateMetric(ctx, metric.ToUpdateMetricParams())
 		if err != nil {
-			if isRetriableError(err) {
-				ds.l.Warn().Err(err).Msg("transient error on ExecContext, retrying")
-				return err
-			}
-			return backoff.Permanent(err)
+			ds.l.Error().Err(err).Msg("error updating metric")
 		}
-		return nil
+
+		return errors.Wrap(err, "error updating metric")
 	})
 }
 
 // Create inserts a new metric into the database with retry logic.
-func (ds *DBStorage) Create(ctx context.Context, metric *model.Metric) error {
-	query := `
-		INSERT INTO mtr_metrics (id, type, delta, value) 
-		VALUES ($1, $2, $3, $4)
-		ON CONFLICT (id, type) DO NOTHING`
-
+func (ds *DBStorage) Create(ctx context.Context, metric *db.MtrMetric) error {
 	return ds.retryOperation(ctx, func() error {
-		_, err := ds.Db.ExecContext(ctx, query, metric.ID, metric.MType, metric.Delta, metric.Value)
+		err := ds.Queries.InsertMetric(ctx, metric.ToInsertMetricParams())
 		if err != nil {
-			if isRetriableError(err) {
-				ds.l.Warn().Err(err).Msg("transient error on ExecContext, retrying")
-				return err
-			}
-			return backoff.Permanent(err)
+			ds.l.Error().Err(err).Msg("error inserting metric")
 		}
-		return nil
+
+		return errors.Wrap(err, "error inserting metric")
 	})
 }
 
 // UpdateMany updates multiple metrics in the database with retry logic.
-func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]model.Metric) error {
+func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.MtrMetric) error {
 	return ds.retryOperation(ctx, func() error {
-		tx, err := ds.Db.BeginTx(ctx, nil)
+		tx, err := ds.dbCon.BeginTx(ctx, nil)
 		if err != nil {
-			return backoff.Permanent(errors.Wrap(err, "failed to begin transaction"))
+			ds.l.Error().Err(err).Msg("failed to start transaction for UpdateMany")
+
+			return errors.Wrap(err, "failed to start transaction for UpdateMany")
 		}
 		defer func() {
 			if err != nil {
 				_ = tx.Rollback()
+			} else {
+				err = tx.Commit()
 			}
 		}()
 
-		stmt, err := tx.PrepareContext(ctx, `
-			INSERT INTO mtr_metrics (id, type, delta, value) 
-			VALUES ($1, $2, $3, $4)
-			ON CONFLICT (id, type) DO UPDATE
-			SET delta = EXCLUDED.delta, value = EXCLUDED.value
-		`)
-		if err != nil {
-			return backoff.Permanent(errors.Wrap(err, "failed to prepare upsert statement"))
-		}
-		defer stmt.Close()
+		q := ds.Queries.WithTx(tx)
 
 		for _, metric := range *metrics {
-			_, err := stmt.ExecContext(ctx, metric.ID, metric.MType, metric.Delta, metric.Value)
+			err := q.UpsertMetric(ctx, metric.ToUpsertMetricParams())
 			if err != nil {
-				return backoff.Permanent(errors.Wrapf(err, "failed to upsert metric with ID %s", metric.ID))
-			}
-		}
+				ds.l.Error().Err(err).Msg("error in UpsertMetric during UpdateMany")
 
-		if err = tx.Commit(); err != nil {
-			return backoff.Permanent(errors.Wrap(err, "failed to commit transaction"))
+				return errors.Wrap(err, "error in UpsertMetric during UpdateMany")
+			}
 		}
 
 		return nil
@@ -248,9 +217,9 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]model.Metric) er
 
 // Ping checks the database connection with retry logic.
 func (ds *DBStorage) Ping() error {
-	if ds.Db == nil {
-		return errors.New("db is nil")
+	if ds.dbCon == nil {
+		return errors.New("dbCon is nil")
 	}
 
-	return ds.Db.Ping()
+	return errors.Wrap(ds.dbCon.Ping(), "failed to ping db")
 }

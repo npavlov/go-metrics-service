@@ -12,8 +12,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
@@ -37,12 +38,12 @@ func TestMemStorageUpdateAndGet(t *testing.T) {
 	// Prepare metric
 	delta := int64(100)
 	gaugeValue := float64(20.5)
-	metric1 := &model.Metric{
+	metric1 := &db.MtrMetric{
 		ID:    domain.MetricName("test_counter"),
 		MType: domain.Counter,
 		Delta: &delta,
 	}
-	metric2 := &model.Metric{
+	metric2 := &db.MtrMetric{
 		ID:    domain.MetricName("test_gauge"),
 		MType: domain.Gauge,
 		Value: &gaugeValue,
@@ -74,12 +75,12 @@ func TestMemStorageGetAll(t *testing.T) {
 	// Prepare metrics
 	delta := int64(150)
 	gaugeValue := float64(55.5)
-	metric1 := &model.Metric{
+	metric1 := &db.MtrMetric{
 		ID:    domain.MetricName("counter_metric"),
 		MType: domain.Counter,
 		Delta: &delta,
 	}
-	metric2 := &model.Metric{
+	metric2 := &db.MtrMetric{
 		ID:    domain.MetricName("gauge_metric"),
 		MType: domain.Gauge,
 		Value: &gaugeValue,
@@ -118,12 +119,12 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 
 	delta := int64(30)
 	gaugeValue := float64(42.42)
-	metric1 := &model.Metric{
+	metric1 := &db.MtrMetric{
 		ID:    domain.MetricName("backup_counter"),
 		MType: domain.Counter,
 		Delta: &delta,
 	}
-	metric2 := &model.Metric{
+	metric2 := &db.MtrMetric{
 		ID:    domain.MetricName("backup_gauge"),
 		MType: domain.Gauge,
 		Value: &gaugeValue,
@@ -141,7 +142,7 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 	fileContent, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 
-	var restoredData map[domain.MetricName]model.Metric
+	var restoredData map[domain.MetricName]db.MtrMetric
 	err = json.Unmarshal(fileContent, &restoredData)
 	require.NoError(t, err)
 
@@ -169,7 +170,7 @@ func TestMemStorageConcurrentUpdate(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			metric := &model.Metric{
+			metric := &db.MtrMetric{
 				ID:    domain.MetricName("concurrent_counter"),
 				MType: domain.Counter,
 				Delta: &delta,
@@ -188,7 +189,7 @@ func TestMemStorageUpdateWithNoValue(t *testing.T) {
 	t.Parallel()
 
 	memStorage := storage.NewMemStorage(testutils.GetTLogger())
-	metric := &model.Metric{
+	metric := &db.MtrMetric{
 		ID:    domain.MetricName("invalid_metric"),
 		MType: domain.Counter,
 	}
@@ -206,12 +207,12 @@ func TestMemStorageCreate(t *testing.T) {
 	// Prepare metrics
 	delta := int64(150)
 	gaugeValue := float64(55.5)
-	metric1 := &model.Metric{
+	metric1 := &db.MtrMetric{
 		ID:    domain.MetricName("counter_metric"),
 		MType: domain.Counter,
 		Delta: &delta,
 	}
-	metric2 := &model.Metric{
+	metric2 := &db.MtrMetric{
 		ID:    domain.MetricName("gauge_metric"),
 		MType: domain.Gauge,
 		Value: &gaugeValue,
@@ -250,7 +251,7 @@ func TestMemStorageStartBackup(t *testing.T) {
 
 	// Prepare and update a metric
 	delta := int64(200)
-	metric := &model.Metric{
+	metric := &db.MtrMetric{
 		ID:    domain.MetricName("backup_counter_metric"),
 		MType: domain.Counter,
 		Delta: &delta,
@@ -268,7 +269,7 @@ func TestMemStorageStartBackup(t *testing.T) {
 	fileContent, err := os.ReadFile(tmpFile)
 	require.NoError(t, err)
 
-	var restoredData map[domain.MetricName]model.Metric
+	var restoredData map[domain.MetricName]db.MtrMetric
 	err = json.Unmarshal(fileContent, &restoredData)
 	require.NoError(t, err)
 
@@ -283,12 +284,12 @@ func TestMemStorageGetMany(t *testing.T) {
 	// Add some metrics
 	delta1 := int64(100)
 	delta2 := int64(200)
-	metric1 := &model.Metric{
+	metric1 := &db.MtrMetric{
 		ID:    domain.MetricName("metric1"),
 		MType: domain.Counter,
 		Delta: &delta1,
 	}
-	metric2 := &model.Metric{
+	metric2 := &db.MtrMetric{
 		ID:    domain.MetricName("metric2"),
 		MType: domain.Counter,
 		Delta: &delta2,
@@ -315,18 +316,18 @@ func TestMemStorageUpdateMany(t *testing.T) {
 	// Prepare multiple metrics
 	delta1 := int64(300)
 	delta2 := int64(400)
-	metric1 := model.Metric{
+	metric1 := db.MtrMetric{
 		ID:    domain.MetricName("update_metric1"),
 		MType: domain.Counter,
 		Delta: &delta1,
 	}
-	metric2 := model.Metric{
+	metric2 := db.MtrMetric{
 		ID:    domain.MetricName("update_metric2"),
 		MType: domain.Counter,
 		Delta: &delta2,
 	}
 
-	metricsToUpdate := []model.Metric{metric1, metric2}
+	metricsToUpdate := []db.MtrMetric{metric1, metric2}
 
 	// Use UpdateMany to add both metrics
 	err := memStorage.UpdateMany(context.Background(), &metricsToUpdate)
@@ -362,7 +363,7 @@ func TestMemStorageConcurrentBackup(t *testing.T) {
 	// Prepare metrics
 	delta := int64(50)
 	for range 5 {
-		metric := model.Metric{
+		metric := db.MtrMetric{
 			ID:    domain.MetricName("concurrent_backup_metric"),
 			MType: domain.Counter,
 			Delta: &delta,
@@ -380,7 +381,7 @@ func TestMemStorageConcurrentBackup(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the file has the latest data
-	var restoredData map[domain.MetricName]model.Metric
+	var restoredData map[domain.MetricName]db.MtrMetric
 	err = json.Unmarshal(fileContent, &restoredData)
 	require.NoError(t, err)
 

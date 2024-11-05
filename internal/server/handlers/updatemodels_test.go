@@ -11,9 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/logger"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
@@ -33,22 +34,22 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 		inputBody      interface{}
 		prepareStorage func()
 		expectedStatus int
-		expectedBody   []model.Metric
+		expectedBody   []db.MtrMetric
 	}{
 		{
 			name: "Valid metrics - Update existing and create new",
-			inputBody: []model.Metric{
+			inputBody: []db.MtrMetric{
 				{ID: "existing_counter", MType: domain.Counter, Delta: int64Ptr(20)},
 				{ID: "new_gauge", MType: domain.Gauge, Value: float64Ptr(123.45)},
 			},
 			prepareStorage: func() {
 				// Prepopulate storage with "existing_counter"
-				_ = memStorage.UpdateMany(context.TODO(), &[]model.Metric{
+				_ = memStorage.UpdateMany(context.TODO(), &[]db.MtrMetric{
 					{ID: "existing_counter", MType: domain.Counter, Delta: int64Ptr(10)},
 				})
 			},
 			expectedStatus: http.StatusOK,
-			expectedBody: []model.Metric{
+			expectedBody: []db.MtrMetric{
 				{ID: "existing_counter", MType: domain.Counter, Delta: int64Ptr(30)}, // Updated Delta
 				{ID: "new_gauge", MType: domain.Gauge, Value: float64Ptr(123.45)},    // New metric
 			},
@@ -62,9 +63,9 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 		},
 		{
 			name:           "Empty input metrics",
-			inputBody:      []model.Metric{},
+			inputBody:      []db.MtrMetric{},
 			expectedStatus: http.StatusOK,
-			expectedBody:   []model.Metric{},
+			expectedBody:   []db.MtrMetric{},
 		},
 		{
 			name:           "Malformed JSON input",
@@ -73,13 +74,13 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 		},
 		{
 			name: "Valid metrics - Batch processing",
-			inputBody: []model.Metric{
+			inputBody: []db.MtrMetric{
 				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(20)},
 				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(10)},
 				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(70)},
 			},
 			expectedStatus: http.StatusOK,
-			expectedBody: []model.Metric{
+			expectedBody: []db.MtrMetric{
 				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(100)}, // Updated Delta
 			},
 		},
@@ -110,7 +111,7 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 
 			// If we expect a response body, decode and verify it
 			if tt.expectedStatus == http.StatusOK && tt.expectedBody != nil {
-				var respMetrics []model.Metric
+				var respMetrics []db.MtrMetric
 				err := json.NewDecoder(rec.Body).Decode(&respMetrics)
 				require.NoError(t, err)
 				assert.ElementsMatch(t, tt.expectedBody, respMetrics)
