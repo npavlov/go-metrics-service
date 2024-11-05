@@ -40,6 +40,8 @@ func main() {
 		FromEnv().
 		FromFlags().Build()
 
+	log.Info().Interface("config", cfg).Msg("Configuration loaded")
+
 	metrics := stats.NewStats().StatsToMetrics()
 	mux := sync.RWMutex{}
 	// WaitGroup to wait for all goroutines to complete
