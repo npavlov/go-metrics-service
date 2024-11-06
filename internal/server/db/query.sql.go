@@ -8,7 +8,6 @@ package db
 import (
 	"context"
 
-	"github.com/lib/pq"
 	domain "github.com/npavlov/go-metrics-service/internal/domain"
 )
 
@@ -17,7 +16,7 @@ SELECT id, type, delta, value FROM mtr_metrics
 `
 
 func (q *Queries) GetAllMetrics(ctx context.Context) ([]MtrMetric, error) {
-	rows, err := q.db.QueryContext(ctx, GetAllMetrics)
+	rows, err := q.db.Query(ctx, GetAllMetrics)
 	if err != nil {
 		return nil, err
 	}
@@ -34,9 +33,6 @@ func (q *Queries) GetAllMetrics(ctx context.Context) ([]MtrMetric, error) {
 			return nil, err
 		}
 		items = append(items, i)
-	}
-	if err := rows.Close(); err != nil {
-		return nil, err
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -50,7 +46,7 @@ WHERE id = ANY($1::text[])
 `
 
 func (q *Queries) GetManyMetrics(ctx context.Context, dollar_1 []string) ([]MtrMetric, error) {
-	rows, err := q.db.QueryContext(ctx, GetManyMetrics, pq.Array(dollar_1))
+	rows, err := q.db.Query(ctx, GetManyMetrics, dollar_1)
 	if err != nil {
 		return nil, err
 	}
@@ -68,9 +64,6 @@ func (q *Queries) GetManyMetrics(ctx context.Context, dollar_1 []string) ([]MtrM
 		}
 		items = append(items, i)
 	}
-	if err := rows.Close(); err != nil {
-		return nil, err
-	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
@@ -83,7 +76,7 @@ WHERE id = $1
 `
 
 func (q *Queries) GetMetric(ctx context.Context, id domain.MetricName) (MtrMetric, error) {
-	row := q.db.QueryRowContext(ctx, GetMetric, id)
+	row := q.db.QueryRow(ctx, GetMetric, id)
 	var i MtrMetric
 	err := row.Scan(
 		&i.ID,
@@ -108,7 +101,7 @@ type InsertMetricParams struct {
 }
 
 func (q *Queries) InsertMetric(ctx context.Context, arg InsertMetricParams) error {
-	_, err := q.db.ExecContext(ctx, InsertMetric,
+	_, err := q.db.Exec(ctx, InsertMetric,
 		arg.ID,
 		arg.MType,
 		arg.Delta,
@@ -131,7 +124,7 @@ type UpdateMetricParams struct {
 }
 
 func (q *Queries) UpdateMetric(ctx context.Context, arg UpdateMetricParams) error {
-	_, err := q.db.ExecContext(ctx, UpdateMetric,
+	_, err := q.db.Exec(ctx, UpdateMetric,
 		arg.ID,
 		arg.MType,
 		arg.Delta,
@@ -156,7 +149,7 @@ type UpsertMetricParams struct {
 }
 
 func (q *Queries) UpsertMetric(ctx context.Context, arg UpsertMetricParams) error {
-	_, err := q.db.ExecContext(ctx, UpsertMetric,
+	_, err := q.db.Exec(ctx, UpsertMetric,
 		arg.ID,
 		arg.MType,
 		arg.Delta,

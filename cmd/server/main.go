@@ -36,7 +36,7 @@ func main() {
 
 	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
 
-	dbManager := dbmanager.NewDBManager(cfg.Database, log).Connect().ApplyMigrations()
+	dbManager := dbmanager.NewDBManager(cfg.Database, log).Connect(ctx).ApplyMigrations()
 	defer dbManager.Close()
 	if err != nil {
 		log.Error().Err(err).Msg("Error initialising db manager")

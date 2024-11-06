@@ -2,31 +2,30 @@ package storage
 
 import (
 	"context"
-	"database/sql"
 	"time"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
+	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
+	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
 )
 
-const (
-	maxRetries = 3
-)
+const maxRetries = 3
 
 type DBStorage struct {
 	Queries *db.Queries
 	l       *zerolog.Logger
-	dbCon   *sql.DB
+	dbCon   dbmanager.PgxPool
 }
 
 // NewDBStorage initializes a new DBStorage instance.
-func NewDBStorage(dbCon *sql.DB, l *zerolog.Logger) *DBStorage {
+func NewDBStorage(dbCon dbmanager.PgxPool, l *zerolog.Logger) *DBStorage {
 	return &DBStorage{
 		dbCon:   dbCon,
 		Queries: db.New(dbCon),
@@ -34,7 +33,7 @@ func NewDBStorage(dbCon *sql.DB, l *zerolog.Logger) *DBStorage {
 	}
 }
 
-// retryOperation executes a database operation with retry logic, handling transient errors automatically.
+// retryOperation executes a database operation with retry logic.
 func (ds *DBStorage) retryOperation(ctx context.Context, operation func() error) error {
 	backoffConfig := backoff.NewExponentialBackOff()
 	backoffConfig.InitialInterval = 1 * time.Second
@@ -49,7 +48,7 @@ func (ds *DBStorage) retryOperation(ctx context.Context, operation func() error)
 			return err
 		}
 
-		return backoff.Permanent(err) // Stop retrying on non-retryable error
+		return backoff.Permanent(err)
 	}, backoff.WithContext(retryWithLimit, ctx))
 
 	return errors.Wrap(err, "failed to execute operation after retry")
@@ -185,8 +184,9 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.MtrMetric) error {
 
 // UpdateMany updates multiple metrics in the database with retry logic.
 func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.MtrMetric) error {
+	//nolint:exhaustruct
 	return ds.retryOperation(ctx, func() error {
-		tx, err := ds.dbCon.BeginTx(ctx, nil)
+		tx, err := ds.dbCon.BeginTx(ctx, pgx.TxOptions{})
 		if err != nil {
 			ds.l.Error().Err(err).Msg("failed to start transaction for UpdateMany")
 
@@ -194,9 +194,9 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.MtrMetric) er
 		}
 		defer func() {
 			if err != nil {
-				_ = tx.Rollback()
+				_ = tx.Rollback(ctx)
 			} else {
-				err = tx.Commit()
+				err = tx.Commit(ctx)
 			}
 		}()
 
@@ -216,10 +216,10 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.MtrMetric) er
 }
 
 // Ping checks the database connection with retry logic.
-func (ds *DBStorage) Ping() error {
+func (ds *DBStorage) Ping(ctx context.Context) error {
 	if ds.dbCon == nil {
 		return errors.New("dbCon is nil")
 	}
 
-	return errors.Wrap(ds.dbCon.Ping(), "failed to ping db")
+	return errors.Wrap(ds.dbCon.Ping(ctx), "failed to ping db")
 }

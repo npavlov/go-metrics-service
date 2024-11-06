@@ -1,16 +1,30 @@
 package dbmanager
 
 import (
+	"context"
 	"database/sql"
 
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/pressly/goose"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )
 
+type PgxPool interface {
+	Exec(ctx context.Context, query string, options ...interface{}) (pgconn.CommandTag, error)
+	Query(ctx context.Context, query string, options ...interface{}) (pgx.Rows, error)
+	QueryRow(ctx context.Context, query string, options ...interface{}) pgx.Row
+	Begin(ctx context.Context) (pgx.Tx, error)
+	BeginTx(ctx context.Context, options pgx.TxOptions) (pgx.Tx, error)
+	Ping(ctx context.Context) error
+	Close()
+}
+
 // DBManager manages the database connection and its lifecycle.
 type DBManager struct {
-	DB               *sql.DB
+	DB               PgxPool
 	Log              *zerolog.Logger
 	connectionString string
 	IsConnected      bool
@@ -26,7 +40,38 @@ func NewDBManager(connectionString string, log *zerolog.Logger) *DBManager {
 	}
 }
 
-func (m *DBManager) Connect() *DBManager {
+// Connect initializes a new pgx connection pool.
+func (m *DBManager) Connect(ctx context.Context) *DBManager {
+	config, err := pgxpool.ParseConfig(m.connectionString)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to parse database configuration")
+
+		return m
+	}
+
+	pool, err := pgxpool.NewWithConfig(ctx, config)
+	if err != nil {
+		log.Error().Err(err).Msg("failed to connect to database")
+
+		return m
+	}
+
+	if err := pool.Ping(ctx); err != nil {
+		return m
+	}
+
+	m.DB = pool
+	m.IsConnected = true
+
+	return m
+}
+
+// ApplyMigrations applies migrations using goose.
+func (m *DBManager) ApplyMigrations() *DBManager {
+	if !m.IsConnected {
+		return m
+	}
+
 	sqlDB, err := sql.Open("pgx", m.connectionString)
 	if err != nil {
 		log.Error().Err(err).Msg("failed to connect to database")
@@ -34,27 +79,9 @@ func (m *DBManager) Connect() *DBManager {
 		return m
 	}
 
-	err = sqlDB.Ping()
-	if err != nil {
-		log.Error().Err(err).Msg("failed to connect to database")
-
-		return m
-	}
-
-	m.DB = sqlDB
-	m.IsConnected = true
-
-	return m
-}
-
-func (m *DBManager) ApplyMigrations() *DBManager {
-	if !m.IsConnected {
-		return m
-	}
-
 	// Run migrations
-	if err := goose.Up(m.DB, "migrations"); err != nil {
-		log.Error().Err(err).Msg("Failed to up migrations")
+	if err := goose.Up(sqlDB, "migrations"); err != nil {
+		log.Error().Err(err).Msg("Failed to apply migrations")
 	}
 
 	log.Info().Msg("Migrations completed")
@@ -62,15 +89,12 @@ func (m *DBManager) ApplyMigrations() *DBManager {
 	return m
 }
 
-// Close closes the underlying sql.DB connection.
+// Close closes the underlying pgxpool.Pool connection.
 func (m *DBManager) Close() {
 	if m.DB == nil {
 		return
 	}
 
-	if err := m.DB.Close(); err != nil {
-		m.Log.Error().Err(err).Msg("Failed to close database connection")
-	} else {
-		m.Log.Info().Msg("Database connection closed")
-	}
+	m.DB.Close()
+	m.Log.Info().Msg("Database connection closed")
 }
