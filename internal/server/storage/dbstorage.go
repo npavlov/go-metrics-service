@@ -20,21 +20,23 @@ const maxRetries = 3
 
 type DBStorage struct {
 	Queries *db.Queries
-	l       *zerolog.Logger
+	log     *zerolog.Logger
 	dbCon   dbmanager.PgxPool
 }
 
 // NewDBStorage initializes a new DBStorage instance.
-func NewDBStorage(dbCon dbmanager.PgxPool, l *zerolog.Logger) *DBStorage {
+func NewDBStorage(dbCon dbmanager.PgxPool, log *zerolog.Logger) *DBStorage {
 	return &DBStorage{
 		dbCon:   dbCon,
 		Queries: db.New(dbCon),
-		l:       l,
+		log:     log,
 	}
 }
 
+type OperationFunc func() error
+
 // retryOperation executes a database operation with retry logic.
-func (ds *DBStorage) retryOperation(ctx context.Context, operation func() error) error {
+func (ds *DBStorage) retryOperation(ctx context.Context, operation OperationFunc) error {
 	backoffConfig := backoff.NewExponentialBackOff()
 	backoffConfig.InitialInterval = 1 * time.Second
 	backoffConfig.Multiplier = 3
@@ -43,7 +45,7 @@ func (ds *DBStorage) retryOperation(ctx context.Context, operation func() error)
 	err := backoff.Retry(func() error {
 		err := operation()
 		if err != nil && ds.isRetryableError(err) {
-			ds.l.Warn().Err(err).Msg("transient error, retrying operation")
+			ds.log.Warn().Err(err).Msg("transient error, retrying operation")
 
 			return err
 		}
@@ -80,7 +82,7 @@ func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]db.Metric
 	err := ds.retryOperation(ctx, func() error {
 		results, err := ds.Queries.GetAllMetrics(ctx)
 		if err != nil {
-			ds.l.Error().Err(err).Msg("error getting metrics")
+			ds.log.Error().Err(err).Msg("error getting metrics")
 
 			return errors.Wrap(err, "error getting metrics")
 		}
@@ -92,7 +94,7 @@ func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]db.Metric
 		return nil
 	})
 	if err != nil {
-		ds.l.Error().Err(err).Msg("failed to retrieve metrics after retries")
+		ds.log.Error().Err(err).Msg("failed to retrieve metrics after retries")
 
 		return nil
 	}
@@ -107,7 +109,7 @@ func (ds *DBStorage) Get(ctx context.Context, name domain.MetricName) (*db.Metri
 	err := ds.retryOperation(ctx, func() error {
 		result, err := ds.Queries.GetUnifiedMetric(ctx, name)
 		if err != nil {
-			ds.l.Error().Err(err).Msg("failed to retrieve metric")
+			ds.log.Error().Err(err).Msg("failed to retrieve metric")
 
 			return errors.Wrap(err, "failed to retrieve metric")
 		}
@@ -138,7 +140,7 @@ func (ds *DBStorage) GetMany(ctx context.Context, names []domain.MetricName) (ma
 	err := ds.retryOperation(ctx, func() error {
 		results, err := ds.Queries.GetManyMetrics(ctx, nameStrings)
 		if err != nil {
-			ds.l.Error().Err(err).Msg("error getting multiple metrics")
+			ds.log.Error().Err(err).Msg("error getting multiple metrics")
 
 			return errors.Wrap(err, "error getting multiple metrics")
 		}
@@ -170,7 +172,7 @@ func (ds *DBStorage) Update(ctx context.Context, metric *db.Metric) error {
 				MetricID: metric.ID,
 			})
 			if err != nil {
-				ds.l.Error().Err(err).Msg("error updating metric")
+				ds.log.Error().Err(err).Msg("error updating metric")
 
 				return errors.Wrap(err, "error updating metric")
 			}
@@ -180,7 +182,7 @@ func (ds *DBStorage) Update(ctx context.Context, metric *db.Metric) error {
 				MetricID: metric.ID,
 			})
 			if err != nil {
-				ds.l.Error().Err(err).Msg("error updating metric")
+				ds.log.Error().Err(err).Msg("error updating metric")
 
 				return errors.Wrap(err, "error updating metric")
 			}
@@ -202,7 +204,7 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.Metric) error {
 	err := ds.retryOperation(ctx, func() error {
 		tx, err := ds.dbCon.BeginTx(ctx, pgx.TxOptions{})
 		if err != nil {
-			ds.l.Error().Err(err).Msg("failed to start transaction for Create")
+			ds.log.Error().Err(err).Msg("failed to start transaction for Create")
 
 			return errors.Wrap(err, "failed to start transaction for Create")
 		}
@@ -220,7 +222,7 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.Metric) error {
 			ID:    metric.ID,
 		})
 		if err != nil {
-			ds.l.Error().Err(err).Msg("failed to insert metric")
+			ds.log.Error().Err(err).Msg("failed to insert metric")
 
 			return errors.Wrap(err, "failed to insert metric")
 		}
@@ -231,7 +233,7 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.Metric) error {
 				MetricID: metric.ID,
 			})
 			if err != nil {
-				ds.l.Error().Err(err).Msg("error insert metric")
+				ds.log.Error().Err(err).Msg("error insert metric")
 
 				return errors.Wrap(err, "error insert metric")
 			}
@@ -241,7 +243,7 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.Metric) error {
 				MetricID: metric.ID,
 			})
 			if err != nil {
-				ds.l.Error().Err(err).Msg("error insert metric")
+				ds.log.Error().Err(err).Msg("error insert metric")
 
 				return errors.Wrap(err, "error insert metric")
 			}
@@ -259,7 +261,7 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error
 	return ds.retryOperation(ctx, func() error {
 		tx, err := ds.dbCon.BeginTx(ctx, pgx.TxOptions{})
 		if err != nil {
-			ds.l.Error().Err(err).Msg("failed to start transaction for UpdateMany")
+			ds.log.Error().Err(err).Msg("failed to start transaction for UpdateMany")
 
 			return errors.Wrap(err, "failed to start transaction for UpdateMany")
 		}
@@ -279,7 +281,7 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error
 				MType: metric.MType,
 			})
 			if err != nil {
-				ds.l.Error().Err(err).Msg("error in UpsertMetric during UpdateMany")
+				ds.log.Error().Err(err).Msg("error in UpsertMetric during UpdateMany")
 
 				return errors.Wrap(err, "error in UpsertMetric during UpdateMany")
 			}
@@ -290,7 +292,7 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error
 					MetricID: metric.ID,
 				})
 				if err != nil {
-					ds.l.Error().Err(err).Msg("error insert metric")
+					ds.log.Error().Err(err).Msg("error insert metric")
 
 					return errors.Wrap(err, "error insert metric")
 				}
@@ -300,7 +302,7 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error
 					MetricID: metric.ID,
 				})
 				if err != nil {
-					ds.l.Error().Err(err).Msg("error insert metric")
+					ds.log.Error().Err(err).Msg("error insert metric")
 
 					return errors.Wrap(err, "error insert metric")
 				}

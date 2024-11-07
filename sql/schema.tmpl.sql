@@ -2,7 +2,7 @@
 CREATE TYPE "metric_type" AS ENUM ('gauge', 'counter');
 
 -- Main metrics table to store only metadata (normalized structure)
-CREATE TABLE IF NOT EXISTS mtr_metrics (
+CREATE TABLE mtr_metrics (
                                            "id" VARCHAR(255) NOT NULL,
                                            "type" "metric_type" NOT NULL,
                                            PRIMARY KEY ("id", "type"),
@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS mtr_metrics (
 );
 
 -- Table for counter metrics, storing the delta value only
-CREATE TABLE IF NOT EXISTS counter_metrics (
+CREATE TABLE counter_metrics (
                                                "metric_id" VARCHAR(255) NOT NULL,
                                                "delta" BIGINT NOT NULL,
                                                PRIMARY KEY ("metric_id"),
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS counter_metrics (
 );
 
 -- Table for gauge metrics, storing the value only
-CREATE TABLE IF NOT EXISTS gauge_metrics (
+CREATE TABLE gauge_metrics (
                                              "metric_id" VARCHAR(255) NOT NULL,
                                              "value" DOUBLE PRECISION NOT NULL,
                                              PRIMARY KEY ("metric_id"),
@@ -28,7 +28,7 @@ CREATE TABLE IF NOT EXISTS gauge_metrics (
 );
 
 -- Optional: Add index on metric ID for quick lookups by ID
-CREATE INDEX IF NOT EXISTS mtr_metrics_id_idx ON mtr_metrics ("id");
+CREATE INDEX mtr_metrics_id_idx ON mtr_metrics ("id");
 
 -- Optional: Add a unique constraint to enforce one entry per metric in either counter or gauge tables
 ALTER TABLE counter_metrics ADD CONSTRAINT unique_counter_id UNIQUE ("metric_id");
