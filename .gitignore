@@ -28,6 +28,5 @@ metricstest
 
 bin
 temp.txt
-Makefile.local
 
 .DS_Store
