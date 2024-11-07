@@ -1,4 +1,4 @@
-package model
+package db
 
 import (
 	"strconv"
@@ -7,11 +7,33 @@ import (
 )
 
 type Metric struct {
-	ID      domain.MetricName   `json:"id"              validate:"required"`
-	MType   domain.MetricType   `json:"type"            validate:"required,oneof=counter gauge"`
-	MSource domain.MetricSource `json:"-"`
-	Delta   *int64              `json:"delta,omitempty"`
-	Value   *float64            `json:"value,omitempty"`
+	CounterMetric
+	GaugeMetric
+	MtrMetric
+}
+
+func NewMetric(id domain.MetricName, mType domain.MetricType, delta *int64, value *float64) *Metric {
+	return &Metric{
+		CounterMetric: CounterMetric{
+			Delta:    delta,
+			MetricID: "",
+		},
+		GaugeMetric: GaugeMetric{
+			Value:    value,
+			MetricID: "",
+		},
+		MtrMetric: MtrMetric{
+			ID:    id,
+			MType: mType,
+		},
+	}
+}
+
+func (m *Metric) FromFields(id domain.MetricName, mType domain.MetricType, delta *int64, value *float64) {
+	m.MtrMetric.ID = id
+	m.MType = mType
+	m.Delta = delta
+	m.Value = value
 }
 
 // SetValue - the method that allows to encapsulate value set logic for different types.

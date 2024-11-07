@@ -10,14 +10,15 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 // MValidator - the interface to describe validators for metrics.
 type MValidator interface {
-	FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error)
-	FromBody(body io.ReadCloser) (*model.Metric, error)
-	ValidateStructure(metric *model.Metric) error
+	FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*db.Metric, error)
+	FromBody(body io.ReadCloser) (*db.Metric, error)
+	ManyFromBody(body io.ReadCloser) ([]*db.Metric, error)
+	ValidateStructure(metric *db.Metric) error
 }
 
 // MValidatorImpl - the implementation structure for validations.
@@ -33,13 +34,20 @@ func NewMetricsValidator() *MValidatorImpl {
 }
 
 // FromVars - the function that parses metric structure from map object.
-func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*model.Metric, error) {
-	metric := &model.Metric{
-		ID:      "",
-		MSource: "",
-		MType:   "",
-		Delta:   nil,
-		Value:   nil,
+func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*db.Metric, error) {
+	metric := &db.Metric{
+		MtrMetric: db.MtrMetric{
+			ID:    "",
+			MType: "",
+		},
+		GaugeMetric: db.GaugeMetric{
+			MetricID: "",
+			Value:    nil,
+		},
+		CounterMetric: db.CounterMetric{
+			MetricID: "",
+			Delta:    nil,
+		},
 	}
 	// Retrieving variables
 	if len(mName) == 0 {
@@ -90,13 +98,20 @@ func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricTy
 }
 
 // FromBody - the function that parses metric structure from reader.
-func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
-	metric := &model.Metric{
-		ID:      "",
-		MSource: "",
-		MType:   "",
-		Delta:   nil,
-		Value:   nil,
+func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*db.Metric, error) {
+	metric := &db.Metric{
+		MtrMetric: db.MtrMetric{
+			ID:    "",
+			MType: "",
+		},
+		GaugeMetric: db.GaugeMetric{
+			MetricID: "",
+			Value:    nil,
+		},
+		CounterMetric: db.CounterMetric{
+			MetricID: "",
+			Delta:    nil,
+		},
 	}
 
 	err := json.NewDecoder(body).Decode(metric)
@@ -119,6 +134,32 @@ func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*model.Metric, error) {
 	return metric, nil
 }
 
-func (v *MValidatorImpl) ValidateStructure(metric *model.Metric) error {
+// ManyFromBody - the function that parses many metric structures from reader.
+func (v *MValidatorImpl) ManyFromBody(body io.ReadCloser) ([]*db.Metric, error) {
+	var metrics []*db.Metric
+
+	err := json.NewDecoder(body).Decode(&metrics)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse metric json")
+	}
+
+	for _, metric := range metrics {
+		if metric.MType != domain.Counter && metric.MType != domain.Gauge {
+			return nil, fmt.Errorf("failed to validate metric type: %s", metric.MType)
+		}
+
+		if metric.MType == domain.Counter {
+			metric.Value = nil
+		}
+
+		if metric.MType == domain.Gauge {
+			metric.Delta = nil
+		}
+	}
+
+	return metrics, nil
+}
+
+func (v *MValidatorImpl) ValidateStructure(metric *db.Metric) error {
 	return v.validate.Struct(metric)
 }

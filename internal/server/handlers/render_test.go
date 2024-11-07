@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -10,10 +11,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
@@ -23,36 +25,20 @@ func TestGetRenderHandler(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var memStorage storage.Repository = storage.NewMemStorage(log)
+	memStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(memStorage, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, nil)
 
-	metrics := []model.Metric{
-		{
-			ID:    "GaugeMetric1",
-			MType: domain.Gauge,
-			Value: float64Ptr(123.45),
-		},
-		{
-			ID:    "GaugeMetric2",
-			MType: domain.Gauge,
-			Value: float64Ptr(678.90),
-		},
-		{
-			ID:    "CounterMetric1",
-			MType: domain.Counter,
-			Delta: int64Ptr(100),
-		},
-		{
-			ID:    "CounterMetric2",
-			MType: domain.Counter,
-			Delta: int64Ptr(200),
-		},
+	metrics := []db.Metric{
+		*db.NewMetric("GaugeMetric1", domain.Gauge, nil, float64Ptr(123.45)),
+		*db.NewMetric("GaugeMetric2", domain.Gauge, nil, float64Ptr(678.90)),
+		*db.NewMetric("CounterMetric1", domain.Counter, int64Ptr(100), nil),
+		*db.NewMetric("CounterMetric2", domain.Counter, int64Ptr(200), nil),
 	}
 
 	for _, v := range metrics {
-		err := memStorage.Update(&v)
+		err := memStorage.Update(context.Background(), &v)
 		require.NoError(t, err)
 	}
 

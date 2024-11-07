@@ -8,7 +8,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 func (mh *MetricHandler) Update(response http.ResponseWriter, request *http.Request) {
@@ -24,7 +24,7 @@ func (mh *MetricHandler) Update(response http.ResponseWriter, request *http.Requ
 		return
 	}
 
-	_, err = mh.updateAndReturn(newMetric)
+	_, err = mh.updateAndReturn(request, newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error updating metric")
 		http.Error(response, err.Error(), http.StatusBadRequest)
@@ -44,7 +44,7 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 		return
 	}
 
-	metric, err := mh.updateAndReturn(newMetric)
+	metric, err := mh.updateAndReturn(request, newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error updating metric")
 		http.Error(response, err.Error(), http.StatusBadRequest)
@@ -60,13 +60,13 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 	}
 }
 
-func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric, error) {
-	existingMetric, found := mh.st.Get(newMetric.ID)
+func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *db.Metric) (*db.Metric, error) {
+	existingMetric, found := mh.repo.Get(request.Context(), newMetric.ID)
 
 	if found {
 		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
 
-		err := mh.st.Update(existingMetric)
+		err := mh.repo.Update(request.Context(), existingMetric)
 		if err != nil {
 			mh.logger.Error().Err(err).Msg("error updating existingMetric")
 
@@ -76,7 +76,7 @@ func (mh *MetricHandler) updateAndReturn(newMetric *model.Metric) (*model.Metric
 		return existingMetric, nil
 	}
 
-	err := mh.st.Create(newMetric)
+	err := mh.repo.Create(request.Context(), newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error creating Metric")
 

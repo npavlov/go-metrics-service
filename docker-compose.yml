@@ -1,25 +1,44 @@
 version: "3.9"
 
 services:
+  postgres:
+    image: postgres:15
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=yourpassword  # Replace with a strong password
+      - POSTGRES_DB=yourdb
+    ports:
+      - "5432:5432"  # Expose PostgreSQL for host machine access (optional)
+    networks:
+      - app-network
+
   server:
     build:
       context: .
       dockerfile: dockerfile.server
-    network_mode: host
+    networks:
+      - app-network
     ports:
       - "8080:8080"    # Server application port
       - "40000:40000"  # Delve debugging port
     environment:
-      - ADDRESS=localhost:8080  # Replace with the address your server listens on
+      - ADDRESS=server:8080  # Replace with the address your server listens on
+      - DATABASE_DSN=postgres://postgres:yourpassword@postgres:5432/yourdb?sslmode=disable
     command: dlv exec /app/server --headless --listen=:40000 --api-version=2 --log --accept-multiclient
 
   agent:
     build:
       context: .
       dockerfile: dockerfile.agent
-    network_mode: host
+    networks:
+      - app-network
     ports:
       - "40001:40001"  # Delve debugging port
     environment:
-      - SERVER_ADDRESS=http://localhost:8080  # Ensure the agent can reach the server
+      - ADDRESS=http://server:8080  # Ensure the agent can reach the server
+      - USE_BATCH=true
     command: dlv exec /app/agent --headless --listen=:40001 --api-version=2 --log --accept-multiclient
+
+networks:
+  app-network:
+    driver: bridge

@@ -10,9 +10,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/domain"
+
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
-	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
@@ -23,46 +26,24 @@ func TestUpdateRetrieveModel(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		update           *model.Metric
-		retrieve         *model.Metric
+		update           *db.Metric
+		retrieve         *db.Metric
 		expectedCode     int
-		expectedResponse *model.Metric
+		expectedResponse *db.Metric
 	}{
 		{
-			name: "Successful Gauge Retrieval",
-			update: &model.Metric{
-				ID:    "Alloc",
-				MType: "gauge",
-				Value: float64Ptr(100.0),
-			},
-			retrieve: &model.Metric{
-				ID:    "Alloc",
-				MType: "gauge",
-			},
-			expectedCode: http.StatusOK,
-			expectedResponse: &model.Metric{
-				ID:    "Alloc",
-				MType: "gauge",
-				Value: float64Ptr(100.0),
-			},
+			name:             "Successful Gauge Retrieval",
+			update:           db.NewMetric("Alloc", domain.Gauge, nil, float64Ptr(100.0)),
+			retrieve:         db.NewMetric("Alloc", domain.Gauge, nil, nil),
+			expectedCode:     http.StatusOK,
+			expectedResponse: db.NewMetric("Alloc", domain.Gauge, nil, float64Ptr(100.0)),
 		},
 		{
-			name: "Successful Counter Retrieval",
-			update: &model.Metric{
-				ID:    "RequestCount",
-				MType: "counter",
-				Delta: int64Ptr(42),
-			},
-			retrieve: &model.Metric{
-				ID:    "RequestCount",
-				MType: "counter",
-			},
-			expectedCode: http.StatusOK,
-			expectedResponse: &model.Metric{
-				ID:    "RequestCount",
-				MType: "counter",
-				Delta: int64Ptr(42),
-			},
+			name:             "Successful Counter Retrieval",
+			update:           db.NewMetric("RequestCount", domain.Counter, int64Ptr(42), nil),
+			retrieve:         db.NewMetric("RequestCount", domain.Counter, nil, nil),
+			expectedCode:     http.StatusOK,
+			expectedResponse: db.NewMetric("RequestCount", domain.Counter, int64Ptr(42), nil),
 		},
 		{
 			name:         "Invalid JSON Payload on Update",
@@ -70,11 +51,8 @@ func TestUpdateRetrieveModel(t *testing.T) {
 			expectedCode: http.StatusBadRequest,
 		},
 		{
-			name: "Retrieve Non-Existent Metric",
-			retrieve: &model.Metric{
-				ID:    "NonExistent",
-				MType: "gauge",
-			},
+			name:         "Retrieve Non-Existent Metric",
+			retrieve:     db.NewMetric("non_existing", domain.Counter, nil, nil),
 			expectedCode: http.StatusNotFound,
 		},
 	}
@@ -84,11 +62,11 @@ func TestUpdateRetrieveModel(t *testing.T) {
 			t.Parallel()
 
 			// Initialize storage and router
-			l := testutils.GetTLogger()
-			memStorage := storage.NewMemStorage(l)
-			mHandlers := handlers.NewMetricsHandler(memStorage, l)
-			var cRouter router.Router = router.NewCustomRouter(l)
-			cRouter.SetRouter(mHandlers)
+			log := testutils.GetTLogger()
+			memStorage := storage.NewMemStorage(log)
+			mHandlers := handlers.NewMetricsHandler(memStorage, log)
+			var cRouter router.Router = router.NewCustomRouter(log)
+			cRouter.SetRouter(mHandlers, nil)
 
 			// Start the test server
 			server := httptest.NewServer(cRouter.GetRouter())
@@ -106,7 +84,7 @@ func TestUpdateRetrieveModel(t *testing.T) {
 }
 
 // testUpdateModel handles sending an update request and validating the response.
-func testUpdateModel(t *testing.T, server *httptest.Server, request *model.Metric, expectedCode int) {
+func testUpdateModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int) {
 	t.Helper()
 
 	payload, err := json.Marshal(request)
@@ -124,7 +102,7 @@ func testUpdateModel(t *testing.T, server *httptest.Server, request *model.Metri
 }
 
 // testRetrieveModel handles sending a retrieval request and validating the response.
-func testRetrieveModel(t *testing.T, server *httptest.Server, request *model.Metric, expectedCode int, expectedResponse *model.Metric) {
+func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int, expectedResponse *db.Metric) {
 	t.Helper()
 
 	payload, err := json.Marshal(request)
@@ -143,7 +121,7 @@ func testRetrieveModel(t *testing.T, server *httptest.Server, request *model.Met
 }
 
 // sendRequest simplifies sending requests to the test server.
-func sendRequest(t *testing.T, server *httptest.Server, route string, payload interface{}) (*model.Metric, int, error) {
+func sendRequest(t *testing.T, server *httptest.Server, route string, payload interface{}) (*db.Metric, int, error) {
 	t.Helper()
 
 	url := server.URL + route
@@ -153,7 +131,7 @@ func sendRequest(t *testing.T, server *httptest.Server, route string, payload in
 		return nil, resp.StatusCode(), err
 	}
 
-	var metric *model.Metric
+	var metric *db.Metric
 	if err := json.Unmarshal(resp.Body(), &metric); err != nil {
 		return nil, resp.StatusCode(), err
 	}

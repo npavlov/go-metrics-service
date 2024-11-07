@@ -28,6 +28,7 @@ RUN apk add --no-cache libc6-compat
 COPY --from=builder /app/server /app/server
 COPY --from=builder /go/bin/dlv /usr/local/bin/dlv
 COPY server.env /app/server.env
+COPY /migrations /app/migrations
 
 # Expose the port the server listens on, and the Delve debugging port
 EXPOSE 8080 40000

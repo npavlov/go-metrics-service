@@ -25,10 +25,10 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var serverStorage storage.Repository = storage.NewMemStorage(log)
+	serverStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, nil)
 
 	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
@@ -55,12 +55,12 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	for _, metric := range metrics {
 		switch metric.MType {
 		case domain.Gauge:
-			m, ok := serverStorage.Get(metric.ID)
+			m, ok := serverStorage.Get(context.Background(), metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Value)
 			assert.InDelta(t, original, *m.Value, 00000.1)
 		case domain.Counter:
-			m, ok := serverStorage.Get(metric.ID)
+			m, ok := serverStorage.Get(context.Background(), metric.ID)
 			assert.True(t, ok)
 			original := *(metric.Delta)
 			assert.Equal(t, original, *m.Delta)
@@ -69,7 +69,7 @@ func TestMetricService_SendMetrics(t *testing.T) {
 
 	reporter.SendMetrics(context.TODO())
 	reporter.SendMetrics(context.TODO())
-	m, ok := serverStorage.Get(domain.PollCount)
+	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
 	assert.True(t, ok)
 	assert.Equal(t, int64(3), *m.Delta)
 }
@@ -78,10 +78,10 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 	t.Parallel()
 
 	log := testutils.GetTLogger()
-	var serverStorage storage.Repository = storage.NewMemStorage(log)
+	serverStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, nil)
 
 	server := httptest.NewServer(cRouter.GetRouter())
 	defer server.Close()
@@ -113,9 +113,65 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 
 	wg.Wait() // Wait for the goroutine to finish
 
-	m, ok := serverStorage.Get(domain.PollCount)
+	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
 	assert.True(t, ok)
 	assert.Equal(t, int64(1), *m.Delta)
 
 	assert.Equal(t, context.Canceled, ctx.Err())
+}
+
+func TestMetricReporter_SendMetricsBatch(t *testing.T) {
+	t.Parallel()
+
+	// Setup Logger and Test Server
+	log := testutils.GetTLogger()
+	serverStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
+	var cRouter router.Router = router.NewCustomRouter(log)
+	cRouter.SetRouter(mHandlers, nil)
+
+	server := httptest.NewServer(cRouter.GetRouter())
+	defer server.Close()
+
+	// Create mock metrics and configurations
+	st := stats.Stats{}
+	metrics := st.StatsToMetrics()
+	mux := sync.RWMutex{}
+	cfg := &config.Config{
+		Address:        server.URL,
+		PollInterval:   1,
+		ReportInterval: 2,
+		UseBatch:       true,
+	}
+	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
+
+	// Initialize the MetricReporter
+	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
+	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
+	collector.UpdateMetrics()
+	// Run the SendMetricsBatch function
+	reporter.SendMetricsBatch(context.TODO())
+
+	// Verify that all metrics were sent in a batch and saved on the server
+	for _, metric := range metrics {
+		switch metric.MType {
+		case domain.Gauge:
+			m, ok := serverStorage.Get(context.Background(), metric.ID)
+			assert.True(t, ok, "Gauge metric should be present in server storage")
+			assert.InDelta(t, *metric.Value, *m.Value, 0.0001, "Gauge metric value should match")
+		case domain.Counter:
+			m, ok := serverStorage.Get(context.Background(), metric.ID)
+			assert.True(t, ok, "Counter metric should be present in server storage")
+			assert.Equal(t, *metric.Delta, *m.Delta, "Counter metric delta should match")
+		}
+	}
+
+	// Send batch multiple times and validate PollCount
+	reporter.SendMetricsBatch(context.TODO())
+	reporter.SendMetricsBatch(context.TODO())
+
+	// Check that PollCount counter has incremented
+	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
+	assert.True(t, ok, "PollCount metric should be present in server storage")
+	assert.Equal(t, int64(3), *m.Delta, "PollCount metric delta should be 3 after three batches")
 }

@@ -5,12 +5,15 @@ import (
 	"net/http"
 	"time"
 
+	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/joho/godotenv"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/logger"
+	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
+	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
@@ -31,13 +34,25 @@ func main() {
 
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
-	ctx := utils.WithSignalCancel(context.Background(), log)
+	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
 
-	var memStorage storage.Repository = storage.NewMemStorage(log).WithBackup(ctx, cfg)
+	dbManager := dbmanager.NewDBManager(cfg.Database, log).Connect(ctx).ApplyMigrations()
+	defer dbManager.Close()
+	if err != nil {
+		log.Error().Err(err).Msg("Error initialising db manager")
+	}
 
-	var mHandlers handlers.Handlers = handlers.NewMetricsHandler(memStorage, log)
+	var metricStorage model.Repository
+	if dbManager.IsConnected {
+		metricStorage = storage.NewDBStorage(dbManager.DB, log)
+	} else {
+		metricStorage = storage.NewMemStorage(log).WithBackup(ctx, cfg)
+	}
+
+	mHandlers := handlers.NewMetricsHandler(metricStorage, log)
+	hHandlers := handlers.NewHealthHandler(dbManager, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers)
+	cRouter.SetRouter(mHandlers, hHandlers)
 
 	log.Info().
 		Str("server_address", cfg.Address).
@@ -61,7 +76,8 @@ func main() {
 	}()
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		log.Fatal().Err(err).Msg("Error starting server")
+		log.Error().Err(err).Msg("Error starting server")
+		cancel()
 	}
 
 	log.Info().Msg("Server shut down")

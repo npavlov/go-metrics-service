@@ -153,13 +153,6 @@ jobs:
             -source-path=.
 
       - name: "Code increment #10"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter10' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
@@ -172,12 +165,6 @@ jobs:
             -source-path=.
 
       - name: "Code increment #11"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter11' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
@@ -190,15 +177,11 @@ jobs:
             -source-path=.
 
       - name: "Code increment #12"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter12' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
           TEMP_FILE=$(random tempfile)
+          USE_BATCH=true
           metricstest -test.v -test.run=^TestIteration12$ \
             -agent-binary-path=$AGENT_BINARY_PATH \
             -binary-path=$SERVER_BINARY_PATH \
@@ -207,10 +190,6 @@ jobs:
             -source-path=.
 
       - name: "Code increment #13"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter13' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"

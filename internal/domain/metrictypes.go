@@ -1,20 +1,44 @@
 package domain
 
-type MetricName string
+import "errors"
+
+// ErrInvalidStr Define a static error.
+var ErrInvalidStr = errors.New("invalid string type")
 
 type MetricType string
-
-type MetricSource string
 
 const (
 	Gauge   MetricType = "gauge"
 	Counter MetricType = "counter"
 )
 
+func (e *MetricType) Scan(value interface{}) error {
+	str, ok := value.(string)
+	if !ok {
+		return ErrInvalidStr
+	}
+	*e = MetricType(str)
+
+	return nil
+}
+
+func (e MetricType) Value() (interface{}, error) {
+	return string(e), nil
+}
+
+type MetricSource string
+
 const (
 	Runtime MetricSource = "runtime"
 	Custom  MetricSource = "custom"
 )
+
+type MetricName string
+
+// Implement the Stringer interface.
+func (m MetricName) String() string {
+	return string(m)
+}
 
 const (
 	Alloc         MetricName = "Alloc"

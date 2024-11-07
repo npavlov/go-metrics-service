@@ -1,6 +1,7 @@
 package handlers_test
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -8,6 +9,8 @@ import (
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
@@ -34,6 +37,7 @@ func TestUpdateHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		request string
+		initial *metric
 		want    want
 	}{
 		{
@@ -102,17 +106,42 @@ func TestUpdateHandler(t *testing.T) {
 				},
 			},
 		},
+		{
+			name:    "Update counter if found",
+			request: "/update/counter/PollCount/2",
+			want: want{
+				statusCode: http.StatusOK,
+				result: &metric{
+					name:       "PollCount",
+					metricType: "counter",
+					counter:    3,
+					gauge:      0,
+				},
+			},
+			initial: &metric{
+				name:       "PollCount",
+				metricType: "counter",
+				counter:    1,
+				gauge:      0,
+			},
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			// Initialize storage and router
-			l := testutils.GetTLogger()
-			var memStorage storage.Repository = storage.NewMemStorage(l)
-			mHandlers := handlers.NewMetricsHandler(memStorage, l)
-			var cRouter router.Router = router.NewCustomRouter(l)
-			cRouter.SetRouter(mHandlers)
+			log := testutils.GetTLogger()
+			memStorage := storage.NewMemStorage(log)
+			mHandlers := handlers.NewMetricsHandler(memStorage, log)
+			var cRouter router.Router = router.NewCustomRouter(log)
+			cRouter.SetRouter(mHandlers, nil)
+
+			if tt.initial != nil {
+				mod := db.NewMetric(tt.initial.name, tt.initial.metricType, int64Ptr(tt.initial.counter), float64Ptr(tt.initial.gauge))
+
+				_ = memStorage.Create(context.Background(), mod)
+			}
 
 			// Start the test server
 			server := httptest.NewServer(cRouter.GetRouter())
@@ -121,7 +150,7 @@ func TestUpdateHandler(t *testing.T) {
 			testUpdateRequest(t, server, tt.request, tt.want.statusCode)
 
 			if tt.want.result != nil {
-				metric, exist := memStorage.Get(tt.want.result.name)
+				metric, exist := memStorage.Get(context.Background(), tt.want.result.name)
 				assert.True(t, exist)
 
 				switch metric.MType {

@@ -8,13 +8,13 @@ import (
 	"github.com/rs/zerolog/log"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Request) {
 	metricName := domain.MetricName(chi.URLParam(request, "metricName"))
 
-	metricModel, found := mh.st.Get(metricName)
+	metricModel, found := mh.repo.Get(request.Context(), metricName)
 	if !found {
 		log.Error().Msgf("Retrieve: Failed to retrieve model from memory %s", metricName)
 		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)
@@ -28,7 +28,7 @@ func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Re
 
 func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *http.Request) {
 	// Decode the incoming JSON request into the Metric struct
-	var metric *model.Metric
+	var metric *db.Metric
 	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
 		mh.logger.Error().Err(err).Msg("Invalid JSON input")
 		http.Error(response, "Invalid JSON input", http.StatusNotFound)
@@ -37,7 +37,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	}
 
 	// Prepare the updated metric to be returned
-	responseMetric, found := mh.st.Get(metric.ID)
+	responseMetric, found := mh.repo.Get(request.Context(), metric.ID)
 	if !found {
 		mh.logger.Error().Msgf("Failed to retrieve model from memory %s", metric.ID)
 		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)

@@ -4,15 +4,15 @@ import (
 	"net/http"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/web"
 )
 
-func (mh *MetricHandler) Render(response http.ResponseWriter, _ *http.Request) {
+func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Request) {
 	page := struct {
-		Metrics map[domain.MetricName]model.Metric
+		Metrics map[domain.MetricName]db.Metric
 	}{
-		Metrics: mh.st.GetAll(),
+		Metrics: mh.repo.GetAll(request.Context()),
 	}
 
 	reader := web.NewEmbedReader()
