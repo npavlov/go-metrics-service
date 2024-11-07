@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -10,9 +9,6 @@ import (
 )
 
 func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *http.Request) {
-	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
-	defer cancel()
-
 	// Parse and validate metrics from the request body
 	metrics, err := mh.validator.ManyFromBody(request.Body)
 	if err != nil {
@@ -29,7 +25,7 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 	}
 
 	// Fetch old metrics for updating existing ones
-	oldMetrics, err := mh.repo.GetMany(ctx, metricIDs)
+	oldMetrics, err := mh.repo.GetMany(request.Context(), metricIDs)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error getting old metrics")
 		http.Error(response, err.Error(), http.StatusInternalServerError)
@@ -56,7 +52,7 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 	}
 
 	// Update all metrics in the repository
-	if err = mh.repo.UpdateMany(ctx, &newMetrics); err != nil {
+	if err = mh.repo.UpdateMany(request.Context(), &newMetrics); err != nil {
 		mh.logger.Error().Err(err).Msg("error updating metrics")
 		http.Error(response, "Failed to update metrics", http.StatusInternalServerError)
 

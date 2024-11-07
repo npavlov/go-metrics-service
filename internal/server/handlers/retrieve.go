@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -14,10 +13,8 @@ import (
 
 func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Request) {
 	metricName := domain.MetricName(chi.URLParam(request, "metricName"))
-	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
-	defer cancel()
 
-	metricModel, found := mh.repo.Get(ctx, metricName)
+	metricModel, found := mh.repo.Get(request.Context(), metricName)
 	if !found {
 		log.Error().Msgf("Retrieve: Failed to retrieve model from memory %s", metricName)
 		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)
@@ -30,8 +27,6 @@ func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Re
 }
 
 func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *http.Request) {
-	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
-	defer cancel()
 	// Decode the incoming JSON request into the Metric struct
 	var metric *db.Metric
 	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
@@ -42,7 +37,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	}
 
 	// Prepare the updated metric to be returned
-	responseMetric, found := mh.repo.Get(ctx, metric.ID)
+	responseMetric, found := mh.repo.Get(request.Context(), metric.ID)
 	if !found {
 		mh.logger.Error().Msgf("Failed to retrieve model from memory %s", metric.ID)
 		http.Error(response, "Failed to retrieve model from memory", http.StatusNotFound)

@@ -1,12 +1,18 @@
 package router
 
 import (
+	"time"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
+)
+
+const (
+	defaultTimeout = 500 * time.Millisecond // Default timeout for metrics handler
 )
 
 type Router interface {
@@ -30,6 +36,7 @@ func NewCustomRouter(l *zerolog.Logger) *CustomRouter {
 // SetRouter Embedding middleware setup in the constructor.
 func (cr *CustomRouter) SetRouter(mh *handlers.MetricHandler, hh *handlers.HealthHandler) {
 	cr.router.Use(middlewares.LoggingMiddleware(cr.logger))
+	cr.router.Use(middlewares.TimeoutMiddleware(defaultTimeout))
 	cr.router.Use(middleware.Recoverer)
 	cr.router.Use(middlewares.GzipMiddleware)
 	cr.router.Use(middlewares.BrotliMiddleware)

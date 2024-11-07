@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 
@@ -62,15 +61,12 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 }
 
 func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *db.Metric) (*db.Metric, error) {
-	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
-	defer cancel()
-
-	existingMetric, found := mh.repo.Get(ctx, newMetric.ID)
+	existingMetric, found := mh.repo.Get(request.Context(), newMetric.ID)
 
 	if found {
 		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
 
-		err := mh.repo.Update(ctx, existingMetric)
+		err := mh.repo.Update(request.Context(), existingMetric)
 		if err != nil {
 			mh.logger.Error().Err(err).Msg("error updating existingMetric")
 
@@ -80,7 +76,7 @@ func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *db.Me
 		return existingMetric, nil
 	}
 
-	err := mh.repo.Create(ctx, newMetric)
+	err := mh.repo.Create(request.Context(), newMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("error creating Metric")
 

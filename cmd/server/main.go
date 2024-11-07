@@ -42,14 +42,14 @@ func main() {
 		log.Error().Err(err).Msg("Error initialising db manager")
 	}
 
-	var st model.Repository
+	var metricStorage model.Repository
 	if dbManager.IsConnected {
-		st = storage.NewDBStorage(dbManager.DB, log)
+		metricStorage = storage.NewDBStorage(dbManager.DB, log)
 	} else {
-		st = storage.NewMemStorage(log).WithBackup(ctx, cfg)
+		metricStorage = storage.NewMemStorage(log).WithBackup(ctx, cfg)
 	}
 
-	mHandlers := handlers.NewMetricsHandler(st, log)
+	mHandlers := handlers.NewMetricsHandler(metricStorage, log)
 	hHandlers := handlers.NewHealthHandler(dbManager, log)
 	var cRouter router.Router = router.NewCustomRouter(log)
 	cRouter.SetRouter(mHandlers, hHandlers)

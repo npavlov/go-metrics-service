@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"context"
 	"net/http"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
@@ -10,13 +9,10 @@ import (
 )
 
 func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Request) {
-	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
-	defer cancel()
-
 	page := struct {
 		Metrics map[domain.MetricName]db.Metric
 	}{
-		Metrics: mh.repo.GetAll(ctx),
+		Metrics: mh.repo.GetAll(request.Context()),
 	}
 
 	reader := web.NewEmbedReader()
