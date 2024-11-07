@@ -14,8 +14,8 @@ import (
 const GetAllMetrics = `-- name: GetAllMetrics :many
 SELECT m.id,
        m.type,
-       COALESCE(c.delta, 0) AS delta,
-       COALESCE(g.value, 0.0) AS value
+       c.delta,
+       g.value
 FROM mtr_metrics AS m
          LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
          LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
@@ -56,8 +56,8 @@ func (q *Queries) GetAllMetrics(ctx context.Context) ([]GetAllMetricsRow, error)
 const GetManyMetrics = `-- name: GetManyMetrics :many
 SELECT m.id,
        m.type,
-       COALESCE(c.delta, 0) AS delta,
-       COALESCE(g.value, 0.0) AS value
+       c.delta,
+       g.value
 FROM mtr_metrics AS m
          LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
          LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
@@ -99,8 +99,8 @@ func (q *Queries) GetManyMetrics(ctx context.Context, dollar_1 []string) ([]GetM
 const GetUnifiedMetric = `-- name: GetUnifiedMetric :one
 SELECT m.id,
        m.type,
-       COALESCE(c.delta, 0) AS delta,
-       COALESCE(g.value, 0.0) AS value
+       c.delta,
+       g.value
 FROM mtr_metrics AS m
          LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
          LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id

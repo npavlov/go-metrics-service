@@ -1,8 +1,8 @@
 -- name: GetAllMetrics :many
 SELECT m.id,
        m.type,
-       COALESCE(c.delta, 0) AS delta,
-       COALESCE(g.value, 0.0) AS value
+       c.delta,
+       g.value
 FROM mtr_metrics AS m
          LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
          LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id;
@@ -10,8 +10,8 @@ FROM mtr_metrics AS m
 -- name: GetUnifiedMetric :one
 SELECT m.id,
        m.type,
-       COALESCE(c.delta, 0) AS delta,
-       COALESCE(g.value, 0.0) AS value
+       c.delta,
+       g.value
 FROM mtr_metrics AS m
          LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
          LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
@@ -20,8 +20,8 @@ WHERE m.id = $1;
 -- name: GetManyMetrics :many
 SELECT m.id,
        m.type,
-       COALESCE(c.delta, 0) AS delta,
-       COALESCE(g.value, 0.0) AS value
+       c.delta,
+       g.value
 FROM mtr_metrics AS m
          LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
          LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
@@ -57,7 +57,7 @@ WHERE metric_id = $1;
 INSERT INTO mtr_metrics (id, type)
 VALUES ($1, $2)
 ON CONFLICT (id, type) DO UPDATE
-    SET id = EXCLUDED.id, type = EXCLUDED.type; 
+    SET id = EXCLUDED.id, type = EXCLUDED.type;
 
 -- name: UpsertCounterMetric :exec
 -- Insert into counter_metrics or update if conflict on (metric_id)
