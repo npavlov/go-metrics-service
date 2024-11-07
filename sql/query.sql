@@ -1,27 +1,74 @@
 -- name: GetAllMetrics :many
-SELECT id, type, delta, value FROM mtr_metrics;
+SELECT m.id,
+       m.type,
+       COALESCE(c.delta, 0) AS delta,
+       COALESCE(g.value, 0.0) AS value
+FROM mtr_metrics AS m
+         LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
+         LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id;
 
--- name: GetMetric :one
-SELECT id, type, delta, value FROM mtr_metrics
-WHERE id = $1;
+-- name: GetUnifiedMetric :one
+SELECT m.id,
+       m.type,
+       COALESCE(c.delta, 0) AS delta,
+       COALESCE(g.value, 0.0) AS value
+FROM mtr_metrics AS m
+         LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
+         LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
+WHERE m.id = $1;
 
 -- name: GetManyMetrics :many
-SELECT id, type, delta, value FROM mtr_metrics
-WHERE id = ANY($1::text[]);
+SELECT m.id,
+       m.type,
+       COALESCE(c.delta, 0) AS delta,
+       COALESCE(g.value, 0.0) AS value
+FROM mtr_metrics AS m
+         LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
+         LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
+WHERE m.id = ANY($1::text[]);
 
--- name: InsertMetric :exec
-INSERT INTO mtr_metrics (id, type, delta, value)
-VALUES ($1, $2, $3, $4)
+-- name: InsertMtrMetric :exec
+INSERT INTO mtr_metrics (id, type)
+VALUES ($1, $2)
 ON CONFLICT (id, type) DO NOTHING;
 
--- name: UpdateMetric :exec
-UPDATE mtr_metrics
-SET delta = $3, value = $4
-WHERE id = $1 AND type = $2;
+-- name: InsertCounterMetric :exec
+INSERT INTO counter_metrics (metric_id, delta)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO NOTHING;
 
--- name: UpsertMetric :exec
-INSERT INTO mtr_metrics (id, type, delta, value)
-VALUES ($1, $2, $3, $4)
+-- name: InsertGaugeMetric :exec
+INSERT INTO gauge_metrics (metric_id, value)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO NOTHING;
+
+-- name: UpdateCounterMetric :exec
+UPDATE counter_metrics
+SET delta = $2
+WHERE metric_id = $1;
+
+-- name: UpdateGaugeMetric :exec
+UPDATE gauge_metrics
+SET value = $2
+WHERE metric_id = $1;
+
+-- name: UpsertMtrMetric :exec
+-- Insert into mtr_metrics or update if conflict on (id, type)
+INSERT INTO mtr_metrics (id, type)
+VALUES ($1, $2)
 ON CONFLICT (id, type) DO UPDATE
-    SET delta = EXCLUDED.delta,
-        value = EXCLUDED.value;
+    SET id = EXCLUDED.id, type = EXCLUDED.type; 
+
+-- name: UpsertCounterMetric :exec
+-- Insert into counter_metrics or update if conflict on (metric_id)
+INSERT INTO counter_metrics (metric_id, delta)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO UPDATE
+    SET delta = EXCLUDED.delta;
+
+-- name: UpsertGaugeMetric :exec
+-- Insert into gauge_metrics or update if conflict on (metric_id)
+INSERT INTO gauge_metrics (metric_id, value)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO UPDATE
+    SET value = EXCLUDED.value;

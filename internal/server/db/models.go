@@ -31,8 +31,8 @@ func (e *MetricType) Scan(src interface{}) error {
 }
 
 type NullMetricType struct {
-	MetricType MetricType `json:"metric_type"`
-	Valid      bool       `json:"valid"` // Valid is true if MetricType is not NULL
+	MetricType MetricType
+	Valid      bool // Valid is true if MetricType is not NULL
 }
 
 // Scan implements the Scanner interface.
@@ -53,9 +53,17 @@ func (ns NullMetricType) Value() (driver.Value, error) {
 	return string(ns.MetricType), nil
 }
 
+type CounterMetric struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Delta    *int64            `db:"delta" json:"delta"`
+}
+
+type GaugeMetric struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Value    *float64          `db:"value" json:"value"`
+}
+
 type MtrMetric struct {
 	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
 	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
-	Delta *int64            `db:"delta" json:"delta"`
-	Value *float64          `db:"value" json:"value"`
 }

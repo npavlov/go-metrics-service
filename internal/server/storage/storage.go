@@ -20,7 +20,7 @@ const (
 
 type MemStorage struct {
 	mu       *sync.RWMutex
-	metrics  map[domain.MetricName]db.MtrMetric
+	metrics  map[domain.MetricName]db.Metric
 	cfg      *config.Config
 	l        *zerolog.Logger
 	snapshot snapshot.Snapshot
@@ -29,7 +29,7 @@ type MemStorage struct {
 // NewMemStorage - constructor for MemStorage.
 func NewMemStorage(l *zerolog.Logger) *MemStorage {
 	ms := &MemStorage{
-		metrics:  make(map[domain.MetricName]db.MtrMetric),
+		metrics:  make(map[domain.MetricName]db.Metric),
 		mu:       &sync.RWMutex{},
 		l:        l,
 		cfg:      nil,
@@ -95,7 +95,7 @@ func (ms *MemStorage) StartBackup(ctx context.Context) {
 	}
 }
 
-func (ms *MemStorage) GetAll(_ context.Context) map[domain.MetricName]db.MtrMetric {
+func (ms *MemStorage) GetAll(_ context.Context) map[domain.MetricName]db.Metric {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -103,7 +103,7 @@ func (ms *MemStorage) GetAll(_ context.Context) map[domain.MetricName]db.MtrMetr
 }
 
 // Get - retrieves the value of a Metric.
-func (ms *MemStorage) Get(_ context.Context, name domain.MetricName) (*db.MtrMetric, bool) {
+func (ms *MemStorage) Get(_ context.Context, name domain.MetricName) (*db.Metric, bool) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 	value, exists := ms.metrics[name]
@@ -112,13 +112,11 @@ func (ms *MemStorage) Get(_ context.Context, name domain.MetricName) (*db.MtrMet
 }
 
 // GetMany retrieves multiple metrics by their names.
-//
-//nolint:lll
-func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (map[domain.MetricName]db.MtrMetric, error) {
+func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (map[domain.MetricName]db.Metric, error) {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
-	results := make(map[domain.MetricName]db.MtrMetric)
+	results := make(map[domain.MetricName]db.Metric)
 	for _, name := range names {
 		metric, exists := ms.metrics[name]
 		if exists {
@@ -130,8 +128,8 @@ func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (map
 }
 
 // Generic function to clone a map of Metrics.
-func cloneMap(original map[domain.MetricName]db.MtrMetric) map[domain.MetricName]db.MtrMetric {
-	cloned := make(map[domain.MetricName]db.MtrMetric)
+func cloneMap(original map[domain.MetricName]db.Metric) map[domain.MetricName]db.Metric {
+	cloned := make(map[domain.MetricName]db.Metric)
 	for key, value := range original {
 		cloned[key] = value
 	}
@@ -139,7 +137,7 @@ func cloneMap(original map[domain.MetricName]db.MtrMetric) map[domain.MetricName
 	return cloned
 }
 
-func (ms *MemStorage) Update(_ context.Context, metric *db.MtrMetric) error {
+func (ms *MemStorage) Update(_ context.Context, metric *db.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -159,7 +157,7 @@ func (ms *MemStorage) Update(_ context.Context, metric *db.MtrMetric) error {
 	return nil
 }
 
-func (ms *MemStorage) Create(_ context.Context, metric *db.MtrMetric) error {
+func (ms *MemStorage) Create(_ context.Context, metric *db.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 
@@ -179,7 +177,7 @@ func (ms *MemStorage) Create(_ context.Context, metric *db.MtrMetric) error {
 	return nil
 }
 
-func (ms *MemStorage) UpdateMany(_ context.Context, metrics *[]db.MtrMetric) error {
+func (ms *MemStorage) UpdateMany(_ context.Context, metrics *[]db.Metric) error {
 	ms.mu.Lock()
 	defer ms.mu.Unlock()
 

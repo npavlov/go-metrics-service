@@ -6,8 +6,38 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/domain"
 )
 
+type Metric struct {
+	CounterMetric
+	GaugeMetric
+	MtrMetric
+}
+
+func NewMetric(id domain.MetricName, mType domain.MetricType, delta *int64, value *float64) *Metric {
+	return &Metric{
+		CounterMetric: CounterMetric{
+			Delta:    delta,
+			MetricID: "",
+		},
+		GaugeMetric: GaugeMetric{
+			Value:    value,
+			MetricID: "",
+		},
+		MtrMetric: MtrMetric{
+			ID:    id,
+			MType: mType,
+		},
+	}
+}
+
+func (m *Metric) FromFields(id domain.MetricName, mType domain.MetricType, delta *int64, value *float64) {
+	m.MtrMetric.ID = id
+	m.MType = mType
+	m.Delta = delta
+	m.Value = value
+}
+
 // SetValue - the method that allows to encapsulate value set logic for different types.
-func (m *MtrMetric) SetValue(delta *int64, value *float64) {
+func (m *Metric) SetValue(delta *int64, value *float64) {
 	if m.MType == domain.Gauge {
 		m.Delta = nil
 		m.Value = value
@@ -34,7 +64,7 @@ func (m *MtrMetric) SetValue(delta *int64, value *float64) {
 }
 
 // GetValue - the method that gets value for dedicated type.
-func (m *MtrMetric) GetValue() string {
+func (m *Metric) GetValue() string {
 	if m.MType == domain.Gauge {
 		return strconv.FormatFloat(*m.Value, 'f', -1, 64)
 	}
@@ -44,34 +74,4 @@ func (m *MtrMetric) GetValue() string {
 	}
 
 	return ""
-}
-
-// ToUpsertMetricParams converts to params.
-func (m *MtrMetric) ToUpsertMetricParams() UpsertMetricParams {
-	return UpsertMetricParams{
-		ID:    m.ID,
-		MType: m.MType,
-		Delta: m.Delta,
-		Value: m.Value,
-	}
-}
-
-// ToInsertMetricParams converts to params.
-func (m *MtrMetric) ToInsertMetricParams() InsertMetricParams {
-	return InsertMetricParams{
-		ID:    m.ID,
-		MType: m.MType,
-		Delta: m.Delta,
-		Value: m.Value,
-	}
-}
-
-// ToUpdateMetricParams  converts to params.
-func (m *MtrMetric) ToUpdateMetricParams() UpdateMetricParams {
-	return UpdateMetricParams{
-		ID:    m.ID,
-		MType: m.MType,
-		Delta: m.Delta,
-		Value: m.Value,
-	}
 }

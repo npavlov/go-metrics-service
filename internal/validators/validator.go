@@ -15,10 +15,10 @@ import (
 
 // MValidator - the interface to describe validators for metrics.
 type MValidator interface {
-	FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*db.MtrMetric, error)
-	FromBody(body io.ReadCloser) (*db.MtrMetric, error)
-	ManyFromBody(body io.ReadCloser) ([]*db.MtrMetric, error)
-	ValidateStructure(metric *db.MtrMetric) error
+	FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*db.Metric, error)
+	FromBody(body io.ReadCloser) (*db.Metric, error)
+	ManyFromBody(body io.ReadCloser) ([]*db.Metric, error)
+	ValidateStructure(metric *db.Metric) error
 }
 
 // MValidatorImpl - the implementation structure for validations.
@@ -34,12 +34,20 @@ func NewMetricsValidator() *MValidatorImpl {
 }
 
 // FromVars - the function that parses metric structure from map object.
-func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*db.MtrMetric, error) {
-	metric := &db.MtrMetric{
-		ID:    "",
-		MType: "",
-		Delta: nil,
-		Value: nil,
+func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricType, val string) (*db.Metric, error) {
+	metric := &db.Metric{
+		MtrMetric: db.MtrMetric{
+			ID:    "",
+			MType: "",
+		},
+		GaugeMetric: db.GaugeMetric{
+			MetricID: "",
+			Value:    nil,
+		},
+		CounterMetric: db.CounterMetric{
+			MetricID: "",
+			Delta:    nil,
+		},
 	}
 	// Retrieving variables
 	if len(mName) == 0 {
@@ -90,12 +98,20 @@ func (v *MValidatorImpl) FromVars(mName domain.MetricName, mType domain.MetricTy
 }
 
 // FromBody - the function that parses metric structure from reader.
-func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*db.MtrMetric, error) {
-	metric := &db.MtrMetric{
-		ID:    "",
-		MType: "",
-		Delta: nil,
-		Value: nil,
+func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*db.Metric, error) {
+	metric := &db.Metric{
+		MtrMetric: db.MtrMetric{
+			ID:    "",
+			MType: "",
+		},
+		GaugeMetric: db.GaugeMetric{
+			MetricID: "",
+			Value:    nil,
+		},
+		CounterMetric: db.CounterMetric{
+			MetricID: "",
+			Delta:    nil,
+		},
 	}
 
 	err := json.NewDecoder(body).Decode(metric)
@@ -119,8 +135,8 @@ func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*db.MtrMetric, error) {
 }
 
 // ManyFromBody - the function that parses many metric structures from reader.
-func (v *MValidatorImpl) ManyFromBody(body io.ReadCloser) ([]*db.MtrMetric, error) {
-	var metrics []*db.MtrMetric
+func (v *MValidatorImpl) ManyFromBody(body io.ReadCloser) ([]*db.Metric, error) {
+	var metrics []*db.Metric
 
 	err := json.NewDecoder(body).Decode(&metrics)
 	if err != nil {
@@ -144,6 +160,6 @@ func (v *MValidatorImpl) ManyFromBody(body io.ReadCloser) ([]*db.MtrMetric, erro
 	return metrics, nil
 }
 
-func (v *MValidatorImpl) ValidateStructure(metric *db.MtrMetric) error {
+func (v *MValidatorImpl) ValidateStructure(metric *db.Metric) error {
 	return v.validate.Struct(metric)
 }

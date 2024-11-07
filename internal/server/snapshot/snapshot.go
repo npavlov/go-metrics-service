@@ -13,8 +13,8 @@ import (
 )
 
 type Snapshot interface {
-	Save(state map[domain.MetricName]db.MtrMetric) error
-	Restore() (map[domain.MetricName]db.MtrMetric, error)
+	Save(state map[domain.MetricName]db.Metric) error
+	Restore() (map[domain.MetricName]db.Metric, error)
 }
 
 // MemSnapshot encapsulates saving and restoring state of MemStorage.
@@ -32,7 +32,7 @@ func NewMemSnapshot(filePath string, l *zerolog.Logger) *MemSnapshot {
 }
 
 // Save stores the state of the metrics to the configured file.
-func (m *MemSnapshot) Save(state map[domain.MetricName]db.MtrMetric) error {
+func (m *MemSnapshot) Save(state map[domain.MetricName]db.Metric) error {
 	file, err := json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal output")
@@ -47,7 +47,7 @@ func (m *MemSnapshot) Save(state map[domain.MetricName]db.MtrMetric) error {
 }
 
 // Restore loads the state from the file into the provided map.
-func (m *MemSnapshot) Restore() (map[domain.MetricName]db.MtrMetric, error) {
+func (m *MemSnapshot) Restore() (map[domain.MetricName]db.Metric, error) {
 	file, err := os.ReadFile(m.filePath)
 	if err != nil {
 		m.l.Error().Err(err).Msg("failed to load output")
@@ -55,7 +55,7 @@ func (m *MemSnapshot) Restore() (map[domain.MetricName]db.MtrMetric, error) {
 		return nil, errors.Wrap(err, "failed to load output")
 	}
 
-	newStorage := make(map[domain.MetricName]db.MtrMetric)
+	newStorage := make(map[domain.MetricName]db.Metric)
 	err = json.Unmarshal(file, &newStorage)
 	if err != nil {
 		m.l.Error().Err(err).Msg("failed to unmarshal output")

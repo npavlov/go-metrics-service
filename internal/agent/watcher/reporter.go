@@ -164,7 +164,7 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, data 
 
 func (mr *MetricReporter) read(data []byte) {
 	// Unmarshal the decompressed response into a Metric struct
-	var rMetric db.MtrMetric
+	var rMetric db.Metric
 	err := json.Unmarshal(data, &rMetric)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
@@ -180,7 +180,7 @@ func (mr *MetricReporter) read(data []byte) {
 
 func (mr *MetricReporter) readMany(data []byte) {
 	// Unmarshal the decompressed response into a Metric struct
-	var rMetrics []db.MtrMetric
+	var rMetrics []db.Metric
 	err := json.Unmarshal(data, &rMetrics)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")

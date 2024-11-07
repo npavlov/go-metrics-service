@@ -25,31 +25,23 @@ func TestMValidatorImpl_FromVars(t *testing.T) {
 		mName   domain.MetricName
 		mType   domain.MetricType
 		val     string
-		want    *db.MtrMetric
+		want    *db.Metric
 		wantErr bool
 	}{
 		{
-			name:  "Valid counter metric",
-			mName: "test_counter",
-			mType: domain.Counter,
-			val:   "123",
-			want: &db.MtrMetric{
-				ID:    "test_counter",
-				MType: domain.Counter,
-				Delta: int64Ptr(123),
-			},
+			name:    "Valid counter metric",
+			mName:   "test_counter",
+			mType:   domain.Counter,
+			val:     "123",
+			want:    db.NewMetric("test_counter", domain.Counter, int64Ptr(123), nil),
 			wantErr: false,
 		},
 		{
-			name:  "Valid gauge metric",
-			mName: "test_gauge",
-			mType: domain.Gauge,
-			val:   "123.45",
-			want: &db.MtrMetric{
-				ID:    "test_gauge",
-				MType: domain.Gauge,
-				Value: float64Ptr(123.45),
-			},
+			name:    "Valid gauge metric",
+			mName:   "test_gauge",
+			mType:   domain.Gauge,
+			val:     "123.45",
+			want:    db.NewMetric("test_gauge", domain.Gauge, nil, float64Ptr(123.45)),
 			wantErr: false,
 		},
 		{
@@ -105,27 +97,19 @@ func TestMValidatorImpl_FromBody(t *testing.T) {
 	tests := []struct {
 		name    string
 		body    string
-		want    *db.MtrMetric
+		want    *db.Metric
 		wantErr bool
 	}{
 		{
-			name: "Valid counter metric",
-			body: `{"id":"test_counter","type":"counter","delta":123}`,
-			want: &db.MtrMetric{
-				ID:    "test_counter",
-				MType: domain.Counter,
-				Delta: int64Ptr(123),
-			},
+			name:    "Valid counter metric",
+			body:    `{"id":"test_counter","type":"counter","delta":123}`,
+			want:    db.NewMetric("test_counter", domain.Counter, int64Ptr(123), nil),
 			wantErr: false,
 		},
 		{
-			name: "Valid gauge metric",
-			body: `{"id":"test_gauge","type":"gauge","value":123.45}`,
-			want: &db.MtrMetric{
-				ID:    "test_gauge",
-				MType: domain.Gauge,
-				Value: float64Ptr(123.45),
-			},
+			name:    "Valid gauge metric",
+			body:    `{"id":"test_gauge","type":"gauge","value":123.45}`,
+			want:    db.NewMetric("test_gauge", domain.Gauge, nil, float64Ptr(123.45)),
 			wantErr: false,
 		},
 		{
@@ -164,15 +148,15 @@ func TestMValidatorImpl_ManyFromBody(t *testing.T) {
 	tests := []struct {
 		name    string
 		body    string
-		want    []*db.MtrMetric
+		want    []*db.Metric
 		wantErr bool
 	}{
 		{
 			name: "Valid metrics list",
 			body: `[{"id":"metric1","type":"counter","delta":10},{"id":"metric2","type":"gauge","value":20.5}]`,
-			want: []*db.MtrMetric{
-				{ID: "metric1", MType: domain.Counter, Delta: int64Ptr(10)},
-				{ID: "metric2", MType: domain.Gauge, Value: float64Ptr(20.5)},
+			want: []*db.Metric{
+				db.NewMetric("metric1", domain.Counter, int64Ptr(10), nil),
+				db.NewMetric("metric2", domain.Gauge, nil, float64Ptr(20.5)),
 			},
 			wantErr: false,
 		},
@@ -189,22 +173,22 @@ func TestMValidatorImpl_ManyFromBody(t *testing.T) {
 		{
 			name:    "Empty metrics list",
 			body:    `[]`,
-			want:    []*db.MtrMetric{},
+			want:    []*db.Metric{},
 			wantErr: false,
 		},
 		{
 			name: "Gauge metric without value field",
 			body: `[{"id":"metric2","type":"gauge"}]`,
-			want: []*db.MtrMetric{
-				{ID: "metric2", MType: domain.Gauge, Value: nil},
+			want: []*db.Metric{
+				db.NewMetric("metric2", domain.Gauge, nil, nil),
 			},
 			wantErr: false,
 		},
 		{
 			name: "Counter metric without delta field",
 			body: `[{"id":"metric1","type":"counter"}]`,
-			want: []*db.MtrMetric{
-				{ID: "metric1", MType: domain.Counter, Delta: nil},
+			want: []*db.Metric{
+				db.NewMetric("metric1", domain.Counter, nil, nil),
 			},
 			wantErr: false,
 		},

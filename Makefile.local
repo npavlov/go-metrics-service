@@ -1,5 +1,5 @@
 # Define variables
-MIGRATION_NAME ?= "default_migration_name"
+MIGRATION_NAME = "default_migration_name"
 TEMP_DB=
 DATABASE_DSN=
 

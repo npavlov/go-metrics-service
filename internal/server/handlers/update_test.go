@@ -138,13 +138,9 @@ func TestUpdateHandler(t *testing.T) {
 			cRouter.SetRouter(mHandlers, nil)
 
 			if tt.initial != nil {
-				mod := db.MtrMetric{
-					ID:    tt.initial.name,
-					MType: tt.initial.metricType,
-					Value: float64Ptr(tt.initial.gauge),
-					Delta: int64Ptr(tt.initial.counter),
-				}
-				_ = memStorage.Create(context.Background(), &mod)
+				mod := db.NewMetric(tt.initial.name, tt.initial.metricType, int64Ptr(tt.initial.counter), float64Ptr(tt.initial.gauge))
+
+				_ = memStorage.Create(context.Background(), mod)
 			}
 
 			// Start the test server

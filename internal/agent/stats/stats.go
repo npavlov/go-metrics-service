@@ -53,15 +53,11 @@ func (s *Stats) StatsToMetrics() []model.Metric {
 
 	for index := range t.NumField() {
 		fieldType := t.Field(index)
-		fieldName := fieldType.Name
+		mID := domain.MetricName(fieldType.Name)
+		mType := domain.MetricType(fieldType.Tag.Get("metricType"))
 
 		metric := model.Metric{
-			MtrMetric: db.MtrMetric{
-				ID:    domain.MetricName(fieldName),
-				MType: domain.MetricType(fieldType.Tag.Get("metricType")),
-				Value: nil,
-				Delta: nil,
-			},
+			Metric:  *db.NewMetric(mID, mType, nil, nil),
 			MSource: domain.MetricSource(fieldType.Tag.Get("metricSource")),
 		}
 

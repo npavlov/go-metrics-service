@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/domain"
+
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
@@ -24,46 +26,24 @@ func TestUpdateRetrieveModel(t *testing.T) {
 
 	tests := []struct {
 		name             string
-		update           *db.MtrMetric
-		retrieve         *db.MtrMetric
+		update           *db.Metric
+		retrieve         *db.Metric
 		expectedCode     int
-		expectedResponse *db.MtrMetric
+		expectedResponse *db.Metric
 	}{
 		{
-			name: "Successful Gauge Retrieval",
-			update: &db.MtrMetric{
-				ID:    "Alloc",
-				MType: "gauge",
-				Value: float64Ptr(100.0),
-			},
-			retrieve: &db.MtrMetric{
-				ID:    "Alloc",
-				MType: "gauge",
-			},
-			expectedCode: http.StatusOK,
-			expectedResponse: &db.MtrMetric{
-				ID:    "Alloc",
-				MType: "gauge",
-				Value: float64Ptr(100.0),
-			},
+			name:             "Successful Gauge Retrieval",
+			update:           db.NewMetric("Alloc", domain.Gauge, nil, float64Ptr(100.0)),
+			retrieve:         db.NewMetric("Alloc", domain.Gauge, nil, nil),
+			expectedCode:     http.StatusOK,
+			expectedResponse: db.NewMetric("Alloc", domain.Gauge, nil, float64Ptr(100.0)),
 		},
 		{
-			name: "Successful Counter Retrieval",
-			update: &db.MtrMetric{
-				ID:    "RequestCount",
-				MType: "counter",
-				Delta: int64Ptr(42),
-			},
-			retrieve: &db.MtrMetric{
-				ID:    "RequestCount",
-				MType: "counter",
-			},
-			expectedCode: http.StatusOK,
-			expectedResponse: &db.MtrMetric{
-				ID:    "RequestCount",
-				MType: "counter",
-				Delta: int64Ptr(42),
-			},
+			name:             "Successful Counter Retrieval",
+			update:           db.NewMetric("RequestCount", domain.Counter, int64Ptr(42), nil),
+			retrieve:         db.NewMetric("RequestCount", domain.Counter, nil, nil),
+			expectedCode:     http.StatusOK,
+			expectedResponse: db.NewMetric("RequestCount", domain.Counter, int64Ptr(42), nil),
 		},
 		{
 			name:         "Invalid JSON Payload on Update",
@@ -71,11 +51,8 @@ func TestUpdateRetrieveModel(t *testing.T) {
 			expectedCode: http.StatusBadRequest,
 		},
 		{
-			name: "Retrieve Non-Existent Metric",
-			retrieve: &db.MtrMetric{
-				ID:    "NonExistent",
-				MType: "gauge",
-			},
+			name:         "Retrieve Non-Existent Metric",
+			retrieve:     db.NewMetric("non_existing", domain.Counter, nil, nil),
 			expectedCode: http.StatusNotFound,
 		},
 	}
@@ -107,7 +84,7 @@ func TestUpdateRetrieveModel(t *testing.T) {
 }
 
 // testUpdateModel handles sending an update request and validating the response.
-func testUpdateModel(t *testing.T, server *httptest.Server, request *db.MtrMetric, expectedCode int) {
+func testUpdateModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int) {
 	t.Helper()
 
 	payload, err := json.Marshal(request)
@@ -125,7 +102,7 @@ func testUpdateModel(t *testing.T, server *httptest.Server, request *db.MtrMetri
 }
 
 // testRetrieveModel handles sending a retrieval request and validating the response.
-func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.MtrMetric, expectedCode int, expectedResponse *db.MtrMetric) {
+func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int, expectedResponse *db.Metric) {
 	t.Helper()
 
 	payload, err := json.Marshal(request)
@@ -144,7 +121,7 @@ func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.MtrMet
 }
 
 // sendRequest simplifies sending requests to the test server.
-func sendRequest(t *testing.T, server *httptest.Server, route string, payload interface{}) (*db.MtrMetric, int, error) {
+func sendRequest(t *testing.T, server *httptest.Server, route string, payload interface{}) (*db.Metric, int, error) {
 	t.Helper()
 
 	url := server.URL + route
@@ -154,7 +131,7 @@ func sendRequest(t *testing.T, server *httptest.Server, route string, payload in
 		return nil, resp.StatusCode(), err
 	}
 
-	var metric *db.MtrMetric
+	var metric *db.Metric
 	if err := json.Unmarshal(resp.Body(), &metric); err != nil {
 		return nil, resp.StatusCode(), err
 	}

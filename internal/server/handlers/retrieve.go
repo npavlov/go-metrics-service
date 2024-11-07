@@ -33,7 +33,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
 	defer cancel()
 	// Decode the incoming JSON request into the Metric struct
-	var metric *db.MtrMetric
+	var metric *db.Metric
 	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
 		mh.logger.Error().Err(err).Msg("Invalid JSON input")
 		http.Error(response, "Invalid JSON input", http.StatusNotFound)

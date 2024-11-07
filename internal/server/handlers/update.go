@@ -61,7 +61,7 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 	}
 }
 
-func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *db.MtrMetric) (*db.MtrMetric, error) {
+func (mh *MetricHandler) updateAndReturn(request *http.Request, newMetric *db.Metric) (*db.Metric, error) {
 	ctx, cancel := context.WithTimeout(request.Context(), mh.timeout)
 	defer cancel()
 

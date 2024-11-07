@@ -13,7 +13,6 @@ sql:
         package: "db"
         out: "internal/server/db"
         sql_package: "pgx/v5"
-        emit_json_tags: true
         emit_db_tags: true
         emit_exported_queries: true
         "overrides": [
@@ -24,7 +23,7 @@ sql:
               "package": "domain",
               "type": "MetricName",
             },
-            "go_struct_tag": "validate:\"required\""
+            "go_struct_tag": "json:\"id\" validate:\"required\""
           },
           {
             "column": "mtr_metrics.type",
@@ -33,22 +32,48 @@ sql:
               "package": "domain",
               "type": "MetricType",
             },
-            "go_struct_tag": "validate:\"required,oneof=counter gauge\""
+            "go_struct_tag": "json:\"type\" validate:\"required,oneof=counter gauge\""
           },
           {
-            "column": "mtr_metrics.delta",
+            "column": "counter_metrics.delta",
             "go_type": {
               "type": "int64",
               "pointer": true
             },
+            "go_struct_tag": "json:\"delta\""
           },
           {
-            "column": "mtr_metrics.value",
+            "column": "gauge_metrics.value",
             "go_type": {
               "type": "float64",
               "pointer": true
             },
-          }
+            "go_struct_tag": "json:\"value\""
+          },
+          {
+            "column": "gauge_metrics.metric_id",
+            "go_struct_tag": "json:\"-\""
+          },
+          {
+            "column": "counter_metrics.metric_id",
+            "go_struct_tag": "json:\"-\""
+          },
+          {
+            "column": "gauge_metrics.metric_id",
+            "go_type": {
+              "import": "github.com/npavlov/go-metrics-service/internal/domain",
+              "package": "domain",
+              "type": "MetricName",
+            },
+          },
+          {
+            "column": "counter_metrics.metric_id",
+            "go_type": {
+              "import": "github.com/npavlov/go-metrics-service/internal/domain",
+              "package": "domain",
+              "type": "MetricName",
+            },
+          },
         ]
         rename:
           id: "ID"

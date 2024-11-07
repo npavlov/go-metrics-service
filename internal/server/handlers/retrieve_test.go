@@ -31,17 +31,13 @@ func TestRetrieveHandler(t *testing.T) {
 	tests := []struct {
 		name    string
 		request string
-		data    *db.MtrMetric
+		data    *db.Metric
 		want    want
 	}{
 		{
 			name:    "Good value simple #1",
 			request: "/value/gauge/MSpanInuse",
-			data: &db.MtrMetric{
-				ID:    "MSpanInuse",
-				MType: domain.Gauge,
-				Value: float64Ptr(23360),
-			},
+			data:    db.NewMetric("MSpanInuse", domain.Gauge, nil, float64Ptr(23360)),
 			want: want{
 				statusCode: http.StatusOK,
 				result:     "23360",
@@ -50,11 +46,7 @@ func TestRetrieveHandler(t *testing.T) {
 		{
 			name:    "Good value simple #2",
 			request: "/value/counter/PollCount",
-			data: &db.MtrMetric{
-				ID:    "PollCount",
-				MType: domain.Counter,
-				Delta: int64Ptr(100),
-			},
+			data:    db.NewMetric("PollCount", domain.Counter, int64Ptr(100), nil),
 			want: want{
 				statusCode: http.StatusOK,
 				result:     "100",

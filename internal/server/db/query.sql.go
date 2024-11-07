@@ -12,18 +12,31 @@ import (
 )
 
 const GetAllMetrics = `-- name: GetAllMetrics :many
-SELECT id, type, delta, value FROM mtr_metrics
+SELECT m.id,
+       m.type,
+       COALESCE(c.delta, 0) AS delta,
+       COALESCE(g.value, 0.0) AS value
+FROM mtr_metrics AS m
+         LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
+         LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
 `
 
-func (q *Queries) GetAllMetrics(ctx context.Context) ([]MtrMetric, error) {
+type GetAllMetricsRow struct {
+	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
+	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
+	Delta *int64            `db:"delta" json:"delta"`
+	Value *float64          `db:"value" json:"value"`
+}
+
+func (q *Queries) GetAllMetrics(ctx context.Context) ([]GetAllMetricsRow, error) {
 	rows, err := q.db.Query(ctx, GetAllMetrics)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MtrMetric
+	var items []GetAllMetricsRow
 	for rows.Next() {
-		var i MtrMetric
+		var i GetAllMetricsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.MType,
@@ -41,19 +54,32 @@ func (q *Queries) GetAllMetrics(ctx context.Context) ([]MtrMetric, error) {
 }
 
 const GetManyMetrics = `-- name: GetManyMetrics :many
-SELECT id, type, delta, value FROM mtr_metrics
-WHERE id = ANY($1::text[])
+SELECT m.id,
+       m.type,
+       COALESCE(c.delta, 0) AS delta,
+       COALESCE(g.value, 0.0) AS value
+FROM mtr_metrics AS m
+         LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
+         LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
+WHERE m.id = ANY($1::text[])
 `
 
-func (q *Queries) GetManyMetrics(ctx context.Context, dollar_1 []string) ([]MtrMetric, error) {
+type GetManyMetricsRow struct {
+	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
+	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
+	Delta *int64            `db:"delta" json:"delta"`
+	Value *float64          `db:"value" json:"value"`
+}
+
+func (q *Queries) GetManyMetrics(ctx context.Context, dollar_1 []string) ([]GetManyMetricsRow, error) {
 	rows, err := q.db.Query(ctx, GetManyMetrics, dollar_1)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []MtrMetric
+	var items []GetManyMetricsRow
 	for rows.Next() {
-		var i MtrMetric
+		var i GetManyMetricsRow
 		if err := rows.Scan(
 			&i.ID,
 			&i.MType,
@@ -70,14 +96,27 @@ func (q *Queries) GetManyMetrics(ctx context.Context, dollar_1 []string) ([]MtrM
 	return items, nil
 }
 
-const GetMetric = `-- name: GetMetric :one
-SELECT id, type, delta, value FROM mtr_metrics
-WHERE id = $1
+const GetUnifiedMetric = `-- name: GetUnifiedMetric :one
+SELECT m.id,
+       m.type,
+       COALESCE(c.delta, 0) AS delta,
+       COALESCE(g.value, 0.0) AS value
+FROM mtr_metrics AS m
+         LEFT JOIN counter_metrics AS c ON m.id = c.metric_id
+         LEFT JOIN gauge_metrics AS g ON m.id = g.metric_id
+WHERE m.id = $1
 `
 
-func (q *Queries) GetMetric(ctx context.Context, id domain.MetricName) (MtrMetric, error) {
-	row := q.db.QueryRow(ctx, GetMetric, id)
-	var i MtrMetric
+type GetUnifiedMetricRow struct {
+	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
+	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
+	Delta *int64            `db:"delta" json:"delta"`
+	Value *float64          `db:"value" json:"value"`
+}
+
+func (q *Queries) GetUnifiedMetric(ctx context.Context, id domain.MetricName) (GetUnifiedMetricRow, error) {
+	row := q.db.QueryRow(ctx, GetUnifiedMetric, id)
+	var i GetUnifiedMetricRow
 	err := row.Scan(
 		&i.ID,
 		&i.MType,
@@ -87,73 +126,136 @@ func (q *Queries) GetMetric(ctx context.Context, id domain.MetricName) (MtrMetri
 	return i, err
 }
 
-const InsertMetric = `-- name: InsertMetric :exec
-INSERT INTO mtr_metrics (id, type, delta, value)
-VALUES ($1, $2, $3, $4)
+const InsertCounterMetric = `-- name: InsertCounterMetric :exec
+INSERT INTO counter_metrics (metric_id, delta)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO NOTHING
+`
+
+type InsertCounterMetricParams struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Delta    *int64            `db:"delta" json:"delta"`
+}
+
+func (q *Queries) InsertCounterMetric(ctx context.Context, arg InsertCounterMetricParams) error {
+	_, err := q.db.Exec(ctx, InsertCounterMetric, arg.MetricID, arg.Delta)
+	return err
+}
+
+const InsertGaugeMetric = `-- name: InsertGaugeMetric :exec
+INSERT INTO gauge_metrics (metric_id, value)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO NOTHING
+`
+
+type InsertGaugeMetricParams struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Value    *float64          `db:"value" json:"value"`
+}
+
+func (q *Queries) InsertGaugeMetric(ctx context.Context, arg InsertGaugeMetricParams) error {
+	_, err := q.db.Exec(ctx, InsertGaugeMetric, arg.MetricID, arg.Value)
+	return err
+}
+
+const InsertMtrMetric = `-- name: InsertMtrMetric :exec
+INSERT INTO mtr_metrics (id, type)
+VALUES ($1, $2)
 ON CONFLICT (id, type) DO NOTHING
 `
 
-type InsertMetricParams struct {
+type InsertMtrMetricParams struct {
 	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
 	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
-	Delta *int64            `db:"delta" json:"delta"`
-	Value *float64          `db:"value" json:"value"`
 }
 
-func (q *Queries) InsertMetric(ctx context.Context, arg InsertMetricParams) error {
-	_, err := q.db.Exec(ctx, InsertMetric,
-		arg.ID,
-		arg.MType,
-		arg.Delta,
-		arg.Value,
-	)
+func (q *Queries) InsertMtrMetric(ctx context.Context, arg InsertMtrMetricParams) error {
+	_, err := q.db.Exec(ctx, InsertMtrMetric, arg.ID, arg.MType)
 	return err
 }
 
-const UpdateMetric = `-- name: UpdateMetric :exec
-UPDATE mtr_metrics
-SET delta = $3, value = $4
-WHERE id = $1 AND type = $2
+const UpdateCounterMetric = `-- name: UpdateCounterMetric :exec
+UPDATE counter_metrics
+SET delta = $2
+WHERE metric_id = $1
 `
 
-type UpdateMetricParams struct {
-	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
-	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
-	Delta *int64            `db:"delta" json:"delta"`
-	Value *float64          `db:"value" json:"value"`
+type UpdateCounterMetricParams struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Delta    *int64            `db:"delta" json:"delta"`
 }
 
-func (q *Queries) UpdateMetric(ctx context.Context, arg UpdateMetricParams) error {
-	_, err := q.db.Exec(ctx, UpdateMetric,
-		arg.ID,
-		arg.MType,
-		arg.Delta,
-		arg.Value,
-	)
+func (q *Queries) UpdateCounterMetric(ctx context.Context, arg UpdateCounterMetricParams) error {
+	_, err := q.db.Exec(ctx, UpdateCounterMetric, arg.MetricID, arg.Delta)
 	return err
 }
 
-const UpsertMetric = `-- name: UpsertMetric :exec
-INSERT INTO mtr_metrics (id, type, delta, value)
-VALUES ($1, $2, $3, $4)
+const UpdateGaugeMetric = `-- name: UpdateGaugeMetric :exec
+UPDATE gauge_metrics
+SET value = $2
+WHERE metric_id = $1
+`
+
+type UpdateGaugeMetricParams struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Value    *float64          `db:"value" json:"value"`
+}
+
+func (q *Queries) UpdateGaugeMetric(ctx context.Context, arg UpdateGaugeMetricParams) error {
+	_, err := q.db.Exec(ctx, UpdateGaugeMetric, arg.MetricID, arg.Value)
+	return err
+}
+
+const UpsertCounterMetric = `-- name: UpsertCounterMetric :exec
+INSERT INTO counter_metrics (metric_id, delta)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO UPDATE
+    SET delta = EXCLUDED.delta
+`
+
+type UpsertCounterMetricParams struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Delta    *int64            `db:"delta" json:"delta"`
+}
+
+// Insert into counter_metrics or update if conflict on (metric_id)
+func (q *Queries) UpsertCounterMetric(ctx context.Context, arg UpsertCounterMetricParams) error {
+	_, err := q.db.Exec(ctx, UpsertCounterMetric, arg.MetricID, arg.Delta)
+	return err
+}
+
+const UpsertGaugeMetric = `-- name: UpsertGaugeMetric :exec
+INSERT INTO gauge_metrics (metric_id, value)
+VALUES ($1, $2)
+ON CONFLICT (metric_id) DO UPDATE
+    SET value = EXCLUDED.value
+`
+
+type UpsertGaugeMetricParams struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Value    *float64          `db:"value" json:"value"`
+}
+
+// Insert into gauge_metrics or update if conflict on (metric_id)
+func (q *Queries) UpsertGaugeMetric(ctx context.Context, arg UpsertGaugeMetricParams) error {
+	_, err := q.db.Exec(ctx, UpsertGaugeMetric, arg.MetricID, arg.Value)
+	return err
+}
+
+const UpsertMtrMetric = `-- name: UpsertMtrMetric :exec
+INSERT INTO mtr_metrics (id, type)
+VALUES ($1, $2)
 ON CONFLICT (id, type) DO UPDATE
-    SET delta = EXCLUDED.delta,
-        value = EXCLUDED.value
+    SET id = EXCLUDED.id, type = EXCLUDED.type
 `
 
-type UpsertMetricParams struct {
+type UpsertMtrMetricParams struct {
 	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
 	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
-	Delta *int64            `db:"delta" json:"delta"`
-	Value *float64          `db:"value" json:"value"`
 }
 
-func (q *Queries) UpsertMetric(ctx context.Context, arg UpsertMetricParams) error {
-	_, err := q.db.Exec(ctx, UpsertMetric,
-		arg.ID,
-		arg.MType,
-		arg.Delta,
-		arg.Value,
-	)
+// Insert into mtr_metrics or update if conflict on (id, type)
+func (q *Queries) UpsertMtrMetric(ctx context.Context, arg UpsertMtrMetricParams) error {
+	_, err := q.db.Exec(ctx, UpsertMtrMetric, arg.ID, arg.MType)
 	return err
 }

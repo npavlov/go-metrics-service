@@ -1,73 +1,96 @@
-.PHONY: build-server build-agent test clean run-server run-agent lint fmt deps atlas-migration goose-up goose-down sqlc
-
 # Define Go command, which can be overridden
 GO ?= go
 
 include Makefile.local
 
-# Build the server binary from the Go source files in the cmd/server directory
+# Default target: formats code, runs the linter, and builds both agent and server binaries
+.PHONY: all
+all: fmt lint build-agent build-server
+
+# ----------- Build Commands -----------
+# Build the server binary from Go source files in cmd/server directory
+.PHONY: build-server
 build-server:
 	$(GO) build -gcflags="all=-N -l" -o bin/server ${CURDIR}/cmd/server/*.go
 
-# Build the agent binary from the Go source files in the cmd/agent directory
+# Build the agent binary from Go source files in cmd/agent directory
+.PHONY: build-agent
 build-agent:
 	$(GO) build -gcflags="all=-N -l" -o bin/agent ${CURDIR}/cmd/agent/*.go
 
-# Run all tests and generate a coverage profile (cover.out)
+# ----------- Test Commands -----------
+# Run all tests and generate a coverage profile (coverage.out)
+.PHONY: test
 test:
 	$(GO) test ./... -race -coverprofile=coverage.out -covermode=atomic
 
 # View the test coverage report in HTML format
+.PHONY: check-coverage
 check-coverage:
-	$(GO) tool cover -html coverage.out
+	$(GO) tool cover -html=coverage.out
 
+# ----------- Clean Command -----------
 # Clean the bin directory by removing all generated binaries
+.PHONY: clean
 clean:
 	rm -rf bin/
 
-# Run the server directly from the Go source files in the cmd/server directory
+# ----------- Run Commands -----------
+# Run the server directly from Go source files in cmd/server directory
+.PHONY: run-server
 run-server:
 	$(GO) run ${CURDIR}/cmd/server/*.go
 
-# Run the client directly from the Go source files in the cmd/client directory
-# Why CURDIR - https://stackoverflow.com/questions/52437728/bash-what-is-the-difference-between-pwd-and-curdir
+# Run the agent directly from Go source files in cmd/agent directory
+.PHONY: run-agent
 run-agent:
 	$(GO) run ${CURDIR}/cmd/agent/*.go
 
-# Run the linter (golangci-lint) on all Go files in the project to check for coding issues
+# ----------- Lint and Format Commands -----------
+# Run the linter (golangci-lint) on all Go files in the project
+.PHONY: lint
 lint:
 	golangci-lint run ./...
 
-# Run the linter (golangci-lint) on all Go files in the project to fix all issues
+# Run the linter and automatically fix issues
+.PHONY: lint-fix
 lint-fix:
 	golangci-lint run ./... --fix
 
 # Format all Go files in the project using the built-in Go formatting tool
+.PHONY: fmt
 fmt:
 	$(GO) fmt ./...
 
-# Check for updates on Go module dependencies and update them if necessary
-deps:
-	$(GO) get -u ./...
-
-# Format all Go file in the project using Gofumpt
+# Format all Go files in the project using gofumpt for strict formatting rules
+.PHONY: gofumpt
 gofumpt:
 	gofumpt -l -w .
 
-# Default target when 'make' is run, it formats code, runs the linter, and builds both the agent and server binaries
-all: fmt lint build-agent build-server
+# ----------- Dependency Management -----------
+# Update all Go module dependencies
+.PHONY: deps
+deps:
+	$(GO) get -u ./...
 
+# ----------- Database Migration Commands -----------
 # Create a new migration using Atlas
+.PHONY: atlas-migration
 atlas-migration:
 	atlas migrate diff $(MIGRATION_NAME) --env dev
 
 # Apply migrations using Goose
+.PHONY: goose-up
 goose-up:
 	goose -dir migrations postgres "$(DATABASE_DSN)" up
 
 # Rollback migrations using Goose
+.PHONY: goose-down
 goose-down:
 	goose -dir migrations postgres "$(DATABASE_DSN)" down
 
+# ----------- Code Generation Command -----------
+# Generate SQL code using sqlc
+.PHONY: sqlc
 sqlc:
 	sqlc generate

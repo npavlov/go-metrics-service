@@ -14,7 +14,7 @@ func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Requ
 	defer cancel()
 
 	page := struct {
-		Metrics map[domain.MetricName]db.MtrMetric
+		Metrics map[domain.MetricName]db.Metric
 	}{
 		Metrics: mh.repo.GetAll(ctx),
 	}

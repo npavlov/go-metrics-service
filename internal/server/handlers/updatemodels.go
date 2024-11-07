@@ -48,7 +48,7 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 	}
 
 	// Prepare the newMetrics slice with the updated oldMetrics
-	newMetrics := make([]db.MtrMetric, 0, len(oldMetrics))
+	newMetrics := make([]db.Metric, 0, len(oldMetrics))
 
 	// Add all metrics from oldMetrics to newMetrics
 	for _, oldMetric := range oldMetrics {

@@ -6,6 +6,6 @@ import (
 )
 
 type Metric struct {
-	db.MtrMetric
+	db.Metric
 	MSource domain.MetricSource
 }

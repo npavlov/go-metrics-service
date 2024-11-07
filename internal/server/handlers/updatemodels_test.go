@@ -34,24 +34,24 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 		inputBody      interface{}
 		prepareStorage func()
 		expectedStatus int
-		expectedBody   []db.MtrMetric
+		expectedBody   []db.Metric
 	}{
 		{
 			name: "Valid metrics - Update existing and create new",
-			inputBody: []db.MtrMetric{
-				{ID: "existing_counter", MType: domain.Counter, Delta: int64Ptr(20)},
-				{ID: "new_gauge", MType: domain.Gauge, Value: float64Ptr(123.45)},
+			inputBody: []db.Metric{
+				*db.NewMetric("existing_counter", domain.Counter, int64Ptr(20), nil),
+				*db.NewMetric("new_gauge", domain.Gauge, nil, float64Ptr(123.45)),
 			},
 			prepareStorage: func() {
 				// Prepopulate storage with "existing_counter"
-				_ = memStorage.UpdateMany(context.TODO(), &[]db.MtrMetric{
-					{ID: "existing_counter", MType: domain.Counter, Delta: int64Ptr(10)},
+				_ = memStorage.UpdateMany(context.TODO(), &[]db.Metric{
+					*db.NewMetric("existing_counter", domain.Counter, int64Ptr(10), nil),
 				})
 			},
 			expectedStatus: http.StatusOK,
-			expectedBody: []db.MtrMetric{
-				{ID: "existing_counter", MType: domain.Counter, Delta: int64Ptr(30)}, // Updated Delta
-				{ID: "new_gauge", MType: domain.Gauge, Value: float64Ptr(123.45)},    // New metric
+			expectedBody: []db.Metric{
+				*db.NewMetric("existing_counter", domain.Counter, int64Ptr(30), nil), // Updated Delta
+				*db.NewMetric("new_gauge", domain.Gauge, nil, float64Ptr(123.45)),    // New metric
 			},
 		},
 		{
@@ -63,9 +63,9 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 		},
 		{
 			name:           "Empty input metrics",
-			inputBody:      []db.MtrMetric{},
+			inputBody:      []db.Metric{},
 			expectedStatus: http.StatusOK,
-			expectedBody:   []db.MtrMetric{},
+			expectedBody:   []db.Metric{},
 		},
 		{
 			name:           "Malformed JSON input",
@@ -74,14 +74,14 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 		},
 		{
 			name: "Valid metrics - Batch processing",
-			inputBody: []db.MtrMetric{
-				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(20)},
-				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(10)},
-				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(70)},
+			inputBody: []db.Metric{
+				*db.NewMetric("new_counter", domain.Counter, int64Ptr(20), nil),
+				*db.NewMetric("new_counter", domain.Counter, int64Ptr(10), nil),
+				*db.NewMetric("new_counter", domain.Counter, int64Ptr(70), nil),
 			},
 			expectedStatus: http.StatusOK,
-			expectedBody: []db.MtrMetric{
-				{ID: "new_counter", MType: domain.Counter, Delta: int64Ptr(100)}, // Updated Delta
+			expectedBody: []db.Metric{
+				*db.NewMetric("new_counter", domain.Counter, int64Ptr(100), nil), // Updated Delta
 			},
 		},
 	}
@@ -111,7 +111,7 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 
 			// If we expect a response body, decode and verify it
 			if tt.expectedStatus == http.StatusOK && tt.expectedBody != nil {
-				var respMetrics []db.MtrMetric
+				var respMetrics []db.Metric
 				err := json.NewDecoder(rec.Body).Decode(&respMetrics)
 				require.NoError(t, err)
 				assert.ElementsMatch(t, tt.expectedBody, respMetrics)

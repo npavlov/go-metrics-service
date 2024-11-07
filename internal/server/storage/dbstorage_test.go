@@ -42,7 +42,7 @@ func TestDBStorage_GetAll(t *testing.T) {
 		AddRow(domain.MetricName("metric1"), domain.MetricType("counter"), int64Ptr(10), nil).
 		AddRow(domain.MetricName("metric2"), domain.MetricType("gauge"), nil, float64Ptr(3.14))
 
-	mock.ExpectQuery("SELECT id, type, delta, value FROM mtr_metrics").WillReturnRows(rows)
+	mock.ExpectQuery(`SELECT .* FROM mtr_metrics`).WillReturnRows(rows)
 
 	metrics := dbStorage.GetAll(ctx)
 
@@ -65,7 +65,7 @@ func TestDBStorage_Get(t *testing.T) {
 	row := pgxmock.NewRows([]string{"id", "type", "delta", "value"}).
 		AddRow(domain.MetricName("metric1"), domain.MetricType("counter"), int64Ptr(10), nil)
 
-	mock.ExpectQuery("SELECT id, type, delta, value FROM mtr_metrics WHERE id = \\$1").
+	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
 		WithArgs(name).
 		WillReturnRows(row)
 
@@ -85,7 +85,7 @@ func TestDBStorage_GetNotFound(t *testing.T) {
 	name := domain.MetricName("unknown_metric")
 
 	// Expect no rows in result
-	mock.ExpectQuery("SELECT id, type, delta, value FROM mtr_metrics WHERE id = \\$1").
+	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
 		WithArgs(name).
 		WillReturnError(pgx.ErrNoRows)
 
@@ -101,30 +101,72 @@ func TestDBStorage_Update(t *testing.T) {
 	defer mock.Close()
 
 	ctx := context.Background()
-	metric := &db.MtrMetric{ID: "metric1", MType: domain.Gauge, Value: float64Ptr(200)}
+	metric := db.NewMetric("metric1", domain.Gauge, nil, float64Ptr(200))
 
 	// Mocking an update operation
-	mock.ExpectExec("UPDATE mtr_metrics SET delta = \\$3, value = \\$4 WHERE id = \\$1 AND type = \\$2").
-		WithArgs(metric.ID, metric.MType, metric.Delta, metric.Value).
+	mock.ExpectExec("UPDATE gauge_metrics SET").
+		WithArgs(metric.ID, metric.Value).
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 	err := dbStorage.Update(ctx, metric)
+	require.NoError(t, err)
+
+	metric2 := db.NewMetric("metric2", domain.Counter, int64Ptr(100), nil)
+
+	// Mocking an update operation
+	mock.ExpectExec("UPDATE counter_metrics SET").
+		WithArgs(metric2.ID, metric2.Delta).
+		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
+
+	err = dbStorage.Update(ctx, metric2)
 	assert.NoError(t, err)
 }
 
-func TestDBStorage_Create(t *testing.T) {
+func TestDBStorage_CreateGauge(t *testing.T) {
 	t.Parallel()
 
 	dbStorage, mock := setupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
-	metric := &db.MtrMetric{ID: "metric1", MType: domain.Gauge, Value: float64Ptr(100)}
+	metric := db.NewMetric("metric1", domain.Gauge, nil, float64Ptr(100))
 
-	// Mocking an insert operation
+	// Mocking a transaction with upserts
+	mock.ExpectBegin()
+
 	mock.ExpectExec("INSERT INTO mtr_metrics").
-		WithArgs(metric.ID, metric.MType, metric.Delta, metric.Value).
+		WithArgs(metric.ID, metric.MType).
 		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mock.ExpectExec("INSERT INTO gauge_metrics").
+		WithArgs(metric.ID, metric.Value).
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+
+	mock.ExpectCommit()
+
+	err := dbStorage.Create(ctx, metric)
+	assert.NoError(t, err)
+}
+
+func TestDBStorage_CreateCounter(t *testing.T) {
+	t.Parallel()
+
+	dbStorage, mock := setupDBStorage(t)
+	defer mock.Close()
+
+	ctx := context.Background()
+	metric := db.NewMetric("metric2", domain.Counter, int64Ptr(100), nil)
+
+	// Mocking a transaction with upserts
+	mock.ExpectBegin()
+
+	mock.ExpectExec("INSERT INTO mtr_metrics").
+		WithArgs(metric.ID, metric.MType).
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+	mock.ExpectExec("INSERT INTO counter_metrics").
+		WithArgs(metric.ID, metric.Delta).
+		WillReturnResult(pgxmock.NewResult("INSERT", 1))
+
+	mock.ExpectCommit()
 
 	err := dbStorage.Create(ctx, metric)
 	assert.NoError(t, err)
@@ -137,27 +179,27 @@ func TestDBStorage_UpdateMany(t *testing.T) {
 	defer mock.Close()
 
 	ctx := context.Background()
-	metrics := []db.MtrMetric{
-		{
-			ID:    "metric1",
-			MType: domain.Gauge,
-			Delta: nil,
-			Value: float64Ptr(10.5),
-		},
-		{
-			ID:    "metric2",
-			MType: domain.Counter,
-			Delta: int64Ptr(5),
-			Value: nil,
-		},
+	metrics := []db.Metric{
+		*db.NewMetric("metric1", domain.Gauge, nil, float64Ptr(10.5)),
+		*db.NewMetric("metric2", domain.Gauge, int64Ptr(5), nil),
 	}
 
 	// Mocking a transaction with upserts
 	mock.ExpectBegin()
 	for _, metric := range metrics {
 		mock.ExpectExec("INSERT INTO mtr_metrics").
-			WithArgs(metric.ID, metric.MType, metric.Delta, metric.Value).
+			WithArgs(metric.ID, metric.MType).
 			WillReturnResult(pgxmock.NewResult("INSERT", 1))
+		switch metric.MType {
+		case domain.Counter:
+			mock.ExpectExec("INSERT INTO counter_metrics").
+				WithArgs(metric.ID, metric.Delta).
+				WillReturnResult(pgxmock.NewResult("INSERT", 1))
+		case domain.Gauge:
+			mock.ExpectExec("INSERT INTO gauge_metrics").
+				WithArgs(metric.ID, metric.Value).
+				WillReturnResult(pgxmock.NewResult("INSERT", 1))
+		}
 	}
 	mock.ExpectCommit()
 
