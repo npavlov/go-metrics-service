@@ -125,6 +125,40 @@ func TestUpdateHandler(t *testing.T) {
 				gauge:      0,
 			},
 		},
+		{
+			name:    "Update existing gauge metric",
+			request: "/update/gauge/ExistingGauge/250",
+			initial: &metric{
+				name:       "ExistingGauge",
+				metricType: domain.Gauge,
+				gauge:      100.0,
+			},
+			want: want{
+				statusCode: http.StatusOK,
+				result: &metric{
+					name:       "ExistingGauge",
+					metricType: domain.Gauge,
+					gauge:      250.0,
+				},
+			},
+		},
+		{
+			name:    "Update existing counter metric",
+			request: "/update/counter/ExistingCounter/15",
+			initial: &metric{
+				name:       "ExistingCounter",
+				metricType: domain.Counter,
+				counter:    10,
+			},
+			want: want{
+				statusCode: http.StatusOK,
+				result: &metric{
+					name:       "ExistingCounter",
+					metricType: domain.Counter,
+					counter:    25, // 10 + 15 as it should increment
+				},
+			},
+		},
 	}
 
 	for _, tt := range tests {
