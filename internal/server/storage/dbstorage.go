@@ -257,56 +257,58 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.Metric) error {
 
 // UpdateMany updates multiple metrics in the database with retry logic.
 func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error {
-	//nolint:exhaustruct
 	return ds.retryOperation(ctx, func() error {
-		tx, err := ds.dbCon.BeginTx(ctx, pgx.TxOptions{})
+		err := WithTx(ctx, ds.dbCon, func(ctx context.Context, tx pgx.Tx) error {
+			query := ds.Queries.WithTx(tx)
+
+			key1, key2 := keyNameAsHash64("update_many")
+			err := AcquireBlockingLock(ctx, tx, key1, key2, ds.log)
+			if err != nil {
+				ds.log.Error().Err(err).Msg("failed to acquire lock")
+
+				return errors.Wrap(err, "failed to acquire lock")
+			}
+
+			for _, metric := range *metrics {
+				err := query.UpsertMtrMetric(ctx, db.UpsertMtrMetricParams{
+					ID:    metric.ID,
+					MType: metric.MType,
+				})
+				if err != nil {
+					ds.log.Error().Err(err).Msg("error in UpsertMetric during UpdateMany")
+
+					return errors.Wrap(err, "error in UpsertMetric during UpdateMany")
+				}
+				switch metric.MType {
+				case domain.Gauge:
+					err := query.UpsertGaugeMetric(ctx, db.UpsertGaugeMetricParams{
+						Value:    metric.Value,
+						MetricID: metric.ID,
+					})
+					if err != nil {
+						ds.log.Error().Err(err).Msg("error insert metric")
+
+						return errors.Wrap(err, "error insert metric")
+					}
+				case domain.Counter:
+					err := query.UpsertCounterMetric(ctx, db.UpsertCounterMetricParams{
+						Delta:    metric.Delta,
+						MetricID: metric.ID,
+					})
+					if err != nil {
+						ds.log.Error().Err(err).Msg("error insert metric")
+
+						return errors.Wrap(err, "error insert metric")
+					}
+				}
+			}
+
+			return nil
+		})
 		if err != nil {
-			ds.log.Error().Err(err).Msg("failed to start transaction for UpdateMany")
+			ds.log.Error().Err(err).Msg("error in UpdateMany")
 
-			return errors.Wrap(err, "failed to start transaction for UpdateMany")
-		}
-		defer func() {
-			if err != nil {
-				_ = tx.Rollback(ctx)
-			} else {
-				err = tx.Commit(ctx)
-			}
-		}()
-
-		query := ds.Queries.WithTx(tx)
-
-		for _, metric := range *metrics {
-			err := query.UpsertMtrMetric(ctx, db.UpsertMtrMetricParams{
-				ID:    metric.ID,
-				MType: metric.MType,
-			})
-			if err != nil {
-				ds.log.Error().Err(err).Msg("error in UpsertMetric during UpdateMany")
-
-				return errors.Wrap(err, "error in UpsertMetric during UpdateMany")
-			}
-			switch metric.MType {
-			case domain.Gauge:
-				err := query.UpsertGaugeMetric(ctx, db.UpsertGaugeMetricParams{
-					Value:    metric.Value,
-					MetricID: metric.ID,
-				})
-				if err != nil {
-					ds.log.Error().Err(err).Msg("error insert metric")
-
-					return errors.Wrap(err, "error insert metric")
-				}
-			case domain.Counter:
-				err := query.UpsertCounterMetric(ctx, db.UpsertCounterMetricParams{
-					Delta:    metric.Delta,
-					MetricID: metric.ID,
-				})
-				if err != nil {
-					ds.log.Error().Err(err).Msg("error insert metric")
-
-					return errors.Wrap(err, "error insert metric")
-				}
-			}
+			return errors.Wrap(err, "error in UpdateMany")
 		}
 
 		return nil
