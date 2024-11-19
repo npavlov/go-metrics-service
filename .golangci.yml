@@ -28,7 +28,7 @@ issues:
     - path: '(.+)(health_test|dbstorage_test)\.go'
       linters:
         - ireturn
-    - path: '(.+)signature\.go'
+    - path: '(.+)(signature|signature_test)\.go'
       linters:
         - canonicalheader
 linters-settings:
