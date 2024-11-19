@@ -10,6 +10,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/config"
+
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
@@ -80,7 +82,8 @@ func TestRetrieveHandler(t *testing.T) {
 			log := testutils.GetTLogger()
 			memStorage := storage.NewMemStorage(log)
 			mHandlers := handlers.NewMetricsHandler(memStorage, log)
-			var cRouter router.Router = router.NewCustomRouter(log)
+			cfg := config.NewConfigBuilder(log).Build()
+			var cRouter router.Router = router.NewCustomRouter(cfg, log)
 			cRouter.SetRouter(mHandlers, nil)
 
 			// Start the test server

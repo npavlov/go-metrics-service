@@ -7,6 +7,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/rs/zerolog"
 
+	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 )
@@ -23,13 +24,15 @@ type Router interface {
 type CustomRouter struct {
 	router *chi.Mux
 	logger *zerolog.Logger
+	cfg    *config.Config
 }
 
 // NewCustomRouter - constructor for CustomRouter.
-func NewCustomRouter(l *zerolog.Logger) *CustomRouter {
+func NewCustomRouter(cfg *config.Config, l *zerolog.Logger) *CustomRouter {
 	return &CustomRouter{
 		router: chi.NewRouter(),
 		logger: l,
+		cfg:    cfg,
 	}
 }
 
@@ -41,6 +44,7 @@ func (cr *CustomRouter) SetRouter(mh *handlers.MetricHandler, hh *handlers.Healt
 	cr.router.Use(middlewares.GzipMiddleware)
 	cr.router.Use(middlewares.BrotliMiddleware)
 	cr.router.Use(middlewares.GzipDecompressionMiddleware)
+	cr.router.Use(middlewares.SignatureMiddleware(cr.cfg.Key, cr.logger))
 
 	cr.router.Route("/", func(router chi.Router) {
 		router.Route("/", func(router chi.Router) {

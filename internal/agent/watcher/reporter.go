@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"io"
@@ -132,14 +135,22 @@ func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, data 
 
 	// Create a new Resty client and send the POST request
 	client := resty.New()
-	resp, err := client.R().
+
+	request := client.R().
 		SetContext(ctx).
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
 		SetBody(compressed.Bytes()).
-		SetDoNotParseResponse(true).
-		Post(url)
+		SetDoNotParseResponse(true)
+
+	if mr.cfg.Key != "" {
+		hash := mr.calculateHash(payload)
+
+		request = request.SetHeader("HashSHA256", hash)
+	}
+
+	resp, err := request.Post(url)
 	if err != nil {
 		mr.l.Error().Err(err).Msg("Failed to send post request")
 
@@ -226,4 +237,12 @@ func (mr *MetricReporter) decompressResult(body io.ReadCloser) ([]byte, error) {
 	}
 
 	return data, nil
+}
+
+// calculateHash generates a SHA256 hash of the payload with the given key.
+func (mr *MetricReporter) calculateHash(payload []byte) string {
+	h := hmac.New(sha256.New, []byte(mr.cfg.Key))
+	h.Write(payload)
+
+	return hex.EncodeToString(h.Sum(nil))
 }

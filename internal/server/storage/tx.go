@@ -4,13 +4,15 @@ import (
 	"context"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
 	"github.com/pkg/errors"
+
+	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
 )
 
 type WithTxFunc func(ctx context.Context, tx pgx.Tx) error
 
 func WithTx(ctx context.Context, db dbmanager.PgxPool, fn WithTxFunc) error {
+	//nolint:exhaustruct
 	tx, err := db.BeginTx(ctx, pgx.TxOptions{})
 	if err != nil {
 		return errors.Wrap(err, "db.BeginTxx()")

@@ -11,10 +11,11 @@ import (
 
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 
-	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	agentCfg "github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/domain"
+	serverCfg "github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
@@ -27,7 +28,8 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	log := testutils.GetTLogger()
 	serverStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
-	var cRouter router.Router = router.NewCustomRouter(log)
+	sCfg := serverCfg.NewConfigBuilder(log).Build()
+	var cRouter router.Router = router.NewCustomRouter(sCfg, log)
 	cRouter.SetRouter(mHandlers, nil)
 
 	server := httptest.NewServer(cRouter.GetRouter())
@@ -37,13 +39,13 @@ func TestMetricService_SendMetrics(t *testing.T) {
 	st := stats.Stats{}
 	metrics := st.StatsToMetrics()
 	mux := sync.RWMutex{}
-	cfg := &config.Config{
+	cfg := &agentCfg.Config{
 		Address:        server.URL,
 		PollInterval:   1,
 		ReportInterval: 1,
 	}
 
-	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
+	newConfig := agentCfg.NewConfigBuilder(log).FromObj(cfg).Build()
 	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
 	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
 	collector.UpdateMetrics()
@@ -80,7 +82,8 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 	log := testutils.GetTLogger()
 	serverStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
-	var cRouter router.Router = router.NewCustomRouter(log)
+	sCfg := serverCfg.NewConfigBuilder(log).Build()
+	var cRouter router.Router = router.NewCustomRouter(sCfg, log)
 	cRouter.SetRouter(mHandlers, nil)
 
 	server := httptest.NewServer(cRouter.GetRouter())
@@ -90,12 +93,12 @@ func TestMetricReporter_StartReporter(t *testing.T) {
 	st := stats.Stats{}
 	metrics := st.StatsToMetrics()
 	mux := sync.RWMutex{}
-	cfg := &config.Config{
+	cfg := &agentCfg.Config{
 		Address:        server.URL,
 		PollInterval:   1,
 		ReportInterval: 2,
 	}
-	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
+	newConfig := agentCfg.NewConfigBuilder(log).FromObj(cfg).Build()
 
 	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
 	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
@@ -127,7 +130,8 @@ func TestMetricReporter_SendMetricsBatch(t *testing.T) {
 	log := testutils.GetTLogger()
 	serverStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
-	var cRouter router.Router = router.NewCustomRouter(log)
+	sCfg := serverCfg.NewConfigBuilder(log).Build()
+	var cRouter router.Router = router.NewCustomRouter(sCfg, log)
 	cRouter.SetRouter(mHandlers, nil)
 
 	server := httptest.NewServer(cRouter.GetRouter())
@@ -137,13 +141,13 @@ func TestMetricReporter_SendMetricsBatch(t *testing.T) {
 	st := stats.Stats{}
 	metrics := st.StatsToMetrics()
 	mux := sync.RWMutex{}
-	cfg := &config.Config{
+	cfg := &agentCfg.Config{
 		Address:        server.URL,
 		PollInterval:   1,
 		ReportInterval: 2,
 		UseBatch:       true,
 	}
-	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
+	newConfig := agentCfg.NewConfigBuilder(log).FromObj(cfg).Build()
 
 	// Initialize the MetricReporter
 	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
