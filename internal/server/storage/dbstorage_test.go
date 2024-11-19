@@ -188,6 +188,12 @@ func TestDBStorage_UpdateMany(t *testing.T) {
 
 	// Mocking a transaction with upserts
 	mock.ExpectBegin()
+
+	key1, key2 := storage.KeyNameAsHash64("update_many")
+
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(key1, key2).
+		WillReturnResult(pgxmock.NewResult("SELECT", 0))
+
 	for _, metric := range metrics {
 		mock.ExpectExec("INSERT INTO mtr_metrics").
 			WithArgs(metric.ID, metric.MType).

@@ -24,8 +24,8 @@ func AcquireBlockingLock(ctx context.Context, query pgx.Tx, lockKey1, lockKey2 i
 	return nil
 }
 
-// keyNameAsHash64 converts a key name into two int32 values for advisory locking.
-func keyNameAsHash64(keyName string) (int32, int32) {
+// KeyNameAsHash64 converts a key name into two int32 values for advisory locking.
+func KeyNameAsHash64(keyName string) (int32, int32) {
 	hash := fnv.New64()
 	_, err := hash.Write([]byte(keyName))
 	if err != nil {

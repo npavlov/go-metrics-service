@@ -261,7 +261,7 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error
 		err := WithTx(ctx, ds.dbCon, func(ctx context.Context, tx pgx.Tx) error {
 			query := ds.Queries.WithTx(tx)
 
-			key1, key2 := keyNameAsHash64("update_many")
+			key1, key2 := KeyNameAsHash64("update_many")
 			err := AcquireBlockingLock(ctx, tx, key1, key2, ds.log)
 			if err != nil {
 				ds.log.Error().Err(err).Msg("failed to acquire lock")

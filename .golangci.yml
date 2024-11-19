@@ -28,6 +28,9 @@ issues:
     - path: '(.+)(health_test|dbstorage_test)\.go'
       linters:
         - ireturn
+    - path: '(.+)signature\.go'
+      linters:
+        - canonicalheader
 linters-settings:
   varnamelen:
     min-name-length: 2  # Adjust the minimum length as needed

@@ -15,7 +15,6 @@ import (
 func SignatureMiddleware(signKey string, log *zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
-			
 			hashSum := request.Header.Get("HashSHA256")
 			if request.Method == http.MethodPost && hashSum != "" && signKey != "" {
 				bodyBytes, err := io.ReadAll(request.Body)
@@ -32,7 +31,7 @@ func SignatureMiddleware(signKey string, log *zerolog.Logger) func(http.Handler)
 				h := hmac.New(sha256.New, []byte(signKey))
 				h.Write(bodyBytes)
 				signature := hex.EncodeToString(h.Sum(nil))
-				
+
 				response.Header().Add("HashSHA256", signature)
 
 				if signature != hashSum {
