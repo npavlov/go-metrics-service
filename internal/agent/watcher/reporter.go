@@ -1,248 +1,179 @@
 package watcher
 
 import (
-	"bytes"
-	"compress/gzip"
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
-	"encoding/json"
-	"errors"
-	"io"
-	"net/http"
 	"sync"
 	"time"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/model"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
-// ErrPostRequestFailed Define a static error for failed POST requests.
-var ErrPostRequestFailed = errors.New("failed to send post request")
-
 // Reporter interface defines the contract for sending watcher.
 type Reporter interface {
-	SendMetrics(ctx context.Context)
 	StartReporter(ctx context.Context, wg *sync.WaitGroup)
 }
 
 // MetricReporter implements the Reporter interface.
 type MetricReporter struct {
-	metrics *[]model.Metric
-	mux     *sync.RWMutex
-	cfg     *config.Config
-	l       *zerolog.Logger
+	cfg            *config.Config
+	l              *zerolog.Logger
+	workerCount    int
+	inputStream    chan []db.Metric
+	metricsStream  chan db.Metric
+	batchStream    chan []db.Metric
+	resultStream   chan Result
+	requestHandler *Sender
 }
 
-func NewMetricReporter(m *[]model.Metric, mutex *sync.RWMutex, cfg *config.Config, l *zerolog.Logger) *MetricReporter {
+func NewMetricReporter(inputStream chan []db.Metric, cfg *config.Config, logger *zerolog.Logger) *MetricReporter {
 	return &MetricReporter{
-		metrics: m,
-		mux:     mutex,
-		cfg:     cfg,
-		l:       l,
+		cfg:            cfg,
+		l:              logger,
+		workerCount:    cfg.RateLimit,
+		metricsStream:  make(chan db.Metric),
+		batchStream:    make(chan []db.Metric),
+		requestHandler: NewSender(cfg, logger),
+		resultStream:   make(chan Result),
+		inputStream:    inputStream,
 	}
 }
 
 func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup) {
+	// Start generator and worker pool
+	go mr.metricGenerator(ctx, wg)
+
+	workerWg := &sync.WaitGroup{}
+
+	for i := range mr.workerCount {
+		workerWg.Add(1)
+		go mr.worker(ctx, workerWg, i)
+	}
+
+	go mr.ProcessResults(ctx)
+
+	mr.l.Info().Msg("All workers and processors started")
+
+	workerWg.Wait()
+}
+
+func (mr *MetricReporter) metricGenerator(ctx context.Context, wg *sync.WaitGroup) {
+	ticker := time.NewTicker(mr.cfg.ReportIntervalDur)
+	defer ticker.Stop()
 	defer wg.Done()
+
+	// Buffer to hold incoming metrics
+	var metricBuffer []db.Metric
 
 	for {
 		select {
 		case <-ctx.Done():
-			mr.l.Info().Msg("Stopping watcher reporting")
+			mr.l.Info().Msg("Stopping metric generator")
+			close(mr.metricsStream)
+			close(mr.batchStream)
 
 			return
-		default:
-			// Add your watcher reporting logic here
-			if mr.cfg.UseBatch {
-				mr.SendMetricsBatch(ctx)
-			} else {
-				mr.SendMetrics(ctx)
+		case inputData, ok := <-mr.inputStream: // Get metrics from the input channel
+			if !ok {
+				mr.l.Warn().Msg("Metrics channel closed, no more metrics to generate")
+
+				return
 			}
-			time.Sleep(mr.cfg.ReportIntervalDur)
+			metricBuffer = inputData
+		case <-ticker.C:
+			mr.FillStream(metricBuffer)
 		}
 	}
 }
 
-// SendMetrics sends the collected watcher to the server.
-func (mr *MetricReporter) SendMetrics(ctx context.Context) {
-	mr.mux.Lock()
-	defer mr.mux.Unlock()
+func (mr *MetricReporter) FillStream(metrics []db.Metric) {
+	if mr.cfg.UseBatch {
+		mr.batchStream <- metrics
+	} else {
+		for _, metric := range metrics {
+			mr.metricsStream <- metric
+		}
+	}
+}
 
-	for _, metric := range *mr.metrics {
-		func() {
-			if metric.Delta == nil && metric.Value == nil {
+func (mr *MetricReporter) worker(ctx context.Context, wg *sync.WaitGroup, workerID int) {
+	mr.l.Info().Int("worker Id", workerID).Msg("Worker has started")
+
+	for {
+		select {
+		case <-ctx.Done():
+			mr.l.Info().Int("WorkerId", workerID).Msg("Worker stopping due to context cancellation")
+			wg.Done()
+
+			return
+		case metric, ok := <-mr.metricsStream:
+			if !ok {
+				mr.l.Info().Msg("Metrics channel closed, stopping worker")
+
+				return
+			}
+			mr.l.Info().Int("worker Id", workerID).Msg("Worker is sending metric")
+			result := mr.handleMetric(ctx, metric)
+			mr.resultStream <- result
+		case metrics, ok := <-mr.batchStream:
+			if !ok {
+				mr.l.Info().Msg("Batch channel closed, stopping worker")
+
+				return
+			}
+			mr.l.Info().Int("worker Id", workerID).Msg("Worker is sending batch stats")
+			result := mr.handleBatch(ctx, metrics)
+			mr.resultStream <- result
+		}
+	}
+}
+
+func (mr *MetricReporter) handleMetric(ctx context.Context, metric db.Metric) Result {
+	data, err := mr.requestHandler.SendMetric(ctx, metric)
+
+	return Result{
+		Metric:  data,
+		Error:   err,
+		Metrics: nil,
+	}
+}
+
+func (mr *MetricReporter) handleBatch(ctx context.Context, metrics []db.Metric) Result {
+	data, err := mr.requestHandler.SendMetricsBatch(ctx, metrics)
+
+	return Result{
+		Metrics: data,
+		Error:   err,
+		Metric:  nil,
+	}
+}
+
+func (mr *MetricReporter) ProcessResults(ctx context.Context) {
+	for {
+		select {
+		case <-ctx.Done():
+			mr.l.Info().Msg("Stopping result processor")
+
+			return
+		case result, ok := <-mr.resultStream:
+			if !ok {
+				mr.l.Info().Msg("Result channel closed, stopping processor")
+
 				return
 			}
 
-			url := mr.cfg.Address + "/update/"
-
-			// Setting up context with a timeout
-			timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
-			defer cancel()
-
-			response, err := mr.sendPostRequest(timeoutCtx, url, metric)
-			if err != nil {
-				mr.l.Info().Err(err).Msg("Error sending metric")
+			// Log or handle the result
+			if result.Error != nil {
+				mr.l.Error().Err(result.Error).Msg("Error sending metric")
 			}
-			mr.read(response)
-		}()
+			if result.Metric != nil {
+				mr.l.Info().Interface("metric", result.Metric).Msg("Processed single metric successfully")
+			}
+			if result.Metrics != nil {
+				mr.l.Info().Interface("stats", result.Metrics).Msg("Processed batch stats successfully")
+			}
+		}
 	}
-}
-
-// SendMetricsBatch sends the collected watcher to the server.
-func (mr *MetricReporter) SendMetricsBatch(ctx context.Context) {
-	mr.mux.Lock()
-	defer mr.mux.Unlock()
-
-	url := mr.cfg.Address + "/updates/"
-
-	// Setting up context with a timeout
-	timeoutCtx, cancel := context.WithTimeout(ctx, 1*time.Second)
-	defer cancel()
-
-	if len(*mr.metrics) == 0 {
-		return
-	}
-
-	response, err := mr.sendPostRequest(timeoutCtx, url, *mr.metrics)
-	if err != nil {
-		mr.l.Info().Err(err).Msg("Error sending metrics batch")
-	}
-	mr.readMany(response)
-}
-
-func (mr *MetricReporter) sendPostRequest(ctx context.Context, url string, data interface{}) ([]byte, error) {
-	// Marshal the metric to JSON
-	payload, err := json.Marshal(data)
-	if err != nil {
-		mr.l.Error().Err(err).Msg("Failed to marshal metric")
-
-		return nil, err
-	}
-
-	compressed, err := mr.compressRequest(payload)
-	if err != nil {
-		mr.l.Error().Err(err).Msg("Failed to compress payload")
-
-		return nil, err
-	}
-
-	// Create a new Resty client and send the POST request
-	client := resty.New()
-
-	request := client.R().
-		SetContext(ctx).
-		SetHeader("Content-Type", "application/json").
-		SetHeader("Content-Encoding", "gzip").
-		SetHeader("Accept-Encoding", "gzip").
-		SetBody(compressed.Bytes()).
-		SetDoNotParseResponse(true)
-
-	if mr.cfg.Key != "" {
-		hash := mr.calculateHash(payload)
-
-		request = request.SetHeader("HashSHA256", hash)
-	}
-
-	resp, err := request.Post(url)
-	if err != nil {
-		mr.l.Error().Err(err).Msg("Failed to send post request")
-
-		return nil, err
-	}
-
-	if resp.StatusCode() != http.StatusOK {
-		mr.l.Error().Int("statusCode", resp.StatusCode()).Msg("Failed to send post request")
-
-		return nil, ErrPostRequestFailed
-	}
-
-	responseBody, err := mr.decompressResult(resp.RawBody())
-	if err != nil {
-		mr.l.Error().Err(err).Msg("Failed to decompress response")
-
-		return nil, err
-	}
-
-	return responseBody, nil
-}
-
-func (mr *MetricReporter) read(data []byte) {
-	// Unmarshal the decompressed response into a Metric struct
-	var rMetric db.Metric
-	err := json.Unmarshal(data, &rMetric)
-	if err != nil {
-		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
-
-		return
-	}
-
-	// Log the successful transmission
-	mr.l.Info().
-		Interface("metric", rMetric).
-		Msg("Server response")
-}
-
-func (mr *MetricReporter) readMany(data []byte) {
-	// Unmarshal the decompressed response into a Metric struct
-	var rMetrics []db.Metric
-	err := json.Unmarshal(data, &rMetrics)
-	if err != nil {
-		mr.l.Error().Err(err).Msg("Failed to unmarshal metric")
-
-		return
-	}
-
-	// Log the successful transmission
-	mr.l.Info().
-		Interface("metrics", rMetrics).
-		Msg("Server response")
-}
-
-func (mr *MetricReporter) compressRequest(data []byte) (*bytes.Buffer, error) {
-	// Compress the payload using gzip
-	var compressedPayload bytes.Buffer
-	gzipWriter := gzip.NewWriter(&compressedPayload)
-	_, err := gzipWriter.Write(data)
-	if err != nil {
-		return nil, err
-	}
-	err = gzipWriter.Close()
-	if err != nil {
-		return nil, err
-	}
-
-	return &compressedPayload, nil
-}
-
-func (mr *MetricReporter) decompressResult(body io.ReadCloser) ([]byte, error) {
-	// Decompress the gzipped response
-	reader, err := gzip.NewReader(body)
-	if err != nil {
-		return nil, err
-	}
-	defer func(reader *gzip.Reader) {
-		_ = reader.Close()
-	}(reader)
-
-	data, err := io.ReadAll(reader)
-	if err != nil {
-		return nil, err
-	}
-
-	return data, nil
-}
-
-// calculateHash generates a SHA256 hash of the payload with the given key.
-func (mr *MetricReporter) calculateHash(payload []byte) string {
-	h := hmac.New(sha256.New, []byte(mr.cfg.Key))
-	h.Write(payload)
-
-	return hex.EncodeToString(h.Sum(nil))
 }

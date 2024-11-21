@@ -15,6 +15,7 @@ type Config struct {
 	ReportInterval    int64  `env:"REPORT_INTERVAL" envDefault:"10"`
 	PollInterval      int64  `env:"POLL_INTERVAL"   envDefault:"2"`
 	UseBatch          bool   `env:"USE_BATCH"       envDefault:"false"`
+	RateLimit         int    `env:"RATE_LIMIT"      envDefault:"10"`
 	ReportIntervalDur time.Duration
 	PollIntervalDur   time.Duration
 }
@@ -36,6 +37,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			ReportIntervalDur: 0,
 			UseBatch:          false,
 			Key:               "",
+			RateLimit:         0,
 		},
 		logger: log,
 	}
@@ -56,6 +58,7 @@ func (b *Builder) FromFlags() *Builder {
 	flag.Int64Var(&b.cfg.ReportInterval, "r", b.cfg.ReportInterval, "report interval to send watcher (in seconds)")
 	flag.Int64Var(&b.cfg.PollInterval, "p", b.cfg.PollInterval, "poll interval to update watcher (in seconds)")
 	flag.StringVar(&b.cfg.Key, "k", b.cfg.Key, "key to sign request")
+	flag.IntVar(&b.cfg.RateLimit, "l", b.cfg.RateLimit, "rate limit for workers")
 	flag.Parse()
 
 	return b
