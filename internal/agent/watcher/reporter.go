@@ -82,8 +82,8 @@ func (mr *MetricReporter) metricGenerator(ctx context.Context, wg *sync.WaitGrou
 			}
 			metricBuffer = inputData
 		default:
-			time.Sleep(mr.cfg.ReportIntervalDur)
 			mr.FillStream(metricBuffer)
+			time.Sleep(mr.cfg.ReportIntervalDur)
 		}
 	}
 }

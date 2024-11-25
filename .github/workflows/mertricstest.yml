@@ -76,7 +76,7 @@ jobs:
         run: |
           metricstest -test.v -test.run=^TestIteration2[AB]*$ \
             -source-path=. \
-            -agent-binary-path=$AGENT_BINARY_PATH
+            -agent-binary-path=$AGENT_BINARY_PATH 
 
       - name: "Code increment #3"
         run: |
