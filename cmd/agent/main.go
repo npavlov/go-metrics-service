@@ -12,6 +12,7 @@ import (
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/utils"
@@ -51,7 +52,7 @@ func main() {
 		Str("server_address", cfg.Address).
 		Msg("Endpoint address set")
 
-	metricsStream := make(chan []db.Metric)
+	metricsStream := make(chan []db.Metric, domain.ChannelLength)
 
 	var collector watcher.Collector = watcher.NewMetricCollector(metricsStream, cfg, log)
 	var reporter watcher.Reporter = watcher.NewMetricReporter(metricsStream, cfg, log)

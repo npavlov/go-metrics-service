@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
@@ -33,8 +34,8 @@ func NewMetricReporter(inputStream chan []db.Metric, cfg *config.Config, logger 
 		cfg:            cfg,
 		l:              logger,
 		workerCount:    cfg.RateLimit,
-		metricsStream:  make(chan db.Metric),
-		batchStream:    make(chan []db.Metric),
+		metricsStream:  make(chan db.Metric, domain.ChannelLength),
+		batchStream:    make(chan []db.Metric, domain.ChannelLength),
 		requestHandler: NewSender(cfg, logger),
 		resultStream:   make(chan Result),
 		inputStream:    inputStream,
@@ -60,8 +61,6 @@ func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup)
 }
 
 func (mr *MetricReporter) metricGenerator(ctx context.Context, wg *sync.WaitGroup) {
-	ticker := time.NewTicker(mr.cfg.ReportIntervalDur)
-	defer ticker.Stop()
 	defer wg.Done()
 
 	// Buffer to hold incoming metrics
@@ -82,7 +81,8 @@ func (mr *MetricReporter) metricGenerator(ctx context.Context, wg *sync.WaitGrou
 				return
 			}
 			metricBuffer = inputData
-		case <-ticker.C:
+		default:
+			time.Sleep(mr.cfg.ReportIntervalDur)
 			mr.FillStream(metricBuffer)
 		}
 	}
