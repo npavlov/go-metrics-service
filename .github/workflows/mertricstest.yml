@@ -76,7 +76,7 @@ jobs:
         run: |
           metricstest -test.v -test.run=^TestIteration2[AB]*$ \
             -source-path=. \
-            -agent-binary-path=$AGENT_BINARY_PATH
+            -agent-binary-path=$AGENT_BINARY_PATH 
 
       - name: "Code increment #3"
         run: |
@@ -202,24 +202,17 @@ jobs:
             -source-path=.
 
       - name: "Code increment #14"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter14'
         run: |
           SERVER_PORT=$(random unused-port)
           ADDRESS="localhost:${SERVER_PORT}"
-          TEMP_FILE=$(random tempfile)
           metricstest -test.v -test.run=^TestIteration14$ \
             -agent-binary-path=$AGENT_BINARY_PATH \
             -binary-path=$SERVER_BINARY_PATH \
             -database-dsn='postgres://postgres:postgres@postgres:5432/praktikum?sslmode=disable' \
-            -key="${TEMP_FILE}" \
+            -key="invalidkey" \
             -server-port=$SERVER_PORT \
             -source-path=.
 
       - name: "Code increment #14 (race detection)"
-        if: |
-          github.ref == 'refs/heads/main' ||
-          github.head_ref == 'iter14'
         run: |
           go test -v -race ./...

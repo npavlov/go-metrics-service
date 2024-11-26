@@ -2,6 +2,7 @@ package storage_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/jackc/pgx/v5"
@@ -16,7 +17,8 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 )
 
-//nolint:ireturn
+var errPingError = errors.New("ping error")
+
 func setupDBStorage(t *testing.T) (*storage.DBStorage, pgxmock.PgxPoolIface) {
 	t.Helper()
 
@@ -186,6 +188,12 @@ func TestDBStorage_UpdateMany(t *testing.T) {
 
 	// Mocking a transaction with upserts
 	mock.ExpectBegin()
+
+	key1, key2 := storage.KeyNameAsHash64("update_many")
+
+	mock.ExpectExec("SELECT pg_advisory_xact_lock").WithArgs(key1, key2).
+		WillReturnResult(pgxmock.NewResult("SELECT", 0))
+
 	for _, metric := range metrics {
 		mock.ExpectExec("INSERT INTO mtr_metrics").
 			WithArgs(metric.ID, metric.MType).
@@ -220,6 +228,90 @@ func TestDBStorage_Ping(t *testing.T) {
 
 	err := dbStorage.Ping(ctx)
 	assert.NoError(t, err)
+}
+
+func TestDBStorage_GetMany_Success(t *testing.T) {
+	t.Parallel()
+
+	dbStorage, mock := setupDBStorage(t)
+	defer mock.Close()
+
+	ctx := context.Background()
+	names := []domain.MetricName{"metric1", "metric2"}
+
+	// Mock expected rows for the successful retrieval
+	rows := pgxmock.NewRows([]string{"id", "type", "delta", "value"}).
+		AddRow(domain.MetricName("metric1"), domain.MetricType("counter"), int64Ptr(10), nil).
+		AddRow(domain.MetricName("metric2"), domain.MetricType("gauge"), nil, float64Ptr(3.14))
+	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
+		WithArgs([]string{"metric1", "metric2"}).
+		WillReturnRows(rows)
+
+	metrics, err := dbStorage.GetMany(ctx, names)
+	require.NoError(t, err)
+	require.Len(t, metrics, 2)
+	assert.Equal(t, int64(10), *metrics["metric1"].Delta)
+	assert.InDelta(t, float64(3.14), *metrics["metric2"].Value, 0.0001)
+}
+
+func TestDBStorage_GetMany_NoMetricsFound(t *testing.T) {
+	t.Parallel()
+
+	dbStorage, mock := setupDBStorage(t)
+	defer mock.Close()
+
+	ctx := context.Background()
+	names := []domain.MetricName{"unknown_metric1", "unknown_metric2"}
+
+	// Mock expected empty result set for unknown metrics
+	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
+		WithArgs([]string{"unknown_metric1", "unknown_metric2"}).
+		WillReturnRows(pgxmock.NewRows([]string{"id", "type", "delta", "value"}))
+
+	metrics, err := dbStorage.GetMany(ctx, names)
+	require.NoError(t, err)
+	assert.Empty(t, metrics)
+}
+
+func TestDBStorage_GetMany_PartialMetricsFound(t *testing.T) {
+	t.Parallel()
+
+	dbStorage, mock := setupDBStorage(t)
+	defer mock.Close()
+
+	ctx := context.Background()
+	names := []domain.MetricName{"metric1", "unknown_metric"}
+
+	// Mock expected rows where only one metric is found
+	rows := pgxmock.NewRows([]string{"id", "type", "delta", "value"}).
+		AddRow(domain.MetricName("metric1"), domain.MetricType("counter"), int64Ptr(10), nil)
+	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
+		WithArgs([]string{"metric1", "unknown_metric"}).
+		WillReturnRows(rows)
+
+	metrics, err := dbStorage.GetMany(ctx, names)
+	require.NoError(t, err)
+	require.Len(t, metrics, 1)
+	assert.Equal(t, int64(10), *metrics["metric1"].Delta)
+}
+
+func TestDBStorage_GetMany_DBError(t *testing.T) {
+	t.Parallel()
+
+	dbStorage, mock := setupDBStorage(t)
+	defer mock.Close()
+
+	ctx := context.Background()
+	names := []domain.MetricName{"metric_error"}
+
+	// Mock an error from the database
+	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
+		WithArgs("metric_error").
+		WillReturnError(errPingError)
+
+	metrics, err := dbStorage.GetMany(ctx, names)
+	require.Error(t, err)
+	assert.Nil(t, metrics)
 }
 
 // Helper function to create float64 pointers.

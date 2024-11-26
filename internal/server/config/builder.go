@@ -16,6 +16,7 @@ type Config struct {
 	Database         string `env:"DATABASE_DSN"          envDefault:""`
 	RestoreStorage   bool   `env:"RESTORE"               envDefault:"true"`
 	HealthCheck      int64  `env:"HEALTH_CHECK_INTERVAL" envDefault:"5"`
+	Key              string `env:"KEY"                   envDefault:""`
 	HealthCheckDur   time.Duration
 }
 
@@ -37,6 +38,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			Database:         "",
 			HealthCheck:      0,
 			HealthCheckDur:   0,
+			Key:              "",
 		},
 		logger: log,
 	}
@@ -58,6 +60,7 @@ func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.File, "f", b.cfg.File, "file where to store mem storage")
 	flag.StringVar(&b.cfg.Database, "d", b.cfg.Database, "database DSN")
 	flag.Int64Var(&b.cfg.StoreInterval, "i", b.cfg.StoreInterval, "time flushing mem storage to file (in seconds)")
+	flag.StringVar(&b.cfg.Key, "k", b.cfg.Key, "key to sign request")
 	flag.Parse()
 
 	return b

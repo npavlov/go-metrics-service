@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
@@ -61,7 +63,8 @@ func TestWaitForShutdown(t *testing.T) {
 
 	// Call WaitForShutdown and check if it waits correctly
 	start := time.Now()
-	utils.WaitForShutdown(&wg)
+	stream := make(chan []db.Metric, 1)
+	utils.WaitForShutdown(stream, &wg)
 	duration := time.Since(start)
 
 	// Ensure that the WaitForShutdown finished after the simulated work

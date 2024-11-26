@@ -2,176 +2,205 @@ package watcher_test
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
+	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/npavlov/go-metrics-service/internal/server/router"
-
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/stats"
+	"github.com/npavlov/go-metrics-service/internal/agent/utils"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/server/handlers"
-	"github.com/npavlov/go-metrics-service/internal/server/storage"
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
-// Test for SendMetrics function.
-func TestMetricService_SendMetrics(t *testing.T) {
+func TestMetricReporter_SendSingleMetric(t *testing.T) {
 	t.Parallel()
 
-	log := testutils.GetTLogger()
-	serverStorage := storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
-	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers, nil)
-
-	server := httptest.NewServer(cRouter.GetRouter())
-	defer server.Close()
-
-	// Create an instance of MetricService
-	st := stats.Stats{}
-	metrics := st.StatsToMetrics()
-	mux := sync.RWMutex{}
-	cfg := &config.Config{
-		Address:        server.URL,
-		PollInterval:   1,
-		ReportInterval: 1,
-	}
-
-	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
-	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
-	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
-	collector.UpdateMetrics()
-
-	// Run the SendMetrics function
-	reporter.SendMetrics(context.TODO())
-
-	// Compare values on client and on server
-	for _, metric := range metrics {
-		switch metric.MType {
-		case domain.Gauge:
-			m, ok := serverStorage.Get(context.Background(), metric.ID)
-			assert.True(t, ok)
-			original := *(metric.Value)
-			assert.InDelta(t, original, *m.Value, 00000.1)
-		case domain.Counter:
-			m, ok := serverStorage.Get(context.Background(), metric.ID)
-			assert.True(t, ok)
-			original := *(metric.Delta)
-			assert.Equal(t, original, *m.Delta)
-		}
-	}
-
-	reporter.SendMetrics(context.TODO())
-	reporter.SendMetrics(context.TODO())
-	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
-	assert.True(t, ok)
-	assert.Equal(t, int64(3), *m.Delta)
-}
-
-func TestMetricReporter_StartReporter(t *testing.T) {
-	t.Parallel()
-
-	log := testutils.GetTLogger()
-	serverStorage := storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
-	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers, nil)
-
-	server := httptest.NewServer(cRouter.GetRouter())
-	defer server.Close()
-
-	// Create an instance of MetricService
-	st := stats.Stats{}
-	metrics := st.StatsToMetrics()
-	mux := sync.RWMutex{}
-	cfg := &config.Config{
-		Address:        server.URL,
-		PollInterval:   1,
-		ReportInterval: 2,
-	}
-	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
-
-	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
-	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
-	collector.UpdateMetrics()
-
-	var wg sync.WaitGroup
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	wg.Add(1)
-	go reporter.StartReporter(ctx, &wg)
-	// Wait for a short duration to allow the reporter to run
-	time.Sleep(2 * time.Second)
-	cancel() // Stop the reporter
+	logger := zerolog.Nop()
+	cfg := &config.Config{
+		ReportIntervalDur: 100 * time.Millisecond,
+		RateLimit:         1,
+		UseBatch:          false,
+	}
 
-	wg.Wait() // Wait for the goroutine to finish
+	// Mock server to simulate the Sender
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var receivedMetric db.Metric
+		err := json.NewDecoder(request.Body).Decode(&receivedMetric)
+		assert.NoError(t, err)
 
-	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
-	assert.True(t, ok)
-	assert.Equal(t, int64(1), *m.Delta)
+		assert.Equal(t, "metric1", receivedMetric.ID)
 
-	assert.Equal(t, context.Canceled, ctx.Err())
-}
-
-func TestMetricReporter_SendMetricsBatch(t *testing.T) {
-	t.Parallel()
-
-	// Setup Logger and Test Server
-	log := testutils.GetTLogger()
-	serverStorage := storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(serverStorage, log)
-	var cRouter router.Router = router.NewCustomRouter(log)
-	cRouter.SetRouter(mHandlers, nil)
-
-	server := httptest.NewServer(cRouter.GetRouter())
+		writer.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(writer).Encode(receivedMetric)
+	}))
 	defer server.Close()
 
-	// Create mock metrics and configurations
-	st := stats.Stats{}
-	metrics := st.StatsToMetrics()
-	mux := sync.RWMutex{}
+	cfg.Address = server.URL
+
+	inputStream := make(chan []db.Metric, 1)
+	inputStream <- []db.Metric{
+		*db.NewMetric("metric1", "gauge", nil, float64Ptr(1.23)),
+	}
+	close(inputStream)
+
+	reporter := watcher.NewMetricReporter(inputStream, cfg, &logger)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go reporter.StartReporter(ctx, wg)
+
+	// Allow some time for the reporter to process
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	wg.Wait()
+}
+
+func TestMetricReporter_SendBatchMetrics(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := zerolog.Nop()
 	cfg := &config.Config{
-		Address:        server.URL,
-		PollInterval:   1,
-		ReportInterval: 2,
-		UseBatch:       true,
-	}
-	newConfig := config.NewConfigBuilder(log).FromObj(cfg).Build()
-
-	// Initialize the MetricReporter
-	reporter := watcher.NewMetricReporter(&metrics, &mux, newConfig, log)
-	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, log)
-	collector.UpdateMetrics()
-	// Run the SendMetricsBatch function
-	reporter.SendMetricsBatch(context.TODO())
-
-	// Verify that all metrics were sent in a batch and saved on the server
-	for _, metric := range metrics {
-		switch metric.MType {
-		case domain.Gauge:
-			m, ok := serverStorage.Get(context.Background(), metric.ID)
-			assert.True(t, ok, "Gauge metric should be present in server storage")
-			assert.InDelta(t, *metric.Value, *m.Value, 0.0001, "Gauge metric value should match")
-		case domain.Counter:
-			m, ok := serverStorage.Get(context.Background(), metric.ID)
-			assert.True(t, ok, "Counter metric should be present in server storage")
-			assert.Equal(t, *metric.Delta, *m.Delta, "Counter metric delta should match")
-		}
+		ReportIntervalDur: 100 * time.Millisecond,
+		RateLimit:         1,
+		UseBatch:          true,
 	}
 
-	// Send batch multiple times and validate PollCount
-	reporter.SendMetricsBatch(context.TODO())
-	reporter.SendMetricsBatch(context.TODO())
+	// Mock server to simulate the Sender
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var receivedMetrics []db.Metric
+		result, _ := utils.DecompressResult(request.Body)
+		err := json.Unmarshal(result, &receivedMetrics)
+		assert.NoError(t, err)
 
-	// Check that PollCount counter has incremented
-	m, ok := serverStorage.Get(context.Background(), domain.PollCount)
-	assert.True(t, ok, "PollCount metric should be present in server storage")
-	assert.Equal(t, int64(3), *m.Delta, "PollCount metric delta should be 3 after three batches")
+		assert.Len(t, receivedMetrics, 2)
+		assert.Equal(t, domain.MetricName("metric1"), receivedMetrics[0].ID)
+		assert.Equal(t, domain.MetricName("metric2"), receivedMetrics[1].ID)
+
+		writer.WriteHeader(http.StatusOK)
+		_ = json.NewEncoder(writer).Encode(receivedMetrics)
+	}))
+	defer server.Close()
+
+	cfg.Address = server.URL
+
+	inputStream := make(chan []db.Metric, 1)
+	inputStream <- []db.Metric{
+		*db.NewMetric("metric1", "counter", int64Ptr(42), nil),
+		*db.NewMetric("metric2", "gauge", nil, float64Ptr(3.14)),
+	}
+
+	reporter := watcher.NewMetricReporter(inputStream, cfg, &logger)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go reporter.StartReporter(ctx, wg)
+
+	// Allow some time for the reporter to process
+	time.Sleep(500 * time.Millisecond)
+	cancel()
+	wg.Wait()
+	close(inputStream)
+}
+
+func TestMetricReporter_ErrorHandling(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	logger := zerolog.Nop()
+	cfg := &config.Config{
+		ReportIntervalDur: 100 * time.Millisecond,
+		RateLimit:         1,
+		UseBatch:          false,
+	}
+
+	// Mock server to simulate the Sender
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	cfg.Address = server.URL
+
+	inputStream := make(chan []db.Metric, 1)
+	inputStream <- []db.Metric{
+		*db.NewMetric("metric1", "gauge", nil, float64Ptr(1.23)),
+	}
+	close(inputStream)
+
+	reporter := watcher.NewMetricReporter(inputStream, cfg, &logger)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go reporter.StartReporter(ctx, wg)
+
+	// Allow some time for the reporter to process
+	time.Sleep(300 * time.Millisecond)
+	cancel()
+	wg.Wait()
+}
+
+func TestMetricReporter_StopOnContextCancel(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+
+	logger := zerolog.Nop()
+	cfg := &config.Config{
+		ReportIntervalDur: 100 * time.Millisecond,
+		RateLimit:         1,
+		UseBatch:          false,
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		var receivedMetric db.Metric
+		result, _ := utils.DecompressResult(request.Body)
+		err := json.Unmarshal(result, &receivedMetric)
+		assert.NoError(t, err)
+
+		assert.Equal(t, domain.MetricName("metric1"), receivedMetric.ID)
+		assert.InDelta(t, 1.23, *receivedMetric.Value, 0.01)
+		writer.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cfg.Address = server.URL
+
+	inputStream := make(chan []db.Metric, 1)
+	inputStream <- []db.Metric{
+		*db.NewMetric("metric1", "gauge", nil, float64Ptr(1.23)),
+	}
+
+	reporter := watcher.NewMetricReporter(inputStream, cfg, &logger)
+
+	wg := &sync.WaitGroup{}
+	wg.Add(1)
+
+	go reporter.StartReporter(ctx, wg)
+
+	// Allow the reporter to start
+	time.Sleep(400 * time.Millisecond)
+
+	// Cancel the context and ensure it shuts down
+	cancel()
+	wg.Wait()
+
+	assert.NotPanics(t, func() { close(inputStream) }, "inputStream should be safe to close after reporter shutdown")
 }

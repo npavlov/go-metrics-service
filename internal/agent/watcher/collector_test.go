@@ -8,8 +8,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
+	"github.com/npavlov/go-metrics-service/internal/server/db"
+
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
@@ -18,20 +19,20 @@ import (
 func TestCollector_UpdateMetrics(t *testing.T) {
 	t.Parallel()
 
-	st := stats.Stats{}
-	metrics := st.StatsToMetrics()
-	mux := sync.RWMutex{}
 	cfg := &config.Config{
 		Address:        "",
-		ReportInterval: 1,
-		PollInterval:   1,
+		ReportInterval: 10,
+		PollInterval:   10,
 	}
 	l := testutils.GetTLogger()
 	newConfig := config.NewConfigBuilder(l).FromObj(cfg).Build()
-	collector := watcher.NewMetricCollector(&metrics, &mux, newConfig, l)
+	metricsStream := make(chan []db.Metric, 1)
+	collector := watcher.NewMetricCollector(metricsStream, newConfig, l)
 
 	// Call the method to test
 	collector.UpdateMetrics()
+
+	metrics := <-metricsStream
 
 	for _, metric := range metrics {
 		if metric.ID == domain.PollCount {
@@ -42,10 +43,12 @@ func TestCollector_UpdateMetrics(t *testing.T) {
 
 	collector.UpdateMetrics()
 
+	metrics = <-metricsStream
+
 	for _, metric := range metrics {
 		if metric.ID == domain.PollCount {
 			delta := *metric.Delta
-			assert.Equal(t, int64(2), delta)
+			assert.Equal(t, int64(1), delta)
 		}
 	}
 }
@@ -55,15 +58,14 @@ func TestStartCollector(t *testing.T) {
 	t.Parallel()
 
 	// setup
-	st := stats.Stats{}
-	metrics := st.StatsToMetrics()
-	var mu sync.RWMutex
 	cfg := &config.Config{PollInterval: 1, Address: "", ReportInterval: 1} // Poll every second
-	l := testutils.GetTLogger()
-	newConfig := config.NewConfigBuilder(l).FromObj(cfg).Build()
+	logger := testutils.GetTLogger()
+	newConfig := config.NewConfigBuilder(logger).FromObj(cfg).Build()
+
+	metricsStream := make(chan []db.Metric, 10)
 
 	// Create an instance of MetricCollector
-	mc := watcher.NewMetricCollector(&metrics, &mu, newConfig, l)
+	mc := watcher.NewMetricCollector(metricsStream, newConfig, logger)
 
 	// Create a cancellable context
 	ctx, cancel := context.WithCancel(context.Background())
@@ -84,7 +86,8 @@ func TestStartCollector(t *testing.T) {
 	// Wait for the goroutine to finish
 	wg.Wait()
 
-	assert.NotNil(t, metrics) // Ensure metrics are not nil
+	metrics := <-metricsStream
+	assert.NotNil(t, metrics)
 	for _, val := range metrics {
 		if val.ID == domain.PollCount {
 			assert.Positive(t, *val.Delta)

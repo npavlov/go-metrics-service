@@ -31,6 +31,16 @@ type MetricSource string
 const (
 	Runtime MetricSource = "runtime"
 	Custom  MetricSource = "custom"
+	GopsMem MetricSource = "gopsutil/mem"
+	GopsCPU MetricSource = "gopsutil/cpu"
+)
+
+type MetricAlias string
+
+const (
+	MTotal  MetricAlias = "Total"
+	MFree   MetricAlias = "Free"
+	MSystem MetricAlias = "System"
 )
 
 type MetricName string
