@@ -25,6 +25,12 @@ issues:
     - path: '(.+)validator\.go'
       linters:
         - err113
+    - path: '(.+)(health_test|dbstorage_test)\.go'
+      linters:
+        - ireturn
+    - path: '(.+)(signature|signature_test)\.go'
+      linters:
+        - canonicalheader
 linters-settings:
   varnamelen:
     min-name-length: 2  # Adjust the minimum length as needed

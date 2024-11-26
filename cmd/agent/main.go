@@ -11,9 +11,10 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/stats"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
+	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/logger"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
@@ -42,8 +43,6 @@ func main() {
 
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
-	metrics := stats.NewStats().StatsToMetrics()
-	mux := sync.RWMutex{}
 	// WaitGroup to wait for all goroutines to complete
 	var wg sync.WaitGroup
 
@@ -52,8 +51,11 @@ func main() {
 	log.Info().
 		Str("server_address", cfg.Address).
 		Msg("Endpoint address set")
-	var collector watcher.Collector = watcher.NewMetricCollector(&metrics, &mux, cfg, log)
-	var reporter watcher.Reporter = watcher.NewMetricReporter(&metrics, &mux, cfg, log)
+
+	metricsStream := make(chan []db.Metric, domain.ChannelLength)
+
+	var collector watcher.Collector = watcher.NewMetricCollector(metricsStream, cfg, log)
+	var reporter watcher.Reporter = watcher.NewMetricReporter(metricsStream, cfg, log)
 
 	log.Info().
 		Int64("polling_time", cfg.PollInterval).
@@ -69,6 +71,6 @@ func main() {
 	go reporter.StartReporter(ctx, &wg)
 
 	log.Info().Msg("Application started")
-	utils.WaitForShutdown(&wg)
+	utils.WaitForShutdown(metricsStream, &wg)
 	log.Info().Msg("Application stopped gracefully")
 }

@@ -8,4 +8,5 @@ import (
 type Metric struct {
 	db.Metric
 	MSource domain.MetricSource
+	MAlias  domain.MetricAlias
 }

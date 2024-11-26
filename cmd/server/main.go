@@ -51,7 +51,7 @@ func main() {
 
 	mHandlers := handlers.NewMetricsHandler(metricStorage, log)
 	hHandlers := handlers.NewHealthHandler(dbManager, log)
-	var cRouter router.Router = router.NewCustomRouter(log)
+	var cRouter router.Router = router.NewCustomRouter(cfg, log)
 	cRouter.SetRouter(mHandlers, hHandlers)
 
 	log.Info().

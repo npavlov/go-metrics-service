@@ -8,6 +8,8 @@ import (
 	"syscall"
 
 	"github.com/rs/zerolog"
+
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
 func WithSignalCancel(ctx context.Context, log *zerolog.Logger) (context.Context, context.CancelFunc) {
@@ -24,6 +26,10 @@ func WithSignalCancel(ctx context.Context, log *zerolog.Logger) (context.Context
 	return ctx, cancel
 }
 
-func WaitForShutdown(wg *sync.WaitGroup) {
+func WaitForShutdown(inputStream chan []db.Metric, wg *sync.WaitGroup) {
+	sync.OnceFunc(func() {
+		close(inputStream)
+	})
+
 	wg.Wait()
 }
