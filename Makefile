@@ -100,3 +100,8 @@ open-cpu-server-profile:
 .PHONY: open-heap-server-profile
 open-heap-server-profile:
 	go tool pprof -http=":9090" ./profiles/heap_server.pprof
+
+# Run only benchmarks and collect memory allocation statistics
+.PHONY: bench-mem
+bench-mem:
+	$(GO) test ./... -bench=. -benchmem

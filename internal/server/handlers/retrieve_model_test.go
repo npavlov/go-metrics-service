@@ -1,6 +1,8 @@
 package handlers_test
 
 import (
+	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -145,6 +147,35 @@ func sendRequest(t *testing.T, server *httptest.Server, route string, payload in
 	}
 
 	return metric, resp.StatusCode(), nil
+}
+
+// BenchmarkRetrieveModel - Benchmark for RetrieveModel
+func BenchmarkRetrieveModel(b *testing.B) {
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	// Initialize storage and router
+	log := testutils.GetTLogger()
+	memStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(memStorage, log)
+
+	updateModel := db.NewMetric("Alloc", domain.Gauge, nil, float64Ptr(100.0))
+
+	_ = memStorage.Create(context.Background(), updateModel)
+
+	retrieveModel := db.NewMetric("Alloc", domain.Gauge, nil, nil)
+	// Prepare a valid JSON request body
+	requestBody, _ := json.Marshal(retrieveModel)
+
+	// Benchmark loop
+	for i := 0; i < b.N; i++ {
+		// Create a new HTTP request
+		request := httptest.NewRequest(http.MethodPost, "/retrieve", bytes.NewReader(requestBody))
+
+		// Create a new ResponseRecorder to capture the response
+		response := httptest.NewRecorder()
+
+		// Call the handler
+		mHandlers.RetrieveModel(response, request)
+	}
 }
 
 // Helper function to create float64 pointer.
