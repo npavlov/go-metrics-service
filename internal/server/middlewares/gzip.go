@@ -2,14 +2,22 @@ package middlewares
 
 import (
 	"compress/gzip"
+	"io"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares/helpers"
 )
 
 // GzipMiddleware compresses the response using Gzip if the client supports it and Brotli is not supported.
 func GzipMiddleware(next http.Handler) http.Handler {
+	gzipPool := &sync.Pool{
+		New: func() interface{} {
+			return gzip.NewWriter(io.Discard)
+		},
+	}
+
 	return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 		// Check if the client accepts Gzip encoding and doesn't prefer Brotli
 		encoding := request.Header.Get("Accept-Encoding")
@@ -25,7 +33,10 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		response.Header().Set("Content-Encoding", "gzip")
 		response.Header().Del("Content-Length") // Can't know content length after compression
 
-		gzWriter := gzip.NewWriter(response)
+		gzWriter := gzipPool.Get().(*gzip.Writer)
+		defer gzipPool.Put(gzWriter)
+
+		gzWriter.Reset(response)
 		defer func(gzWriter *gzip.Writer) {
 			_ = gzWriter.Close()
 		}(gzWriter)
