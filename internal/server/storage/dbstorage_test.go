@@ -107,7 +107,7 @@ func TestDBStorage_Update(t *testing.T) {
 
 	// Mocking an update operation
 	mock.ExpectExec("UPDATE gauge_metrics SET").
-		WithArgs(metric.ID, metric.Value).
+		WithArgs(metric.Value, metric.ID).
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 	err := dbStorage.Update(ctx, metric)
@@ -117,7 +117,7 @@ func TestDBStorage_Update(t *testing.T) {
 
 	// Mocking an update operation
 	mock.ExpectExec("UPDATE counter_metrics SET").
-		WithArgs(metric2.ID, metric2.Delta).
+		WithArgs(metric2.Delta, metric2.ID).
 		WillReturnResult(pgxmock.NewResult("UPDATE", 1))
 
 	err = dbStorage.Update(ctx, metric2)
@@ -201,11 +201,11 @@ func TestDBStorage_UpdateMany(t *testing.T) {
 		switch metric.MType {
 		case domain.Counter:
 			mock.ExpectExec("INSERT INTO counter_metrics").
-				WithArgs(metric.ID, metric.Delta).
+				WithArgs(metric.Delta, metric.ID).
 				WillReturnResult(pgxmock.NewResult("INSERT", 1))
 		case domain.Gauge:
 			mock.ExpectExec("INSERT INTO gauge_metrics").
-				WithArgs(metric.ID, metric.Value).
+				WithArgs(metric.Value, metric.ID).
 				WillReturnResult(pgxmock.NewResult("INSERT", 1))
 		}
 	}
@@ -244,7 +244,7 @@ func TestDBStorage_GetMany_Success(t *testing.T) {
 		AddRow(domain.MetricName("metric1"), domain.MetricType("counter"), int64Ptr(10), nil).
 		AddRow(domain.MetricName("metric2"), domain.MetricType("gauge"), nil, float64Ptr(3.14))
 	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
-		WithArgs([]string{"metric1", "metric2"}).
+		WithArgs(names[0], names[1]).
 		WillReturnRows(rows)
 
 	metrics, err := dbStorage.GetMany(ctx, names)
@@ -265,7 +265,7 @@ func TestDBStorage_GetMany_NoMetricsFound(t *testing.T) {
 
 	// Mock expected empty result set for unknown metrics
 	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
-		WithArgs([]string{"unknown_metric1", "unknown_metric2"}).
+		WithArgs(names[0], names[1]).
 		WillReturnRows(pgxmock.NewRows([]string{"id", "type", "delta", "value"}))
 
 	metrics, err := dbStorage.GetMany(ctx, names)
@@ -286,7 +286,7 @@ func TestDBStorage_GetMany_PartialMetricsFound(t *testing.T) {
 	rows := pgxmock.NewRows([]string{"id", "type", "delta", "value"}).
 		AddRow(domain.MetricName("metric1"), domain.MetricType("counter"), int64Ptr(10), nil)
 	mock.ExpectQuery("SELECT .* FROM mtr_metrics").
-		WithArgs([]string{"metric1", "unknown_metric"}).
+		WithArgs(names[0], names[1]).
 		WillReturnRows(rows)
 
 	metrics, err := dbStorage.GetMany(ctx, names)

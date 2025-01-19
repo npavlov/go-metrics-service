@@ -75,3 +75,18 @@ func (m *Metric) GetValue() string {
 
 	return ""
 }
+
+type CounterMetric struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Delta    *int64            `db:"delta" json:"delta"`
+}
+
+type GaugeMetric struct {
+	MetricID domain.MetricName `db:"metric_id" json:"-"`
+	Value    *float64          `db:"value" json:"value"`
+}
+
+type MtrMetric struct {
+	ID    domain.MetricName `db:"id" json:"id" validate:"required"`
+	MType domain.MetricType `db:"type" json:"type" validate:"required,oneof=counter gauge"`
+}

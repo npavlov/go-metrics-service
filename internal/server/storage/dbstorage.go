@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"github.com/Masterminds/squirrel"
 	"github.com/cenkalti/backoff/v4"
 	"github.com/jackc/pgconn"
 	"github.com/jackc/pgerrcode"
@@ -19,17 +20,17 @@ import (
 const maxRetries = 3
 
 type DBStorage struct {
-	Queries *db.Queries
 	log     *zerolog.Logger
 	dbCon   dbmanager.PgxPool
+	builder squirrel.StatementBuilderType
 }
 
 // NewDBStorage initializes a new DBStorage instance.
 func NewDBStorage(dbCon dbmanager.PgxPool, log *zerolog.Logger) *DBStorage {
 	return &DBStorage{
 		dbCon:   dbCon,
-		Queries: db.New(dbCon),
 		log:     log,
+		builder: squirrel.StatementBuilder.PlaceholderFormat(squirrel.Dollar),
 	}
 }
 
@@ -79,16 +80,35 @@ func (ds *DBStorage) isRetryableError(err error) bool {
 func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]db.Metric {
 	metrics := make(map[domain.MetricName]db.Metric)
 
-	err := ds.retryOperation(ctx, func() error {
-		results, err := ds.Queries.GetAllMetrics(ctx)
+	query := ds.builder.
+		Select("m.id", "m.type", "c.delta", "g.value").
+		From("mtr_metrics AS m").
+		LeftJoin("counter_metrics AS c ON m.id = c.metric_id").
+		LeftJoin("gauge_metrics AS g ON m.id = g.metric_id")
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return metrics
+	}
+
+	err = ds.retryOperation(ctx, func() error {
+		rows, err := ds.dbCon.Query(ctx, sql, args...)
+		defer rows.Close()
 		if err != nil {
 			ds.log.Error().Err(err).Msg("error getting metrics")
 
 			return errors.Wrap(err, "error getting metrics")
 		}
 
-		for _, m := range results {
-			metrics[m.ID] = *db.NewMetric(m.ID, m.MType, m.Delta, m.Value)
+		for rows.Next() {
+			metric := db.Metric{}
+
+			err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
+			if err != nil {
+				return errors.Wrap(err, "failed to scan GetAll row")
+			}
+
+			metrics[metric.ID] = metric
 		}
 
 		return nil
@@ -104,16 +124,27 @@ func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]db.Metric
 
 // Get retrieves a single metric by its name with retry logic.
 func (ds *DBStorage) Get(ctx context.Context, name domain.MetricName) (*db.Metric, bool) {
-	var metric db.Metric
+	metric := db.Metric{}
 
-	err := ds.retryOperation(ctx, func() error {
-		result, err := ds.Queries.GetUnifiedMetric(ctx, name)
+	query := ds.builder.
+		Select("m.id", "m.type", "c.delta", "g.value").
+		From("mtr_metrics AS m").
+		LeftJoin("counter_metrics AS c ON m.id = c.metric_id").
+		LeftJoin("gauge_metrics AS g ON m.id = g.metric_id").
+		Where(squirrel.Eq{"m.id": name})
+
+	sql, args, err := query.ToSql()
+	if err != nil {
+		return nil, false
+	}
+
+	err = ds.retryOperation(ctx, func() error {
+		row := ds.dbCon.QueryRow(ctx, sql, args...)
+
+		err := row.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value)
 		if err != nil {
-			ds.log.Error().Err(err).Msg("failed to retrieve metric")
-
-			return errors.Wrap(err, "failed to retrieve metric")
+			return errors.Wrap(err, "failed to scan GetAll row")
 		}
-		metric.FromFields(result.ID, result.MType, result.Delta, result.Value)
 
 		return nil
 	})
@@ -124,29 +155,54 @@ func (ds *DBStorage) Get(ctx context.Context, name domain.MetricName) (*db.Metri
 	return &metric, true
 }
 
-// GetMany retrieves multiple metrics based on their names with retry logic.
 func (ds *DBStorage) GetMany(ctx context.Context, names []domain.MetricName) (map[domain.MetricName]db.Metric, error) {
 	if len(names) == 0 {
 		return map[domain.MetricName]db.Metric{}, nil
 	}
 
-	nameStrings := make([]string, len(names))
-	for i, name := range names {
-		nameStrings[i] = string(name)
-	}
-
 	metrics := make(map[domain.MetricName]db.Metric)
 
 	err := ds.retryOperation(ctx, func() error {
-		results, err := ds.Queries.GetManyMetrics(ctx, nameStrings)
+		// Build the query with Squirrel
+		query, args, err := ds.builder.Select(
+			"m.id",
+			"m.type",
+			"c.delta",
+			"g.value",
+		).
+			From("mtr_metrics AS m").
+			LeftJoin("counter_metrics AS c ON m.id = c.metric_id").
+			LeftJoin("gauge_metrics AS g ON m.id = g.metric_id").
+			Where(squirrel.Eq{"m.id": names}). // Use Squirrel's In clause
+			ToSql()
 		if err != nil {
-			ds.log.Error().Err(err).Msg("error getting multiple metrics")
-
-			return errors.Wrap(err, "error getting multiple metrics")
+			ds.log.Error().Err(err).Msg("failed to build GetMany query")
+			return errors.Wrap(err, "failed to build GetMany query")
 		}
 
-		for _, m := range results {
-			metrics[m.ID] = *db.NewMetric(m.ID, m.MType, m.Delta, m.Value)
+		// Execute the query
+		rows, err := ds.dbCon.Query(ctx, query, args...)
+		if err != nil {
+			ds.log.Error().Err(err).Msg("error executing GetMany query")
+			return errors.Wrap(err, "error executing GetMany query")
+		}
+		defer rows.Close()
+
+		// Parse the results
+		for rows.Next() {
+			metric := db.Metric{}
+
+			if err := rows.Scan(&metric.ID, &metric.MType, &metric.Delta, &metric.Value); err != nil {
+				ds.log.Error().Err(err).Msg("error scanning row for GetMany")
+				return errors.Wrap(err, "error scanning row for GetMany")
+			}
+
+			metrics[metric.ID] = metric
+		}
+
+		if err := rows.Err(); err != nil {
+			ds.log.Error().Err(err).Msg("error iterating over GetMany results")
+			return errors.Wrap(err, "error iterating over GetMany results")
 		}
 
 		return nil
@@ -165,27 +221,30 @@ func (ds *DBStorage) Update(ctx context.Context, metric *db.Metric) error {
 	}
 
 	err := ds.retryOperation(ctx, func() error {
+		var query squirrel.UpdateBuilder
+
 		switch metric.MType {
 		case domain.Gauge:
-			err := ds.Queries.UpdateGaugeMetric(ctx, db.UpdateGaugeMetricParams{
-				Value:    metric.Value,
-				MetricID: metric.ID,
-			})
-			if err != nil {
-				ds.log.Error().Err(err).Msg("error updating metric")
-
-				return errors.Wrap(err, "error updating metric")
-			}
+			query = ds.builder.Update("gauge_metrics").
+				Set("value", metric.Value).
+				Where(squirrel.Eq{"metric_id": metric.ID})
 		case domain.Counter:
-			err := ds.Queries.UpdateCounterMetric(ctx, db.UpdateCounterMetricParams{
-				Delta:    metric.Delta,
-				MetricID: metric.ID,
-			})
-			if err != nil {
-				ds.log.Error().Err(err).Msg("error updating metric")
+			query = ds.builder.Update("counter_metrics").
+				Set("delta", metric.Delta).
+				Where(squirrel.Eq{"metric_id": metric.ID})
+		}
 
-				return errors.Wrap(err, "error updating metric")
-			}
+		// Construct the SQL query with the necessary parameters.
+		sql, args, err := query.ToSql()
+		if err != nil {
+			return errors.Wrap(err, "failed to build SQL query")
+		}
+
+		// Execute the query using the database connection.
+		_, err = ds.dbCon.Exec(ctx, sql, args...)
+		if err != nil {
+			ds.log.Error().Err(err).Msg("error updating metric")
+			return errors.Wrap(err, "error updating metric")
 		}
 
 		return nil
@@ -200,12 +259,12 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.Metric) error {
 		return errors.New(errNoValue)
 	}
 
-	//nolint:exhaustruct
+	// Retry operation for database transaction
 	err := ds.retryOperation(ctx, func() error {
+		// Begin a new transaction
 		tx, err := ds.dbCon.BeginTx(ctx, pgx.TxOptions{})
 		if err != nil {
 			ds.log.Error().Err(err).Msg("failed to start transaction for Create")
-
 			return errors.Wrap(err, "failed to start transaction for Create")
 		}
 		defer func() {
@@ -216,51 +275,71 @@ func (ds *DBStorage) Create(ctx context.Context, metric *db.Metric) error {
 			}
 		}()
 
-		query := ds.Queries.WithTx(tx)
-		err = query.InsertMtrMetric(ctx, db.InsertMtrMetricParams{
-			MType: metric.MType,
-			ID:    metric.ID,
-		})
+		// Insert into mtr_metrics table
+		insertMetricSQL, metricArgs, err := ds.builder.
+			Insert("mtr_metrics").
+			Columns("id", "type").
+			Values(metric.ID, metric.MType).
+			Suffix("ON CONFLICT (id, type) DO NOTHING").
+			ToSql()
+		if err != nil {
+			ds.log.Error().Err(err).Msg("failed to build mtr_metrics insert query")
+			return errors.Wrap(err, "failed to build mtr_metrics insert query")
+		}
+
+		_, err = tx.Exec(ctx, insertMetricSQL, metricArgs...)
 		if err != nil {
 			ds.log.Error().Err(err).Msg("failed to insert metric")
-
 			return errors.Wrap(err, "failed to insert metric")
 		}
+
+		var query squirrel.InsertBuilder
+
+		// Insert into counter_metrics or gauge_metrics table based on metric type
 		switch metric.MType {
 		case domain.Gauge:
-			err := query.InsertGaugeMetric(ctx, db.InsertGaugeMetricParams{
-				Value:    metric.Value,
-				MetricID: metric.ID,
-			})
-			if err != nil {
-				ds.log.Error().Err(err).Msg("error insert metric")
+			query = ds.builder.
+				Insert("gauge_metrics").
+				Columns("metric_id", "value").
+				Values(metric.ID, metric.Value).
+				Suffix("ON CONFLICT (metric_id) DO NOTHING")
 
-				return errors.Wrap(err, "error insert metric")
-			}
 		case domain.Counter:
-			err := query.InsertCounterMetric(ctx, db.InsertCounterMetricParams{
-				Delta:    metric.Delta,
-				MetricID: metric.ID,
-			})
-			if err != nil {
-				ds.log.Error().Err(err).Msg("error insert metric")
+			query = ds.builder.
+				Insert("counter_metrics").
+				Columns("metric_id", "delta").
+				Values(metric.ID, metric.Delta).
+				Suffix("ON CONFLICT (metric_id) DO NOTHING")
+		}
 
-				return errors.Wrap(err, "error insert metric")
-			}
+		insertCounterSQL, metricArgs, err := query.ToSql()
+
+		if err != nil {
+			ds.log.Error().Err(err).Msg("failed to build mtr_metrics insert query")
+			return errors.Wrap(err, "failed to build mtr_metrics insert query")
+		}
+
+		_, err = tx.Exec(ctx, insertCounterSQL, metricArgs...)
+		if err != nil {
+			ds.log.Error().Err(err).Msg("failed to insert metric")
+			return errors.Wrap(err, "failed to insert metric")
 		}
 
 		return nil
 	})
 
-	return err
+	if err != nil {
+		ds.log.Error().Err(err).Msg("failed to create metric")
+		return errors.Wrap(err, "failed to create metric")
+	}
+
+	return nil
 }
 
 // UpdateMany updates multiple metrics in the database with retry logic.
 func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error {
 	return ds.retryOperation(ctx, func() error {
 		err := WithTx(ctx, ds.dbCon, func(ctx context.Context, tx pgx.Tx) error {
-			query := ds.Queries.WithTx(tx)
-
 			key1, key2 := KeyNameAsHash64("update_many")
 			err := AcquireBlockingLock(ctx, tx, key1, key2, ds.log)
 			if err != nil {
@@ -270,36 +349,49 @@ func (ds *DBStorage) UpdateMany(ctx context.Context, metrics *[]db.Metric) error
 			}
 
 			for _, metric := range *metrics {
-				err := query.UpsertMtrMetric(ctx, db.UpsertMtrMetricParams{
-					ID:    metric.ID,
-					MType: metric.MType,
-				})
+				upsertMetricQuery := ds.builder.Insert("mtr_metrics").
+					Columns("id", "type").
+					Values(metric.ID, metric.MType).
+					Suffix("ON CONFLICT (id) DO UPDATE SET type = EXCLUDED.type")
+				sql, args, err := upsertMetricQuery.ToSql()
 				if err != nil {
-					ds.log.Error().Err(err).Msg("error in UpsertMetric during UpdateMany")
-
-					return errors.Wrap(err, "error in UpsertMetric during UpdateMany")
+					ds.log.Error().Err(err).Msg("failed to build UPSERT query for metric")
+					return errors.Wrap(err, "failed to build UPSERT query for metric")
 				}
+
+				// Execute the UPSERT for the main metric record.
+				_, err = tx.Exec(ctx, sql, args...)
+				if err != nil {
+					ds.log.Error().Err(err).Msg("failed to upsert metric")
+					return errors.Wrap(err, "failed to upsert metric")
+				}
+
+				var query squirrel.InsertBuilder
+
 				switch metric.MType {
 				case domain.Gauge:
-					err := query.UpsertGaugeMetric(ctx, db.UpsertGaugeMetricParams{
-						Value:    metric.Value,
-						MetricID: metric.ID,
-					})
-					if err != nil {
-						ds.log.Error().Err(err).Msg("error insert metric")
-
-						return errors.Wrap(err, "error insert metric")
-					}
+					query = ds.builder.Insert("gauge_metrics").
+						Columns("value", "metric_id").
+						Values(metric.Value, metric.ID).
+						Suffix("ON CONFLICT (metric_id) DO UPDATE SET value = EXCLUDED.value")
 				case domain.Counter:
-					err := query.UpsertCounterMetric(ctx, db.UpsertCounterMetricParams{
-						Delta:    metric.Delta,
-						MetricID: metric.ID,
-					})
-					if err != nil {
-						ds.log.Error().Err(err).Msg("error insert metric")
+					query = ds.builder.Insert("counter_metrics").
+						Columns("delta", "metric_id").
+						Values(metric.Delta, metric.ID).
+						Suffix("ON CONFLICT (metric_id) DO UPDATE SET delta = EXCLUDED.delta")
+				}
 
-						return errors.Wrap(err, "error insert metric")
-					}
+				sql, args, err = query.ToSql()
+				if err != nil {
+					ds.log.Error().Err(err).Msg("failed to build UPSERT query for counter")
+					return errors.Wrap(err, "failed to build UPSERT query for counter")
+				}
+
+				// Execute the UPSERT for the Counter metric.
+				_, err = tx.Exec(ctx, sql, args...)
+				if err != nil {
+					ds.log.Error().Err(err).Msg("failed to upsert counter metric")
+					return errors.Wrap(err, "failed to upsert counter metric")
 				}
 			}
 
