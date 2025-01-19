@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
@@ -61,7 +60,7 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 
 	// Send the response with updated metrics
 	response.WriteHeader(http.StatusOK)
-	if err = json.NewEncoder(response).Encode(newMetrics); err != nil {
+	if err = mh.json.NewEncoder(response).Encode(newMetrics); err != nil {
 		mh.logger.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(response, "Failed to process response", http.StatusInternalServerError)
 	}

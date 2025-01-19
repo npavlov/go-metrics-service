@@ -1,12 +1,12 @@
 package validators
 
 import (
-	"encoding/json"
 	"fmt"
 	"io"
 	"strconv"
 
 	"github.com/go-playground/validator/v10"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
@@ -24,12 +24,14 @@ type MValidator interface {
 // MValidatorImpl - the implementation structure for validations.
 type MValidatorImpl struct {
 	validate *validator.Validate
+	json     jsoniter.API
 }
 
 // NewMetricsValidator - the builder function for MValidatorImpl.
 func NewMetricsValidator() *MValidatorImpl {
 	return &MValidatorImpl{
 		validate: validator.New(validator.WithRequiredStructEnabled()),
+		json:     jsoniter.ConfigCompatibleWithStandardLibrary,
 	}
 }
 
@@ -114,7 +116,7 @@ func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*db.Metric, error) {
 		},
 	}
 
-	err := json.NewDecoder(body).Decode(metric)
+	err := v.json.NewDecoder(body).Decode(metric)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse metric json")
 	}
@@ -138,7 +140,7 @@ func (v *MValidatorImpl) FromBody(body io.ReadCloser) (*db.Metric, error) {
 func (v *MValidatorImpl) ManyFromBody(body io.ReadCloser) ([]*db.Metric, error) {
 	var metrics []*db.Metric
 
-	err := json.NewDecoder(body).Decode(&metrics)
+	err := v.json.NewDecoder(body).Decode(&metrics)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to parse metric json")
 	}

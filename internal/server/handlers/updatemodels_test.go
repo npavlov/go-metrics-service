@@ -3,11 +3,11 @@ package handlers_test
 import (
 	"bytes"
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -31,6 +31,7 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 	cfg := config.NewConfigBuilder(log).Build()
 	var cRouter router.Router = router.NewCustomRouter(cfg, log)
 	cRouter.SetRouter(mHandlers, nil)
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 	tests := []struct {
 		name           string

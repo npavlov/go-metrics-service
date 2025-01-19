@@ -89,8 +89,14 @@ goose-up:
 goose-down:
 	goose -dir migrations postgres "$(DATABASE_DSN)" down
 
-# ----------- Code Generation Command -----------
-# Generate SQL code using sqlc
-.PHONY: sqlc
-sqlc:
-	sqlc generate
+.PHONY: collect-profile
+collect-profile:
+	bash collect_profiles.sh
+
+.PHONY: open-cpu-server-profile
+open-cpu-server-profile:
+	go tool pprof -http=":9090" ./profiles/cpu_server.pprof
+
+.PHONY: open-heap-server-profile
+open-heap-server-profile:
+	go tool pprof -http=":9090" ./profiles/heap_server.pprof
