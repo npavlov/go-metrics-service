@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -29,7 +28,7 @@ func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Re
 func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *http.Request) {
 	// Decode the incoming JSON request into the Metric struct
 	var metric *db.Metric
-	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
+	if err := mh.json.NewDecoder(request.Body).Decode(&metric); err != nil {
 		mh.logger.Error().Err(err).Msg("Invalid JSON input")
 		http.Error(response, "Invalid JSON input", http.StatusNotFound)
 
@@ -46,7 +45,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	}
 
 	response.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(response).Encode(responseMetric)
+	err := mh.json.NewEncoder(response).Encode(responseMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(response, "Failed to process response", http.StatusInternalServerError)

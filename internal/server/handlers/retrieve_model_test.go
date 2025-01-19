@@ -1,12 +1,12 @@
 package handlers_test
 
 import (
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -90,6 +90,8 @@ func TestUpdateRetrieveModel(t *testing.T) {
 func testUpdateModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int) {
 	t.Helper()
 
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+
 	payload, err := json.Marshal(request)
 	require.NoError(t, err)
 
@@ -108,6 +110,7 @@ func testUpdateModel(t *testing.T, server *httptest.Server, request *db.Metric, 
 func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int, expectedResponse *db.Metric) {
 	t.Helper()
 
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	payload, err := json.Marshal(request)
 	require.NoError(t, err)
 
@@ -126,6 +129,8 @@ func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.Metric
 // sendRequest simplifies sending requests to the test server.
 func sendRequest(t *testing.T, server *httptest.Server, route string, payload interface{}) (*db.Metric, int, error) {
 	t.Helper()
+
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 	url := server.URL + route
 	client := resty.New()

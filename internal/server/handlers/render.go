@@ -5,7 +5,6 @@ import (
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
-	"github.com/npavlov/go-metrics-service/web"
 )
 
 func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Request) {
@@ -14,9 +13,7 @@ func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Requ
 	}{
 		Metrics: mh.repo.GetAll(request.Context()),
 	}
-
-	reader := web.NewEmbedReader()
-	tmpl, err := reader.Read("index.html")
+	tmpl, err := mh.embedReader.Read("index.html")
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("Could not load template")
 		http.Error(response, "Failed to load template: "+err.Error(), http.StatusInternalServerError)

@@ -5,10 +5,10 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-resty/resty/v2"
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
@@ -26,14 +26,16 @@ type Result struct {
 }
 
 type Sender struct {
-	cfg *config.Config
-	l   *zerolog.Logger
+	cfg  *config.Config
+	l    *zerolog.Logger
+	json jsoniter.API
 }
 
 func NewSender(cfg *config.Config, logger *zerolog.Logger) *Sender {
 	return &Sender{
-		cfg: cfg,
-		l:   logger,
+		cfg:  cfg,
+		l:    logger,
+		json: jsoniter.ConfigCompatibleWithStandardLibrary,
 	}
 }
 
@@ -60,7 +62,7 @@ func (rh *Sender) SendMetricsBatch(ctx context.Context, metrics []db.Metric) ([]
 }
 
 func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interface{}) ([]byte, error) {
-	payload, err := json.Marshal(data)
+	payload, err := rh.json.Marshal(data)
 	if err != nil {
 		rh.l.Error().Err(err).Msg("Failed to marshal metric")
 
@@ -122,7 +124,7 @@ func (rh *Sender) calculateHash(payload []byte) string {
 func (rh *Sender) read(data []byte) (*db.Metric, error) {
 	// Unmarshal the decompressed response into a Metric struct
 	var rMetric db.Metric
-	err := json.Unmarshal(data, &rMetric)
+	err := rh.json.Unmarshal(data, &rMetric)
 	if err != nil {
 		rh.l.Error().Err(err).Msg("Failed to unmarshal metric")
 
@@ -135,7 +137,7 @@ func (rh *Sender) read(data []byte) (*db.Metric, error) {
 func (rh *Sender) readMany(data []byte) ([]db.Metric, error) {
 	// Unmarshal the decompressed response into a Metric struct
 	var rMetrics []db.Metric
-	err := json.Unmarshal(data, &rMetrics)
+	err := rh.json.Unmarshal(data, &rMetrics)
 	if err != nil {
 		rh.l.Error().Err(err).Msg("Failed to unmarshal metric")
 

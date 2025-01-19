@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -53,7 +52,7 @@ func (mh *MetricHandler) UpdateModel(response http.ResponseWriter, request *http
 	}
 
 	response.WriteHeader(http.StatusOK)
-	err = json.NewEncoder(response).Encode(metric)
+	err = mh.json.NewEncoder(response).Encode(metric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(response, "Failed to process response", http.StatusInternalServerError)

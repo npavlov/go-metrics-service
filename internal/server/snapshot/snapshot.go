@@ -1,10 +1,10 @@
 package snapshot
 
 import (
-	"encoding/json"
 	"io/fs"
 	"os"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 
@@ -21,6 +21,7 @@ type Snapshot interface {
 type MemSnapshot struct {
 	filePath string
 	l        *zerolog.Logger
+	json     jsoniter.API
 }
 
 // NewMemSnapshot creates a new Memento with the given file path and logger.
@@ -28,12 +29,13 @@ func NewMemSnapshot(filePath string, l *zerolog.Logger) *MemSnapshot {
 	return &MemSnapshot{
 		filePath: filePath,
 		l:        l,
+		json:     jsoniter.ConfigCompatibleWithStandardLibrary,
 	}
 }
 
 // Save stores the state of the metrics to the configured file.
 func (m *MemSnapshot) Save(state map[domain.MetricName]db.Metric) error {
-	file, err := json.MarshalIndent(state, "", "  ")
+	file, err := m.json.MarshalIndent(state, "", "  ")
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal output")
 	}
@@ -56,7 +58,7 @@ func (m *MemSnapshot) Restore() (map[domain.MetricName]db.Metric, error) {
 	}
 
 	newStorage := make(map[domain.MetricName]db.Metric)
-	err = json.Unmarshal(file, &newStorage)
+	err = m.json.Unmarshal(file, &newStorage)
 	if err != nil {
 		m.l.Error().Err(err).Msg("failed to unmarshal output")
 

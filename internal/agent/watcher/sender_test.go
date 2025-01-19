@@ -2,11 +2,11 @@ package watcher_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -26,6 +26,7 @@ func TestSendMetric(t *testing.T) {
 	cfg := &config.Config{
 		Address: "http://localhost",
 	}
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 	metric := db.NewMetric("test_metric", "gauge", nil, float64Ptr(3.14))
 
@@ -65,6 +66,7 @@ func TestSendMetricsBatch(t *testing.T) {
 	cfg := &config.Config{
 		Address: "http://localhost",
 	}
+	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
 	metrics := []db.Metric{
 		*db.NewMetric("metric1", "counter", int64Ptr(1), nil),
