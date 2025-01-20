@@ -109,11 +109,11 @@ func TestGzipMiddleware(t *testing.T) {
 }
 
 func BenchmarkGzipMiddleware(b *testing.B) {
-	handler := middlewares.GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte(strings.Repeat("A", 1024))) // Ответ размером 1 КБ
+	handler := middlewares.GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("A", 1024))) // Ответ размером 1 КБ
 	}))
 
-	req := httptest.NewRequest("GET", "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
 	req.Header.Set("Accept-Encoding", "gzip")
 	w := httptest.NewRecorder()
 

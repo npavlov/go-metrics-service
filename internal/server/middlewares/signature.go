@@ -36,12 +36,17 @@ func SignatureMiddleware(signKey string, log *zerolog.Logger) func(http.Handler)
 				}
 				request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-				h := hPool.Get().(hash.Hash)
-				h.Reset()
-				h.Write(bodyBytes)
-				signature := hex.EncodeToString(h.Sum(nil))
+				hmacWriter, ok := hPool.Get().(hash.Hash)
+				if !ok {
+					response.WriteHeader(http.StatusInternalServerError)
 
-				defer hPool.Put(h)
+					return
+				}
+				hmacWriter.Reset()
+				hmacWriter.Write(bodyBytes)
+				signature := hex.EncodeToString(hmacWriter.Sum(nil))
+
+				defer hPool.Put(hmacWriter)
 
 				response.Header().Add("HashSHA256", signature)
 

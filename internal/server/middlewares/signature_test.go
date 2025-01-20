@@ -146,7 +146,7 @@ func BenchmarkSignatureMiddleware(b *testing.B) {
 	middleware := middlewares.SignatureMiddleware(signKey, &logger)
 
 	// Handler to test
-	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
 

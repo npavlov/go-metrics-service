@@ -89,7 +89,7 @@ func TestMemStorageBackupAndRestore(t *testing.T) {
 		StoreInterval:  0,
 		RestoreStorage: false,
 	}
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	// Create metrics to be backed up
 	ctx, cancel := context.WithCancel(context.Background())
@@ -198,7 +198,7 @@ func TestMemStorageStartBackup(t *testing.T) {
 		StoreIntervalDur: 1 * time.Second,
 	}
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	ctx, cancel := context.WithCancel(context.Background())
 	memStorage := storage.NewMemStorage(testutils.GetTLogger()).WithBackup(ctx, cfg)
@@ -284,7 +284,7 @@ func TestMemStorageConcurrentBackup(t *testing.T) {
 		StoreIntervalDur: 1 * time.Second,
 	}
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	ctx, cancel := context.WithCancel(context.Background())
 

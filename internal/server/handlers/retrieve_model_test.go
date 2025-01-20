@@ -92,7 +92,7 @@ func TestUpdateRetrieveModel(t *testing.T) {
 func testUpdateModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int) {
 	t.Helper()
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	payload, err := json.Marshal(request)
 	require.NoError(t, err)
@@ -112,7 +112,7 @@ func testUpdateModel(t *testing.T, server *httptest.Server, request *db.Metric, 
 func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.Metric, expectedCode int, expectedResponse *db.Metric) {
 	t.Helper()
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	payload, err := json.Marshal(request)
 	require.NoError(t, err)
 
@@ -132,7 +132,7 @@ func testRetrieveModel(t *testing.T, server *httptest.Server, request *db.Metric
 func sendRequest(t *testing.T, server *httptest.Server, route string, payload interface{}) (*db.Metric, int, error) {
 	t.Helper()
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	url := server.URL + route
 	client := resty.New()
@@ -149,7 +149,7 @@ func sendRequest(t *testing.T, server *httptest.Server, route string, payload in
 	return metric, resp.StatusCode(), nil
 }
 
-// BenchmarkRetrieveModel - Benchmark for RetrieveModel
+// BenchmarkRetrieveModel - Benchmark for RetrieveModel.
 func BenchmarkRetrieveModel(b *testing.B) {
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	// Initialize storage and router

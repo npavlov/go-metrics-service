@@ -33,7 +33,12 @@ func GzipMiddleware(next http.Handler) http.Handler {
 		response.Header().Set("Content-Encoding", "gzip")
 		response.Header().Del("Content-Length") // Can't know content length after compression
 
-		gzWriter := gzipPool.Get().(*gzip.Writer)
+		gzWriter, ok := gzipPool.Get().(*gzip.Writer)
+		if !ok {
+			response.WriteHeader(http.StatusInternalServerError)
+
+			return
+		}
 		defer gzipPool.Put(gzWriter)
 
 		gzWriter.Reset(response)

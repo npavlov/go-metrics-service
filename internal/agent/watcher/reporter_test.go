@@ -31,7 +31,7 @@ func TestMetricReporter_SendSingleMetric(t *testing.T) {
 		RateLimit:         1,
 		UseBatch:          false,
 	}
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	// Mock server to simulate the Sender
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -73,7 +73,7 @@ func TestMetricReporter_SendBatchMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	logger := zerolog.Nop()
 	cfg := &config.Config{
 		ReportIntervalDur: 100 * time.Millisecond,
@@ -170,7 +170,7 @@ func TestMetricReporter_StopOnContextCancel(t *testing.T) {
 		RateLimit:         1,
 		UseBatch:          false,
 	}
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var receivedMetric db.Metric

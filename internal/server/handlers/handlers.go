@@ -2,11 +2,11 @@ package handlers
 
 import (
 	jsoniter "github.com/json-iterator/go"
-	"github.com/npavlov/go-metrics-service/web"
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/validators"
+	"github.com/npavlov/go-metrics-service/web"
 )
 
 type MetricHandler struct {

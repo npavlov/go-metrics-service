@@ -1,10 +1,10 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"os"
 
-	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog/log"
 )
 
@@ -17,8 +17,6 @@ func main() {
 		envs[pair[0]] = pair[1]
 	}
 
-	// Convert the map to a JSON string
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
 	envJSON, err := json.Marshal(envs)
 	if err != nil {
 		log.Error().Err(err).Msg("Error marshalling envs to JSON")

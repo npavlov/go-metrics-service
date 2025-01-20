@@ -26,7 +26,7 @@ func TestSendMetric(t *testing.T) {
 	cfg := &config.Config{
 		Address: "http://localhost",
 	}
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	metric := db.NewMetric("test_metric", "gauge", nil, float64Ptr(3.14))
 
@@ -66,7 +66,7 @@ func TestSendMetricsBatch(t *testing.T) {
 	cfg := &config.Config{
 		Address: "http://localhost",
 	}
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	metrics := []db.Metric{
 		*db.NewMetric("metric1", "counter", int64Ptr(1), nil),

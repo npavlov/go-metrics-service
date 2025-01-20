@@ -31,7 +31,7 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 	cfg := config.NewConfigBuilder(log).Build()
 	var cRouter router.Router = router.NewCustomRouter(cfg, log)
 	cRouter.SetRouter(mHandlers, nil)
-	var json = jsoniter.ConfigCompatibleWithStandardLibrary
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	tests := []struct {
 		name           string

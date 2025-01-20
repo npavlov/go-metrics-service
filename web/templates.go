@@ -24,6 +24,7 @@ type EmbedReader struct {
 func NewEmbedReader() *EmbedReader {
 	return &EmbedReader{
 		cache: make(map[string]*template.Template),
+		mu:    sync.RWMutex{},
 	}
 }
 
@@ -32,6 +33,7 @@ func (t *EmbedReader) Read(filename string) (*template.Template, error) {
 	t.mu.RLock()
 	if tmpl, found := t.cache[filename]; found {
 		t.mu.RUnlock()
+
 		return tmpl, nil
 	}
 	t.mu.RUnlock()

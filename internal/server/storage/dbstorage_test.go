@@ -316,7 +316,6 @@ func TestDBStorage_GetMany_DBError(t *testing.T) {
 
 func BenchmarkGetAll(b *testing.B) {
 	mockDB, err := pgxmock.NewPool()
-
 	if err != nil {
 		b.Fatal(err)
 	}
