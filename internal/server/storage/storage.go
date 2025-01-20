@@ -95,7 +95,7 @@ func (ms *MemStorage) StartBackup(ctx context.Context) {
 	}
 }
 
-func (ms *MemStorage) GetAll(_ context.Context) map[domain.MetricName]db.Metric {
+func (ms *MemStorage) GetAll(_ context.Context) map[domain.MetricName]*db.Metric {
 	ms.mu.RLock()
 	defer ms.mu.RUnlock()
 
@@ -128,10 +128,10 @@ func (ms *MemStorage) GetMany(_ context.Context, names []domain.MetricName) (map
 }
 
 // Generic function to clone a map of Metrics.
-func cloneMap(original map[domain.MetricName]db.Metric) map[domain.MetricName]db.Metric {
-	cloned := make(map[domain.MetricName]db.Metric)
+func cloneMap(original map[domain.MetricName]db.Metric) map[domain.MetricName]*db.Metric {
+	cloned := make(map[domain.MetricName]*db.Metric, len(original))
 	for key, value := range original {
-		cloned[key] = value
+		cloned[key] = db.NewMetric(value.ID, value.MType, value.Delta, value.Value)
 	}
 
 	return cloned

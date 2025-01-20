@@ -9,7 +9,7 @@ import (
 
 func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Request) {
 	page := struct {
-		Metrics map[domain.MetricName]db.Metric
+		Metrics map[domain.MetricName]*db.Metric
 	}{
 		Metrics: mh.repo.GetAll(request.Context()),
 	}
