@@ -105,3 +105,13 @@ open-heap-server-profile:
 .PHONY: bench-mem
 bench-mem:
 	$(GO) test ./... -bench=. -benchmem
+
+#Generate swagger
+.PHONY: generate-swagger
+generate-swagger:
+	swag init -g ../../cmd/server/main.go -o ./swagger/ -d ./internal/server/ --parseDependency
+
+# Run the Go documentation server
+.PHONY: godoc
+godoc:
+	godoc -http=:6060

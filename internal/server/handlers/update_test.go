@@ -2,10 +2,13 @@ package handlers_test
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -213,4 +216,29 @@ func testUpdateRequest(t *testing.T, ts *httptest.Server, route string, statusCo
 
 	require.NoError(t, err, "error making HTTP request")
 	assert.Equal(t, statusCode, res.StatusCode())
+}
+
+func ExampleMetricHandler_Update() {
+	log := testutils.GetTLogger()
+	memStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(memStorage, log)
+
+	r := chi.NewRouter()
+	r.Post("/metrics/update/{metricType}/{metricName}/{value}", mHandlers.Update)
+
+	req := httptest.NewRequest(http.MethodPost, "/metrics/update/gauge/cpu_usage/42", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	resp := w.Result()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	// Print status code
+	fmt.Println(resp.StatusCode)
+
+	// Output:
+	// 200
 }

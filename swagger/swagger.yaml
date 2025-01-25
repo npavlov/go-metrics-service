@@ -1,0 +1,21 @@
+info:
+  contact: {}
+paths:
+  /ping:
+    get:
+      description: Checks the health of the service by verifying the database connection.
+      produces:
+      - text/plain
+      responses:
+        "200":
+          description: Service is healthy
+          schema:
+            type: string
+        "500":
+          description: Failed to connect to database
+          schema:
+            type: string
+      summary: Health check for the service
+      tags:
+      - Health
+swagger: "2.0"

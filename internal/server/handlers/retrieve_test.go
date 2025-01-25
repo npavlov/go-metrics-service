@@ -2,10 +2,13 @@ package handlers_test
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -117,4 +120,30 @@ func testRetrieveRequest(t *testing.T, ts *httptest.Server, route string, tt wan
 	if res.StatusCode() == http.StatusOK {
 		assert.Equal(t, tt.result, string(res.Body()))
 	}
+}
+
+func ExampleMetricHandler_Retrieve() {
+	log := testutils.GetTLogger()
+	memStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(memStorage, log)
+	_ = memStorage.Create(context.Background(), db.NewMetric(domain.LastGC, domain.Gauge, nil, float64Ptr(0.001)))
+
+	r := chi.NewRouter()
+	r.Get("/metrics/{metricName}", mHandlers.Retrieve)
+
+	req := httptest.NewRequest(http.MethodGet, "/metrics/LastGC", nil)
+	w := httptest.NewRecorder()
+
+	r.ServeHTTP(w, req)
+
+	resp := w.Result()
+	defer func(Body io.ReadCloser) {
+		_ = Body.Close()
+	}(resp.Body)
+
+	// Print status code
+	fmt.Println(resp.StatusCode)
+
+	// Output:
+	// 200
 }

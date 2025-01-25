@@ -7,6 +7,17 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
+// Render handles the rendering of the metrics page.
+//
+// Parameters:
+//   - response: The HTTP response writer.
+//   - request: The HTTP request.
+//
+// Behavior:
+//   - Fetches all metrics from the repository.
+//   - Reads the "index.html" template using the embedded reader.
+//   - Renders the template with the metrics data.
+//   - Returns HTTP 500 status code if any errors occur during template loading or rendering.
 func (mh *MetricHandler) Render(response http.ResponseWriter, request *http.Request) {
 	page := struct {
 		Metrics map[domain.MetricName]*db.Metric

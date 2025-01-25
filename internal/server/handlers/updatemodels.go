@@ -7,6 +7,8 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
+// UpdateModels handles HTTP requests to update multiple metrics in a single operation.
+// It validates the input, updates existing metrics, creates new ones, and returns the updated metrics as JSON.
 func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *http.Request) {
 	// Parse and validate metrics from the request body
 	metrics, err := mh.validator.ManyFromBody(request.Body)
