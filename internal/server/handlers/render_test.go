@@ -3,7 +3,6 @@ package handlers_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -87,21 +86,20 @@ func ExampleMetricHandler_Render() {
 	}
 
 	req := httptest.NewRequest(http.MethodGet, "/render", nil)
-	w := httptest.NewRecorder()
+	resp := httptest.NewRecorder()
 
 	for _, v := range metrics {
 		_ = memStorage.Update(context.Background(), &v)
 	}
 
-	mHandlers.Render(w, req)
+	mHandlers.Render(resp, req)
 
-	resp := w.Result()
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	result := resp.Result()
+
+	defer result.Body.Close()
 
 	// Print status code
-	fmt.Println(resp.StatusCode)
+	fmt.Println(result.StatusCode)
 
 	// Output:
 	// 200

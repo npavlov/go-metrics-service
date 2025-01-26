@@ -3,7 +3,6 @@ package handlers_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -223,21 +222,20 @@ func ExampleMetricHandler_Update() {
 	memStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(memStorage, log)
 
-	r := chi.NewRouter()
-	r.Post("/metrics/update/{metricType}/{metricName}/{value}", mHandlers.Update)
+	newRouter := chi.NewRouter()
+	newRouter.Post("/metrics/update/{metricType}/{metricName}/{value}", mHandlers.Update)
 
 	req := httptest.NewRequest(http.MethodPost, "/metrics/update/gauge/cpu_usage/42", nil)
-	w := httptest.NewRecorder()
+	response := httptest.NewRecorder()
 
-	r.ServeHTTP(w, req)
+	newRouter.ServeHTTP(response, req)
 
-	resp := w.Result()
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	result := response.Result()
+
+	defer result.Body.Close()
 
 	// Print status code
-	fmt.Println(resp.StatusCode)
+	fmt.Println(result.StatusCode)
 
 	// Output:
 	// 200

@@ -5,10 +5,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/rs/zerolog"
+
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
-	"github.com/rs/zerolog"
 )
 
 const (
@@ -74,9 +75,6 @@ func (cr *CustomRouter) SetRouter(mh *handlers.MetricHandler, hh *handlers.Healt
 			router.With(middlewares.ContentMiddleware("application/text")).
 				Get("/", hh.Ping)
 		})
-
-		//TODO: enable later
-		//router.Get("/swagger/*", httpSwagger.WrapHandler)
 	})
 }
 

@@ -101,6 +101,14 @@ open-cpu-server-profile:
 open-heap-server-profile:
 	go tool pprof -http=":9090" ./profiles/heap_server.pprof
 
+.PHONY: compare-cpu-profiles
+compare-cpu-profiles:
+	go tool pprof -http=":9090" -diff_base=./profiles/cpu_server_old.pprof ./profiles/cpu_server.pprof
+
+.PHONY: compare-head-profiles
+compare-head-profiles:
+	go tool pprof -http=":9090" -diff_base=./profiles/heap_server_old.pprof ./profiles/heap_server.pprof
+
 # Run only benchmarks and collect memory allocation statistics
 .PHONY: bench-mem
 bench-mem:

@@ -44,7 +44,7 @@ func NewHealthHandler(database *dbmanager.DBManager, l *zerolog.Logger) *HealthH
 // @Produce      plain
 // @Success      200  {string}  string  "Service is healthy"
 // @Failure      500  {string}  string  "Failed to connect to database"
-// @Router       /ping [get]
+// @Router       /ping [get].
 func (mh *HealthHandler) Ping(response http.ResponseWriter, req *http.Request) {
 	if !mh.database.IsConnected {
 		mh.logger.Info().Msg("Database is not connected, can't ping")

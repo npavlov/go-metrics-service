@@ -4,16 +4,16 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
 	jsoniter "github.com/json-iterator/go"
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 
@@ -140,17 +140,16 @@ func ExampleMetricHandler_UpdateModels() {
 
 	req := httptest.NewRequest(http.MethodPost, "/metrics/update", strings.NewReader(jsonPayload))
 	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
+	response := httptest.NewRecorder()
 
-	mHandlers.UpdateModels(w, req)
+	mHandlers.UpdateModels(response, req)
 
-	resp := w.Result()
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	result := response.Result()
+
+	defer result.Body.Close()
 
 	// Print status code
-	fmt.Println(resp.StatusCode)
+	fmt.Println(result.StatusCode)
 
 	// Output:
 	// 200

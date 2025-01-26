@@ -3,7 +3,6 @@ package handlers_test
 import (
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -128,21 +127,20 @@ func ExampleMetricHandler_Retrieve() {
 	mHandlers := handlers.NewMetricsHandler(memStorage, log)
 	_ = memStorage.Create(context.Background(), db.NewMetric(domain.LastGC, domain.Gauge, nil, float64Ptr(0.001)))
 
-	r := chi.NewRouter()
-	r.Get("/metrics/{metricName}", mHandlers.Retrieve)
+	newRouter := chi.NewRouter()
+	newRouter.Get("/metrics/{metricName}", mHandlers.Retrieve)
 
 	req := httptest.NewRequest(http.MethodGet, "/metrics/LastGC", nil)
-	w := httptest.NewRecorder()
+	resp := httptest.NewRecorder()
 
-	r.ServeHTTP(w, req)
+	newRouter.ServeHTTP(resp, req)
 
-	resp := w.Result()
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(resp.Body)
+	result := resp.Result()
+
+	defer result.Body.Close()
 
 	// Print status code
-	fmt.Println(resp.StatusCode)
+	fmt.Println(result.StatusCode)
 
 	// Output:
 	// 200

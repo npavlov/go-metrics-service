@@ -3,16 +3,16 @@ package handlers_test
 import (
 	"errors"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
@@ -109,9 +109,7 @@ func ExampleHealthHandler_Ping() {
 	handler.Ping(resp, req)
 
 	result := resp.Result()
-	defer func(Body io.ReadCloser) {
-		_ = Body.Close()
-	}(result.Body)
+	defer result.Body.Close()
 
 	// Print status code
 	fmt.Println(result.StatusCode)
