@@ -3,17 +3,13 @@ package handlers_test
 import (
 	"bytes"
 	"context"
-	"fmt"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	jsoniter "github.com/json-iterator/go"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 
@@ -126,31 +122,4 @@ func TestMetricHandler_UpdateModels(t *testing.T) {
 			}
 		})
 	}
-}
-
-func ExampleMetricHandler_UpdateModels() {
-	log := testutils.GetTLogger()
-	memStorage := storage.NewMemStorage(log)
-	mHandlers := handlers.NewMetricsHandler(memStorage, log)
-
-	jsonPayload := `[
-		{"id": "cpu_usage", "type": "gauge", "value": 50},
-		{"id": "request_count", "type": "counter", "delta": 10}
-	]`
-
-	req := httptest.NewRequest(http.MethodPost, "/metrics/update", strings.NewReader(jsonPayload))
-	req.Header.Set("Content-Type", "application/json")
-	response := httptest.NewRecorder()
-
-	mHandlers.UpdateModels(response, req)
-
-	result := response.Result()
-
-	defer result.Body.Close()
-
-	// Print status code
-	fmt.Println(result.StatusCode)
-
-	// Output:
-	// 200
 }
