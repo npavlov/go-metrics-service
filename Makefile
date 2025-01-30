@@ -89,8 +89,37 @@ goose-up:
 goose-down:
 	goose -dir migrations postgres "$(DATABASE_DSN)" down
 
-# ----------- Code Generation Command -----------
-# Generate SQL code using sqlc
-.PHONY: sqlc
-sqlc:
-	sqlc generate
+.PHONY: collect-profile
+collect-profile:
+	bash collect_profiles.sh
+
+.PHONY: open-cpu-server-profile
+open-cpu-server-profile:
+	go tool pprof -http=":9090" ./profiles/cpu_server.pprof
+
+.PHONY: open-heap-server-profile
+open-heap-server-profile:
+	go tool pprof -http=":9090" ./profiles/heap_server.pprof
+
+.PHONY: compare-cpu-profiles
+compare-cpu-profiles:
+	go tool pprof -http=":9090" -diff_base=./profiles/cpu_server_old.pprof ./profiles/cpu_server.pprof
+
+.PHONY: compare-head-profiles
+compare-head-profiles:
+	go tool pprof -http=":9090" -diff_base=./profiles/heap_server_old.pprof ./profiles/heap_server.pprof
+
+# Run only benchmarks and collect memory allocation statistics
+.PHONY: bench-mem
+bench-mem:
+	$(GO) test ./... -bench=. -benchmem
+
+#Generate swagger
+.PHONY: generate-swagger
+generate-swagger:
+	swag init -g ../../cmd/server/main.go -o ./swagger/ -d ./internal/server/ --parseDependency
+
+# Run the Go documentation server
+.PHONY: godoc
+godoc:
+	godoc -http=:6060

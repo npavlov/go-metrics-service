@@ -126,3 +126,46 @@ func TestSignatureMiddleware(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rr.Code)
 	})
 }
+
+func BenchmarkSignatureMiddleware(b *testing.B) {
+	// Setup logger
+	logger := zerolog.New(io.Discard)
+
+	// Example key for signing
+	signKey := "example-sign-key"
+
+	// Sample body data
+	bodyData := []byte(`{"example": "data"}`)
+
+	// Expected HMAC signature
+	h := hmac.New(sha256.New, []byte(signKey))
+	h.Write(bodyData)
+	expectedSignature := hex.EncodeToString(h.Sum(nil))
+
+	// Middleware to test
+	middleware := middlewares.SignatureMiddleware(signKey, &logger)
+
+	// Handler to test
+	nextHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	// Wrap the handler with middleware
+	testHandler := middleware(nextHandler)
+
+	// Create a test HTTP request
+	request := httptest.NewRequest(http.MethodPost, "/", bytes.NewReader(bodyData))
+	request.Header.Set("HashSHA256", expectedSignature)
+
+	// Run the benchmark
+	for i := 0; i < b.N; i++ {
+		// Create a new ResponseRecorder for each iteration
+		recorder := httptest.NewRecorder()
+
+		// Reset request body for each iteration
+		request.Body = io.NopCloser(bytes.NewReader(bodyData))
+
+		// Serve the request
+		testHandler.ServeHTTP(recorder, request)
+	}
+}

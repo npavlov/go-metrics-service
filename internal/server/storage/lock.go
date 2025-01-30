@@ -1,3 +1,5 @@
+// how does it work you can read in article below
+// https://medium.com/thefreshwrites/advisory-locks-in-postgres-1f993647d061
 package storage
 
 import (

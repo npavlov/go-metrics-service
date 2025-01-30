@@ -76,8 +76,8 @@ func (ds *DBStorage) isRetryableError(err error) bool {
 }
 
 // GetAll retrieves all metrics from the database with retry logic.
-func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]db.Metric {
-	metrics := make(map[domain.MetricName]db.Metric)
+func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]*db.Metric {
+	var metrics map[domain.MetricName]*db.Metric
 
 	err := ds.retryOperation(ctx, func() error {
 		results, err := ds.Queries.GetAllMetrics(ctx)
@@ -87,8 +87,10 @@ func (ds *DBStorage) GetAll(ctx context.Context) map[domain.MetricName]db.Metric
 			return errors.Wrap(err, "error getting metrics")
 		}
 
+		metrics = make(map[domain.MetricName]*db.Metric, len(results))
+
 		for _, m := range results {
-			metrics[m.ID] = *db.NewMetric(m.ID, m.MType, m.Delta, m.Value)
+			metrics[m.ID] = db.NewMetric(m.ID, m.MType, m.Delta, m.Value)
 		}
 
 		return nil

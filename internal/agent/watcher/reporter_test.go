@@ -2,13 +2,13 @@ package watcher_test
 
 import (
 	"context"
-	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"sync"
 	"testing"
 	"time"
 
+	jsoniter "github.com/json-iterator/go"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
@@ -31,6 +31,7 @@ func TestMetricReporter_SendSingleMetric(t *testing.T) {
 		RateLimit:         1,
 		UseBatch:          false,
 	}
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	// Mock server to simulate the Sender
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
@@ -72,6 +73,7 @@ func TestMetricReporter_SendBatchMetrics(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	logger := zerolog.Nop()
 	cfg := &config.Config{
 		ReportIntervalDur: 100 * time.Millisecond,
@@ -168,6 +170,7 @@ func TestMetricReporter_StopOnContextCancel(t *testing.T) {
 		RateLimit:         1,
 		UseBatch:          false,
 	}
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var receivedMetric db.Metric

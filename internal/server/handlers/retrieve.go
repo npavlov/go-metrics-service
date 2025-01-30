@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -11,6 +10,8 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
+// Retrieve handles HTTP requests to retrieve a specific metric by its name.
+// It retrieves the metric from the repository and writes its value to the response.
 func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Request) {
 	metricName := domain.MetricName(chi.URLParam(request, "metricName"))
 
@@ -26,10 +27,12 @@ func (mh *MetricHandler) Retrieve(response http.ResponseWriter, request *http.Re
 	response.WriteHeader(http.StatusOK)
 }
 
+// RetrieveModel handles HTTP requests to retrieve a metric using JSON input.
+// It decodes the input, retrieves the metric from the repository, and sends it as JSON in the response.
 func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *http.Request) {
 	// Decode the incoming JSON request into the Metric struct
 	var metric *db.Metric
-	if err := json.NewDecoder(request.Body).Decode(&metric); err != nil {
+	if err := mh.json.NewDecoder(request.Body).Decode(&metric); err != nil {
 		mh.logger.Error().Err(err).Msg("Invalid JSON input")
 		http.Error(response, "Invalid JSON input", http.StatusNotFound)
 
@@ -46,7 +49,7 @@ func (mh *MetricHandler) RetrieveModel(response http.ResponseWriter, request *ht
 	}
 
 	response.WriteHeader(http.StatusOK)
-	err := json.NewEncoder(response).Encode(responseMetric)
+	err := mh.json.NewEncoder(response).Encode(responseMetric)
 	if err != nil {
 		mh.logger.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(response, "Failed to process response", http.StatusInternalServerError)

@@ -5,8 +5,10 @@ import (
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
+	"hash"
 	"io"
 	"net/http"
+	"sync"
 
 	"github.com/rs/zerolog"
 )
@@ -14,6 +16,12 @@ import (
 // SignatureMiddleware - the net/http middleware function to sign http content.
 func SignatureMiddleware(signKey string, log *zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
+		hPool := &sync.Pool{
+			New: func() interface{} {
+				return hmac.New(sha256.New, []byte(signKey))
+			},
+		}
+
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
 			hashSum := request.Header.Get("HashSHA256")
 			if request.Method == http.MethodPost && hashSum != "" && signKey != "" {
@@ -28,9 +36,17 @@ func SignatureMiddleware(signKey string, log *zerolog.Logger) func(http.Handler)
 				}
 				request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 
-				h := hmac.New(sha256.New, []byte(signKey))
-				h.Write(bodyBytes)
-				signature := hex.EncodeToString(h.Sum(nil))
+				hmacWriter, ok := hPool.Get().(hash.Hash)
+				if !ok {
+					response.WriteHeader(http.StatusInternalServerError)
+
+					return
+				}
+				hmacWriter.Reset()
+				hmacWriter.Write(bodyBytes)
+				signature := hex.EncodeToString(hmacWriter.Sum(nil))
+
+				defer hPool.Put(hmacWriter)
 
 				response.Header().Add("HashSHA256", signature)
 

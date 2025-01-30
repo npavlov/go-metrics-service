@@ -14,8 +14,8 @@ services:
 
   server:
     build:
-      context: .
-      dockerfile: dockerfile.server
+      context: ..
+      dockerfile: dockerfile.server.debug
     networks:
       - app-network
     ports:
@@ -28,8 +28,8 @@ services:
 
   agent:
     build:
-      context: .
-      dockerfile: dockerfile.agent
+      context: ..
+      dockerfile: dockerfile.agent.debug
     networks:
       - app-network
     ports:

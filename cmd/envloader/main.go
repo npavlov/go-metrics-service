@@ -17,7 +17,6 @@ func main() {
 		envs[pair[0]] = pair[1]
 	}
 
-	// Convert the map to a JSON string
 	envJSON, err := json.Marshal(envs)
 	if err != nil {
 		log.Error().Err(err).Msg("Error marshalling envs to JSON")

@@ -1,13 +1,14 @@
 package handlers
 
 import (
-	"encoding/json"
 	"net/http"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
+// UpdateModels handles HTTP requests to update multiple metrics in a single operation.
+// It validates the input, updates existing metrics, creates new ones, and returns the updated metrics as JSON.
 func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *http.Request) {
 	// Parse and validate metrics from the request body
 	metrics, err := mh.validator.ManyFromBody(request.Body)
@@ -61,7 +62,7 @@ func (mh *MetricHandler) UpdateModels(response http.ResponseWriter, request *htt
 
 	// Send the response with updated metrics
 	response.WriteHeader(http.StatusOK)
-	if err = json.NewEncoder(response).Encode(newMetrics); err != nil {
+	if err = mh.json.NewEncoder(response).Encode(newMetrics); err != nil {
 		mh.logger.Error().Err(err).Msg("Failed to encode response JSON")
 		http.Error(response, "Failed to process response", http.StatusInternalServerError)
 	}

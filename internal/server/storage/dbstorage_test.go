@@ -314,6 +314,37 @@ func TestDBStorage_GetMany_DBError(t *testing.T) {
 	assert.Nil(t, metrics)
 }
 
+func BenchmarkGetAll(b *testing.B) {
+	mockDB, err := pgxmock.NewPool()
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	log := logger.NewLogger().Get()
+	dbStorage := storage.NewDBStorage(mockDB, log)
+
+	// Mocking expected rows for the GetAll query
+	rows := pgxmock.NewRows([]string{"id", "type", "delta", "value"}).
+		AddRow(domain.MetricName("metric1"), domain.MetricType("counter"), int64Ptr(10), nil).
+		AddRow(domain.MetricName("metric2"), domain.MetricType("gauge"), nil, float64Ptr(3.14)).
+		AddRow(domain.MetricName("metric3"), domain.MetricType("gauge"), nil, float64Ptr(6.77777)).
+		AddRow(domain.MetricName("metric4"), domain.MetricType("counter"), int64Ptr(10), nil).
+		AddRow(domain.MetricName("metric5"), domain.MetricType("gauge"), nil, float64Ptr(3.14)).
+		AddRow(domain.MetricName("metric6"), domain.MetricType("gauge"), nil, float64Ptr(6.77777)).
+		AddRow(domain.MetricName("metric7"), domain.MetricType("counter"), int64Ptr(10), nil).
+		AddRow(domain.MetricName("metric8"), domain.MetricType("gauge"), nil, float64Ptr(3.14)).
+		AddRow(domain.MetricName("metric9"), domain.MetricType("gauge"), nil, float64Ptr(6.77777)).
+		AddRow(domain.MetricName("metric10"), domain.MetricType("counter"), int64Ptr(10), nil).
+		AddRow(domain.MetricName("metric11"), domain.MetricType("gauge"), nil, float64Ptr(3.14)).
+		AddRow(domain.MetricName("metric12"), domain.MetricType("gauge"), nil, float64Ptr(6.77777))
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		mockDB.ExpectQuery(`SELECT .* FROM mtr_metrics`).WillReturnRows(rows)
+		dbStorage.GetAll(context.Background())
+	}
+}
+
 // Helper function to create float64 pointers.
 func float64Ptr(v float64) *float64 {
 	return &v

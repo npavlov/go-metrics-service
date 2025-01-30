@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -105,4 +106,19 @@ func TestGzipMiddleware(t *testing.T) {
 		assert.Equal(t, "gzip", rec.Header().Get("Content-Encoding"))
 		assert.NotEmpty(t, rec.Body.Bytes())
 	})
+}
+
+func BenchmarkGzipMiddleware(b *testing.B) {
+	handler := middlewares.GzipMiddleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(strings.Repeat("A", 1024))) // Ответ размером 1 КБ
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.Header.Set("Accept-Encoding", "gzip")
+	w := httptest.NewRecorder()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		handler.ServeHTTP(w, req)
+	}
 }
