@@ -14,3 +14,17 @@ func TestExitCheckAnalyzer(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, analysers.ExitCheckAnalyser, "exitcheck")
 }
+
+func TestExitCheckAnalyzerNotMainFunc(t *testing.T) {
+	t.Parallel()
+
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, analysers.ExitCheckAnalyser, "notmainfunc")
+}
+
+func TestExitCheckAnalyzerNotMainPackage(t *testing.T) {
+	t.Parallel()
+
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, analysers.ExitCheckAnalyser, "notmainpackage")
+}
