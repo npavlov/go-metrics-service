@@ -30,6 +30,7 @@ func NewLogger() *Logger {
 func (l *Logger) Get() *zerolog.Logger {
 	l.mx.RLock()
 	defer l.mx.RUnlock()
+	
 	return &l.lg
 }
 
@@ -39,5 +40,6 @@ func (l *Logger) SetLogLevel(level zerolog.Level) *Logger {
 
 	zerolog.TimeFieldFormat = time.RFC3339Nano
 	zerolog.SetGlobalLevel(level)
+
 	return l
 }
