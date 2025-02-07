@@ -21,7 +21,7 @@ import (
 )
 
 func main() {
-	log := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
+	log := logger.NewLogger(zerolog.DebugLevel).Get()
 
 	err := godotenv.Load("server.env")
 	if err != nil {
