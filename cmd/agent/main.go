@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"os"
 	"runtime/debug"
 	"sync"
 
@@ -28,7 +27,6 @@ func main() {
 				Str("error", fmt.Sprintf("%v", r)).
 				Bytes("stack", debug.Stack()).
 				Msg("Fatal error encountered")
-			os.Exit(1)
 		}
 	}()
 

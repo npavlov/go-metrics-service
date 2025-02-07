@@ -18,6 +18,11 @@ build-server:
 build-agent:
 	$(GO) build -gcflags="all=-N -l" -o bin/agent ${CURDIR}/cmd/agent/*.go
 
+# Build multi checker
+.PHONY: build-checker
+build-checker:
+	$(GO) build -gcflags="all=-N -l" -o bin/checker ${CURDIR}/cmd/staticlint/*.go
+
 # ----------- Test Commands -----------
 # Run all tests and generate a coverage profile (coverage.out)
 .PHONY: test
