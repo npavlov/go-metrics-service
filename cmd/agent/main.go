@@ -18,7 +18,7 @@ import (
 )
 
 func main() {
-	log := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
+	log := logger.NewLogger(zerolog.DebugLevel).Get()
 
 	defer func() {
 		// Recover from panic if one occurred. Log the error and exit.
@@ -35,7 +35,7 @@ func main() {
 		log.Error().Err(err).Msg("Error loading agent.env file")
 	}
 
-	cfg := config.NewConfigBuilder(log).
+	cfg := config.NewConfigBuilder(&log).
 		FromEnv().
 		FromFlags().Build()
 
@@ -44,7 +44,7 @@ func main() {
 	// WaitGroup to wait for all goroutines to complete
 	var wg sync.WaitGroup
 
-	ctx, _ := utils.WithSignalCancel(context.Background(), log)
+	ctx, _ := utils.WithSignalCancel(context.Background(), &log)
 
 	log.Info().
 		Str("server_address", cfg.Address).
@@ -52,8 +52,8 @@ func main() {
 
 	metricsStream := make(chan []db.Metric, domain.ChannelLength)
 
-	var collector watcher.Collector = watcher.NewMetricCollector(metricsStream, cfg, log)
-	var reporter watcher.Reporter = watcher.NewMetricReporter(metricsStream, cfg, log)
+	var collector watcher.Collector = watcher.NewMetricCollector(metricsStream, cfg, &log)
+	var reporter watcher.Reporter = watcher.NewMetricReporter(metricsStream, cfg, &log)
 
 	log.Info().
 		Int64("polling_time", cfg.PollInterval).

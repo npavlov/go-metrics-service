@@ -28,15 +28,15 @@ func main() {
 		log.Error().Err(err).Msg("Error loading server.env file")
 	}
 
-	cfg := config.NewConfigBuilder(log).
+	cfg := config.NewConfigBuilder(&log).
 		FromEnv().
 		FromFlags().Build()
 
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
-	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
+	ctx, cancel := utils.WithSignalCancel(context.Background(), &log)
 
-	dbManager := dbmanager.NewDBManager(cfg.Database, log).Connect(ctx).ApplyMigrations()
+	dbManager := dbmanager.NewDBManager(cfg.Database, &log).Connect(ctx).ApplyMigrations()
 	defer dbManager.Close()
 	if err != nil {
 		log.Error().Err(err).Msg("Error initialising db manager")
@@ -44,14 +44,14 @@ func main() {
 
 	var metricStorage model.Repository
 	if dbManager.IsConnected {
-		metricStorage = storage.NewDBStorage(dbManager.DB, log)
+		metricStorage = storage.NewDBStorage(dbManager.DB, &log)
 	} else {
-		metricStorage = storage.NewMemStorage(log).WithBackup(ctx, cfg)
+		metricStorage = storage.NewMemStorage(&log).WithBackup(ctx, cfg)
 	}
 
-	mHandlers := handlers.NewMetricsHandler(metricStorage, log)
-	hHandlers := handlers.NewHealthHandler(dbManager, log)
-	var cRouter router.Router = router.NewCustomRouter(cfg, log)
+	mHandlers := handlers.NewMetricsHandler(metricStorage, &log)
+	hHandlers := handlers.NewHealthHandler(dbManager, &log)
+	var cRouter router.Router = router.NewCustomRouter(cfg, &log)
 	cRouter.SetRouter(mHandlers, hHandlers)
 
 	log.Info().

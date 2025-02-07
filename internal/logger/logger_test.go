@@ -14,25 +14,16 @@ import (
 func TestNewLogger(t *testing.T) {
 	t.Parallel()
 
-	log := logger.NewLogger()
+	log := logger.NewLogger(zerolog.DebugLevel)
 	require.NotNil(t, log)
 	assert.NotNil(t, log.Get())
-}
-
-func TestLogger_SetLogLevel(t *testing.T) {
-	t.Parallel()
-
-	log := logger.NewLogger()
-	log.SetLogLevel(zerolog.DebugLevel)
-
-	assert.Equal(t, zerolog.DebugLevel, zerolog.GlobalLevel())
 }
 
 func TestLogger_Output(t *testing.T) {
 	t.Parallel()
 
 	var buf bytes.Buffer
-	log := logger.NewLogger()
+	log := logger.NewLogger(zerolog.DebugLevel)
 	newLog := log.Get().Output(&buf)
 	newLog.Info().Msg("test message")
 

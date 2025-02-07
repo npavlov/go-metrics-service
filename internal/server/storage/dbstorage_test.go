@@ -10,7 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/npavlov/go-metrics-service/internal/logger"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
@@ -25,7 +25,7 @@ func setupDBStorage(t *testing.T) (*storage.DBStorage, pgxmock.PgxPoolIface) {
 	mockDB, err := pgxmock.NewPool()
 	require.NoError(t, err)
 
-	log := logger.NewLogger().Get()
+	log := testutils.GetTLogger()
 	dbStorage := storage.NewDBStorage(mockDB, log)
 
 	return dbStorage, mockDB
@@ -320,7 +320,7 @@ func BenchmarkGetAll(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	log := logger.NewLogger().Get()
+	log := testutils.GetTLogger()
 	dbStorage := storage.NewDBStorage(mockDB, log)
 
 	// Mocking expected rows for the GetAll query

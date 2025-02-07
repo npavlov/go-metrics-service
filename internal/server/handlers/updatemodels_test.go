@@ -11,12 +11,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
-	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
@@ -25,7 +26,7 @@ import (
 func TestMetricHandler_UpdateModels(t *testing.T) {
 	t.Parallel()
 
-	log := logger.NewLogger().Get()
+	log := testutils.GetTLogger()
 	memStorage := storage.NewMemStorage(log)
 	mHandlers := handlers.NewMetricsHandler(memStorage, log)
 	cfg := config.NewConfigBuilder(log).Build()
