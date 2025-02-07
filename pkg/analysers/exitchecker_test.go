@@ -9,6 +9,8 @@ import (
 )
 
 func TestExitCheckAnalyzer(t *testing.T) {
+	t.Parallel()
+
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, analysers.ExitCheckAnalyser, "exitcheck")
 }
