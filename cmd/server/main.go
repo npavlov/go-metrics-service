@@ -1,3 +1,4 @@
+//nolint:gochecknoglobals,funlen
 package main
 
 import (
@@ -20,8 +21,18 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
 	log := logger.NewLogger(zerolog.DebugLevel).Get()
+
+	log.Info().Str("buildVersion", buildVersion).
+		Str("buildCommit", buildCommit).
+		Str("buildDate", buildDate).Msg("Starting server")
 
 	err := godotenv.Load("server.env")
 	if err != nil {

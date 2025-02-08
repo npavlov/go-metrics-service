@@ -1,3 +1,4 @@
+//nolint:gochecknoglobals
 package main
 
 import (
@@ -17,8 +18,18 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
+var (
+	buildVersion = "N/A"
+	buildDate    = "N/A"
+	buildCommit  = "N/A"
+)
+
 func main() {
 	log := logger.NewLogger(zerolog.DebugLevel).Get()
+
+	log.Info().Str("buildVersion", buildVersion).
+		Str("buildCommit", buildCommit).
+		Str("buildDate", buildDate).Msg("Starting agent")
 
 	defer func() {
 		// Recover from panic if one occurred. Log the error and exit.
