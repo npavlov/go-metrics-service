@@ -6,9 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 
@@ -184,7 +182,7 @@ func TestUpdateHandler(t *testing.T) {
 			server := httptest.NewServer(cRouter.GetRouter())
 			defer server.Close()
 
-			testUpdateRequest(t, server, tt.request, tt.want.statusCode)
+			testutils.SendServerRequest(t, server.URL, tt.request, tt.want.statusCode)
 
 			if tt.want.result != nil {
 				metric, exist := memStorage.Get(context.Background(), tt.want.result.name)
@@ -200,17 +198,4 @@ func TestUpdateHandler(t *testing.T) {
 			}
 		})
 	}
-}
-
-func testUpdateRequest(t *testing.T, ts *httptest.Server, route string, statusCode int) {
-	t.Helper()
-
-	req := resty.New().R()
-	req.Method = http.MethodPost
-	req.URL = ts.URL + route
-
-	res, err := req.Send()
-
-	require.NoError(t, err, "error making HTTP request")
-	assert.Equal(t, statusCode, res.StatusCode())
 }

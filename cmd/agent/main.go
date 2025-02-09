@@ -25,57 +25,71 @@ var (
 )
 
 func main() {
+	log := setupLogger()
+
+	defer handlePanic(&log)
+
+	cfg := loadConfig(&log)
+
+	ctx, cancel := utils.WithSignalCancel(context.Background(), &log)
+	defer cancel()
+
+	runAgent(ctx, cfg, &log)
+}
+
+func setupLogger() zerolog.Logger {
 	log := logger.NewLogger(zerolog.DebugLevel).Get()
 
 	log.Info().Str("buildVersion", buildVersion).
 		Str("buildCommit", buildCommit).
 		Str("buildDate", buildDate).Msg("Starting agent")
 
-	defer func() {
-		// Recover from panic if one occurred. Log the error and exit.
-		if r := recover(); r != nil {
-			log.Fatal().
-				Str("error", fmt.Sprintf("%v", r)).
-				Bytes("stack", debug.Stack()).
-				Msg("Fatal error encountered")
-		}
-	}()
+	return log
+}
 
+func handlePanic(log *zerolog.Logger) {
+	if r := recover(); r != nil {
+		log.Fatal().
+			Str("error", fmt.Sprintf("%v", r)).
+			Bytes("stack", debug.Stack()).
+			Msg("Fatal error encountered")
+	}
+}
+
+func loadConfig(log *zerolog.Logger) *config.Config {
 	err := godotenv.Load("agent.env")
 	if err != nil {
 		log.Error().Err(err).Msg("Error loading agent.env file")
 	}
 
-	cfg := config.NewConfigBuilder(&log).
+	cfg := config.NewConfigBuilder(log).
 		FromEnv().
 		FromFlags().Build()
 
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
-	// WaitGroup to wait for all goroutines to complete
-	var wg sync.WaitGroup
+	return cfg
+}
 
-	ctx, _ := utils.WithSignalCancel(context.Background(), &log)
-
+func runAgent(ctx context.Context, cfg *config.Config, log *zerolog.Logger) {
 	log.Info().
 		Str("server_address", cfg.Address).
 		Msg("Endpoint address set")
 
 	metricsStream := make(chan []db.Metric, domain.ChannelLength)
+	var wg sync.WaitGroup
 
-	var collector watcher.Collector = watcher.NewMetricCollector(metricsStream, cfg, &log)
-	var reporter watcher.Reporter = watcher.NewMetricReporter(metricsStream, cfg, &log)
+	collector := watcher.NewMetricCollector(metricsStream, cfg, log)
+	reporter := watcher.NewMetricReporter(metricsStream, cfg, log)
 
 	log.Info().
 		Int64("polling_time", cfg.PollInterval).
 		Int64("reporting_time", cfg.ReportInterval).
 		Msg("Polling and reporting times set")
 
-	// Start watcher collection
 	wg.Add(1)
 	go collector.StartCollector(ctx, &wg)
 
-	// Start watcher reporting
 	wg.Add(1)
 	go reporter.StartReporter(ctx, &wg)
 

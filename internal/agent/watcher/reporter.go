@@ -89,6 +89,10 @@ func (mr *MetricReporter) metricGenerator(ctx context.Context, wg *sync.WaitGrou
 }
 
 func (mr *MetricReporter) FillStream(metrics []db.Metric) {
+	if metrics == nil {
+		return
+	}
+
 	if mr.cfg.UseBatch {
 		mr.batchStream <- metrics
 	} else {
