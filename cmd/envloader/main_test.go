@@ -29,8 +29,6 @@ func TestSplitEnv(t *testing.T) {
 
 // TestGetEnvAsMap tests getEnvAsMap function with a controlled environment.
 func TestGetEnvAsMap(t *testing.T) {
-	t.Parallel()
-
 	// Backup current environment
 	oldEnv := os.Environ()
 
