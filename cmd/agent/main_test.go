@@ -65,7 +65,7 @@ func TestRunAgent(t *testing.T) {
 		result, _ := utils.DecompressResult(request.Body)
 		err := json.Unmarshal(result, &receivedMetrics)
 		assert.NoError(t, err)
-		assert.Greater(t, len(receivedMetrics), 0)
+		assert.NotEmpty(t, receivedMetrics)
 
 		writer.WriteHeader(http.StatusOK)
 		_ = json.NewEncoder(writer).Encode(receivedMetrics)
