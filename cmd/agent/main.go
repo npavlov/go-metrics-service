@@ -1,4 +1,3 @@
-//nolint:gochecknoglobals
 package main
 
 import (
@@ -10,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rs/zerolog"
 
+	"github.com/npavlov/go-metrics-service/internal/agent/buildinfo"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/domain"
@@ -18,14 +18,12 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
-var (
-	buildVersion = "N/A"
-	buildDate    = "N/A"
-	buildCommit  = "N/A"
-)
-
 func main() {
-	log := setupLogger()
+	log := logger.NewLogger(zerolog.DebugLevel).Get()
+
+	log.Info().Str("buildVersion", buildinfo.Version).
+		Str("buildCommit", buildinfo.Commit).
+		Str("buildDate", buildinfo.Date).Msg("Starting agent")
 
 	defer handlePanic(&log)
 
@@ -35,16 +33,6 @@ func main() {
 	defer cancel()
 
 	runAgent(ctx, cfg, &log)
-}
-
-func setupLogger() zerolog.Logger {
-	log := logger.NewLogger(zerolog.DebugLevel).Get()
-
-	log.Info().Str("buildVersion", buildVersion).
-		Str("buildCommit", buildCommit).
-		Str("buildDate", buildDate).Msg("Starting agent")
-
-	return log
 }
 
 func handlePanic(log *zerolog.Logger) {

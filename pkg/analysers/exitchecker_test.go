@@ -28,3 +28,10 @@ func TestExitCheckAnalyzerNotMainPackage(t *testing.T) {
 	testdata := analysistest.TestData()
 	analysistest.Run(t, testdata, analysers.ExitCheckAnalyser, "notmainpackage")
 }
+
+func TestExitCheckAnalyzerNoExitMethod(t *testing.T) {
+	t.Parallel()
+
+	testdata := analysistest.TestData()
+	analysistest.Run(t, testdata, analysers.ExitCheckAnalyser, "noexitmethod")
+}

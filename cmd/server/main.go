@@ -1,4 +1,3 @@
-//nolint:gochecknoglobals,ireturn,lll
 package main
 
 import (
@@ -13,6 +12,7 @@ import (
 
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/buildinfo"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
@@ -21,35 +21,29 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
-var (
-	buildVersion = "N/A"
-	buildDate    = "N/A"
-	buildCommit  = "N/A"
-)
-
 func main() {
-	log := setupLogger()
+	log := logger.NewLogger(zerolog.DebugLevel).Get()
+
+	log.Info().Str("buildVersion", buildinfo.Version).
+		Str("buildCommit", buildinfo.Commit).
+		Str("buildDate", buildinfo.Date).Msg("Starting server")
+
 	cfg := loadConfig(&log)
 
 	ctx, cancel := utils.WithSignalCancel(context.Background(), &log)
 	defer cancel()
 
-	dbManager := setupDBManager(ctx, cfg, &log)
+	dbManager := dbmanager.NewDBManager(cfg.Database, &log).Connect(ctx).ApplyMigrations()
 	defer dbManager.Close()
 
-	metricStorage := setupStorage(ctx, cfg, dbManager, &log)
+	var metricStorage model.Repository
+	if dbManager.IsConnected {
+		metricStorage = storage.NewDBStorage(dbManager.DB, &log)
+	} else {
+		metricStorage = storage.NewMemStorage(&log).WithBackup(ctx, cfg)
+	}
 
 	startServer(ctx, cfg, metricStorage, dbManager, &log)
-}
-
-func setupLogger() zerolog.Logger {
-	log := logger.NewLogger(zerolog.DebugLevel).Get()
-
-	log.Info().Str("buildVersion", buildVersion).
-		Str("buildCommit", buildCommit).
-		Str("buildDate", buildDate).Msg("Starting server")
-
-	return log
 }
 
 func loadConfig(log *zerolog.Logger) *config.Config {
@@ -66,25 +60,13 @@ func loadConfig(log *zerolog.Logger) *config.Config {
 	return cfg
 }
 
-func setupDBManager(ctx context.Context, cfg *config.Config, log *zerolog.Logger) *dbmanager.DBManager {
-	dbManager := dbmanager.NewDBManager(cfg.Database, log).Connect(ctx).ApplyMigrations()
-
-	if !dbManager.IsConnected {
-		log.Error().Msg("Database connection failed, using in-memory storage")
-	}
-
-	return dbManager
-}
-
-func setupStorage(ctx context.Context, cfg *config.Config, dbManager *dbmanager.DBManager, log *zerolog.Logger) model.Repository {
-	if dbManager.IsConnected {
-		return storage.NewDBStorage(dbManager.DB, log)
-	}
-
-	return storage.NewMemStorage(log).WithBackup(ctx, cfg)
-}
-
-func startServer(ctx context.Context, cfg *config.Config, metricStorage model.Repository, dbManager *dbmanager.DBManager, log *zerolog.Logger) {
+func startServer(
+	ctx context.Context,
+	cfg *config.Config,
+	metricStorage model.Repository,
+	dbManager *dbmanager.DBManager,
+	log *zerolog.Logger,
+) {
 	mHandlers := handlers.NewMetricsHandler(metricStorage, log)
 	hHandlers := handlers.NewHealthHandler(dbManager, log)
 

@@ -8,49 +8,41 @@ import (
 	"time"
 
 	jsoniter "github.com/json-iterator/go"
-	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
+
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/utils"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
-func TestSetupLogger(t *testing.T) {
-	t.Parallel()
-
-	log := setupLogger()
-
-	assert.NotNil(t, log)
-	assert.Equal(t, zerolog.DebugLevel, log.GetLevel())
-}
-
 func TestHandlePanic(t *testing.T) {
 	t.Parallel()
 
-	log := setupLogger()
+	log := testutils.GetTLogger()
 	defer func() {
 		if r := recover(); r != nil {
 			assert.NotNil(t, r)
 		}
 	}()
-	handlePanic(&log)
+	handlePanic(log)
 	panic("test panic")
 }
 
 func TestLoadConfig(t *testing.T) {
 	t.Parallel()
 
-	log := setupLogger()
+	log := testutils.GetTLogger()
 
-	cfg := loadConfig(&log)
+	cfg := loadConfig(log)
 	assert.NotNil(t, cfg)
 }
 
 func TestRunAgent(t *testing.T) {
 	t.Parallel()
 
-	log := setupLogger()
+	log := testutils.GetTLogger()
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 	cfg := &config.Config{
 		PollIntervalDur:   100 * time.Millisecond,
@@ -76,7 +68,7 @@ func TestRunAgent(t *testing.T) {
 
 	ctx, cancel := context.WithCancel(context.Background())
 
-	go runAgent(ctx, cfg, &log)
+	go runAgent(ctx, cfg, log)
 
 	// Allow some time for the reporter to process
 	time.Sleep(300 * time.Millisecond)

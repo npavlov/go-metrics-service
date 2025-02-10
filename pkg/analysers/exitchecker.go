@@ -7,58 +7,64 @@ import (
 )
 
 const (
-	specPackage      = "main"
-	specImport       = "\"os\""
-	specDeclaration  = "main"
-	specFunction     = "Exit"
-	specFunctionPrfx = "os"
+	mainPackage   = "main"
+	osImport      = "\"os\""
+	mainFunction  = "main"
+	exitFunction  = "Exit"
+	osPackageName = "os"
 )
 
 //nolint:exhaustruct,gochecknoglobals
 var ExitCheckAnalyser = &analysis.Analyzer{
 	Name: "exitcheck",
-	Doc:  "check for calling os.Exit()",
+	Doc:  "Detect calls to os.Exit() and classify them as errors or warnings based on package and function context",
 	Run:  run,
 }
 
-//nolint:gocognit,cyclop,nonamedreturns
-func run(pass *analysis.Pass) (res any, err error) {
+//nolint:nilnil,gocognit,cyclop
+func run(pass *analysis.Pass) (interface{}, error) {
 	for _, file := range pass.Files {
-		haveSpecImport := false
+		inMainPackage := file.Name.Name == mainPackage
+		osImported := false
+
+		// Check if "os" is imported
+		for _, imp := range file.Imports {
+			if imp.Path.Value == osImport {
+				osImported = true
+
+				break
+			}
+		}
+
+		if !osImported {
+			continue
+		}
+
 		ast.Inspect(file, func(node ast.Node) bool {
-			switch nodeType := node.(type) {
-			case *ast.File:
-				if nodeType.Name.Name != specPackage {
-					return false
-				}
-			case *ast.ImportSpec:
-				if nodeType.Path.Value == specImport {
-					haveSpecImport = true
-				}
-			case *ast.FuncDecl:
-				if !haveSpecImport {
-					return false
-				}
-				if nodeType.Name.Name != specDeclaration {
-					return false
-				}
+			funcNode, ok := node.(*ast.FuncDecl)
 
-				return true
-			case *ast.CallExpr:
-				if f, ok := nodeType.Fun.(*ast.SelectorExpr); ok {
-					if pkg, ok := f.X.(*ast.Ident); ok {
-						if pkg.Name == specFunctionPrfx && f.Sel.Name == specFunction {
-							pass.Reportf(pkg.NamePos, "calling os.Exit in function main")
-
-							return false
+			//nolint:nestif
+			if ok {
+				ast.Inspect(funcNode, func(subNode ast.Node) bool {
+					if call, ok := subNode.(*ast.CallExpr); ok {
+						if sel, ok := call.Fun.(*ast.SelectorExpr); ok {
+							if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == osPackageName && sel.Sel.Name == exitFunction {
+								if inMainPackage && funcNode.Name.Name == mainFunction {
+									pass.Reportf(pkg.NamePos, "error: calling os.Exit in main function of main package")
+								} else {
+									pass.Reportf(pkg.NamePos, "warning: calling os.Exit")
+								}
+							}
 						}
 					}
-				}
+
+					return true
+				})
 			}
 
 			return true
 		})
 	}
-	//nolint:nilnil
+
 	return nil, nil
 }

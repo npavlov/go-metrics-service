@@ -2,7 +2,6 @@ package main
 
 import "os"
 
-// No error should be reported here because there is no Exit in main function
 func fooo() {
-	os.Exit(1)
+	os.Exit(1) // want "warning: calling os.Exit"
 }
