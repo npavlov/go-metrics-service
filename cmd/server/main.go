@@ -12,6 +12,7 @@ import (
 
 	"github.com/npavlov/go-metrics-service/internal/logger"
 	"github.com/npavlov/go-metrics-service/internal/model"
+	"github.com/npavlov/go-metrics-service/internal/server/buildinfo"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
@@ -21,10 +22,32 @@ import (
 )
 
 func main() {
-	log := logger.NewLogger().SetLogLevel(zerolog.DebugLevel).Get()
+	log := logger.NewLogger(zerolog.DebugLevel).Get()
 
-	err := godotenv.Load("server.env")
-	if err != nil {
+	log.Info().Str("buildVersion", buildinfo.Version).
+		Str("buildCommit", buildinfo.Commit).
+		Str("buildDate", buildinfo.Date).Msg("Starting server")
+
+	cfg := loadConfig(&log)
+
+	ctx, cancel := utils.WithSignalCancel(context.Background(), &log)
+	defer cancel()
+
+	dbManager := dbmanager.NewDBManager(cfg.Database, &log).Connect(ctx).ApplyMigrations()
+	defer dbManager.Close()
+
+	var metricStorage model.Repository
+	if dbManager.IsConnected {
+		metricStorage = storage.NewDBStorage(dbManager.DB, &log)
+	} else {
+		metricStorage = storage.NewMemStorage(&log).WithBackup(ctx, cfg)
+	}
+
+	startServer(ctx, cfg, metricStorage, dbManager, &log)
+}
+
+func loadConfig(log *zerolog.Logger) *config.Config {
+	if err := godotenv.Load("server.env"); err != nil {
 		log.Error().Err(err).Msg("Error loading server.env file")
 	}
 
@@ -34,24 +57,20 @@ func main() {
 
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 
-	ctx, cancel := utils.WithSignalCancel(context.Background(), log)
+	return cfg
+}
 
-	dbManager := dbmanager.NewDBManager(cfg.Database, log).Connect(ctx).ApplyMigrations()
-	defer dbManager.Close()
-	if err != nil {
-		log.Error().Err(err).Msg("Error initialising db manager")
-	}
-
-	var metricStorage model.Repository
-	if dbManager.IsConnected {
-		metricStorage = storage.NewDBStorage(dbManager.DB, log)
-	} else {
-		metricStorage = storage.NewMemStorage(log).WithBackup(ctx, cfg)
-	}
-
+func startServer(
+	ctx context.Context,
+	cfg *config.Config,
+	metricStorage model.Repository,
+	dbManager *dbmanager.DBManager,
+	log *zerolog.Logger,
+) {
 	mHandlers := handlers.NewMetricsHandler(metricStorage, log)
 	hHandlers := handlers.NewHealthHandler(dbManager, log)
-	var cRouter router.Router = router.NewCustomRouter(cfg, log)
+
+	cRouter := router.NewCustomRouter(cfg, log)
 	cRouter.SetRouter(mHandlers, hHandlers)
 
 	log.Info().
@@ -67,9 +86,7 @@ func main() {
 	}
 
 	go func() {
-		// Wait for the context to be done (i.e., signal received)
 		<-ctx.Done()
-
 		if err := server.Shutdown(ctx); err != nil {
 			log.Error().Err(err).Msg("Error shutting down server")
 		}
@@ -77,8 +94,6 @@ func main() {
 
 	if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		log.Error().Err(err).Msg("Error starting server")
-		cancel()
 	}
-
 	log.Info().Msg("Server shut down")
 }

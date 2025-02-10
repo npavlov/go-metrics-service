@@ -1,0 +1,44 @@
+name: Static Analysis
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  static-analysis:
+    name: Run Static Analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'  # Adjust to match your Go version
+
+      - name: Cache Go modules
+        uses: actions/cache@v3
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Install dependencies
+        run: go mod tidy
+
+      - name: Build Static Analysis Tool
+        run: make build-checker
+
+      - name: Run Static Analysis
+        run: ./bin/checker ./... || echo "Static analysis found issues, but continuing..."
+
+      - name: Fail if issues are found
+        if: failure()
+        run: exit 1

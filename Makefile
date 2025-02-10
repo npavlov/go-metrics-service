@@ -11,12 +11,17 @@ all: fmt lint build-agent build-server
 # Build the server binary from Go source files in cmd/server directory
 .PHONY: build-server
 build-server:
-	$(GO) build -gcflags="all=-N -l" -o bin/server ${CURDIR}/cmd/server/*.go
+	$(GO) build -gcflags="all=-N -l" -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" -o bin/server ${CURDIR}/cmd/server/*.go
 
 # Build the agent binary from Go source files in cmd/agent directory
 .PHONY: build-agent
 build-agent:
-	$(GO) build -gcflags="all=-N -l" -o bin/agent ${CURDIR}/cmd/agent/*.go
+	$(GO) build -gcflags="all=-N -l" -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" -o bin/agent ${CURDIR}/cmd/agent/*.go
+
+# Build multi checker
+.PHONY: build-checker
+build-checker:
+	$(GO) build -gcflags="all=-N -l" -o bin/checker ${CURDIR}/cmd/staticlint/*.go
 
 # ----------- Test Commands -----------
 # Run all tests and generate a coverage profile (coverage.out)
@@ -39,13 +44,12 @@ clean:
 # Run the server directly from Go source files in cmd/server directory
 .PHONY: run-server
 run-server:
-	$(GO) run ${CURDIR}/cmd/server/*.go
+	$(GO) run -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" ${CURDIR}/cmd/server/*.go
 
 # Run the agent directly from Go source files in cmd/agent directory
 .PHONY: run-agent
 run-agent:
-	$(GO) run ${CURDIR}/cmd/agent/*.go
-
+	$(GO) run -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" ${CURDIR}/cmd/agent/*.go
 # ----------- Lint and Format Commands -----------
 # Run the linter (golangci-lint) on all Go files in the project
 .PHONY: lint

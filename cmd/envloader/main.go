@@ -8,25 +8,15 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-func main() {
-	// Get all environment variables
+// getEnvAsMap retrieves all environment variables as a map.
+func getEnvAsMap() map[string]string {
 	envs := make(map[string]string)
 	for _, env := range os.Environ() {
-		// Each env is in "KEY=VALUE" format
 		pair := splitEnv(env)
 		envs[pair[0]] = pair[1]
 	}
 
-	envJSON, err := json.Marshal(envs)
-	if err != nil {
-		log.Error().Err(err).Msg("Error marshalling envs to JSON")
-
-		return
-	}
-
-	// Output the JSON string
-	//nolint:forbidigo
-	fmt.Println(string(envJSON))
+	return envs
 }
 
 // splitEnv splits an environment variable into key and value parts.
@@ -38,4 +28,18 @@ func splitEnv(env string) []string {
 	}
 
 	return []string{env, ""}
+}
+
+func main() {
+	envs := getEnvAsMap()
+
+	envJSON, err := json.Marshal(envs)
+	if err != nil {
+		log.Error().Err(err).Msg("Error marshalling envs to JSON")
+
+		return
+	}
+
+	//nolint:forbidigo
+	fmt.Println(string(envJSON))
 }

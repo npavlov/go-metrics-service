@@ -10,11 +10,11 @@ import (
 )
 
 type Logger struct {
-	mx sync.Mutex
+	mx sync.RWMutex
 	lg zerolog.Logger
 }
 
-func NewLogger() *Logger {
+func NewLogger(level zerolog.Level) *Logger {
 	//nolint:exhaustruct
 	var output io.Writer = zerolog.ConsoleWriter{
 		Out:        os.Stdout,
@@ -22,19 +22,14 @@ func NewLogger() *Logger {
 	}
 
 	return &Logger{
-		mx: sync.Mutex{},
-		lg: zerolog.New(output).With().Timestamp().Logger(),
+		mx: sync.RWMutex{},
+		lg: zerolog.New(output).Level(level).With().Timestamp().Logger(),
 	}
 }
 
-func (l *Logger) Get() *zerolog.Logger {
-	return &l.lg
-}
+func (l *Logger) Get() zerolog.Logger {
+	l.mx.RLock()
+	defer l.mx.RUnlock()
 
-// SetLogLevel sets the global log level for all loggers.
-func (l *Logger) SetLogLevel(level zerolog.Level) *Logger {
-	zerolog.TimeFieldFormat = time.RFC3339Nano
-	zerolog.SetGlobalLevel(level)
-
-	return l
+	return l.lg
 }

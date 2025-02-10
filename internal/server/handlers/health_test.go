@@ -11,7 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/npavlov/go-metrics-service/internal/logger"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 )
@@ -25,7 +26,7 @@ func setupDBStorage(t *testing.T) (*dbmanager.DBManager, pgxmock.PgxPoolIface, *
 	mockDB, err := pgxmock.NewPool()
 	require.NoError(t, err)
 
-	log := logger.NewLogger().Get()
+	log := testutils.GetTLogger()
 	dbStorage := dbmanager.NewDBManager("mock connection string", log)
 	dbStorage.DB = mockDB
 	dbStorage.IsConnected = true
