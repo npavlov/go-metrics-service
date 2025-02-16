@@ -15,6 +15,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/utils"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
+	"github.com/npavlov/go-metrics-service/pkg/crypto"
 )
 
 var ErrPostRequestFailed = errors.New("failed to send post request")
@@ -26,17 +27,32 @@ type Result struct {
 }
 
 type Sender struct {
-	cfg  *config.Config
-	l    *zerolog.Logger
-	json jsoniter.API
+	cfg        *config.Config
+	l          *zerolog.Logger
+	json       jsoniter.API
+	encryption *crypto.Encryption
 }
 
 func NewSender(cfg *config.Config, logger *zerolog.Logger) *Sender {
-	return &Sender{
-		cfg:  cfg,
-		l:    logger,
-		json: jsoniter.ConfigCompatibleWithStandardLibrary,
+	sender := &Sender{
+		cfg:        cfg,
+		l:          logger,
+		json:       jsoniter.ConfigCompatibleWithStandardLibrary,
+		encryption: nil,
 	}
+
+	if cfg.CryptoKey == "" {
+		return sender
+	}
+
+	encryption, err := crypto.NewEncryption(cfg.CryptoKey)
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to create encryption") // Consider Panic or returning an error
+	}
+
+	sender.encryption = encryption
+
+	return sender
 }
 
 func (rh *Sender) SendMetric(ctx context.Context, metric db.Metric) (*db.Metric, error) {
@@ -88,6 +104,15 @@ func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interfac
 	if rh.cfg.Key != "" {
 		hash := rh.calculateHash(payload)
 		request.SetHeader("HashSHA256", hash)
+	}
+
+	if rh.encryption != nil {
+		encryptedPayload, err := rh.encryption.Encrypt(compressed.Bytes())
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to encrypt metric")
+		}
+		request.SetBody(encryptedPayload)
+		request.SetHeader("X-Encrypted", "true")
 	}
 
 	resp, err := request.Post(url)

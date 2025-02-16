@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Address           string `env:"ADDRESS"         envDefault:"localhost:8080"`
 	Key               string `env:"KEY"             envDefault:""`
+	CryptoKey         string `env:"CRYPTO_KEY"      envDefault:""`
 	ReportInterval    int64  `env:"REPORT_INTERVAL" envDefault:"10"`
 	PollInterval      int64  `env:"POLL_INTERVAL"   envDefault:"2"`
 	UseBatch          bool   `env:"USE_BATCH"       envDefault:"false"`
@@ -38,6 +39,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			UseBatch:          false,
 			Key:               "",
 			RateLimit:         0,
+			CryptoKey:         "",
 		},
 		logger: log,
 	}
@@ -58,6 +60,7 @@ func (b *Builder) FromFlags() *Builder {
 	flag.Int64Var(&b.cfg.ReportInterval, "r", b.cfg.ReportInterval, "report interval to send watcher (in seconds)")
 	flag.Int64Var(&b.cfg.PollInterval, "p", b.cfg.PollInterval, "poll interval to update watcher (in seconds)")
 	flag.StringVar(&b.cfg.Key, "k", b.cfg.Key, "key to sign request")
+	flag.StringVar(&b.cfg.CryptoKey, "crypto-key", b.cfg.CryptoKey, "crypto key to sign request")
 	flag.IntVar(&b.cfg.RateLimit, "l", b.cfg.RateLimit, "rate limit for workers")
 	flag.Parse()
 

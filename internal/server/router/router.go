@@ -10,6 +10,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
+	"github.com/npavlov/go-metrics-service/pkg/crypto"
 )
 
 const (
@@ -22,18 +23,33 @@ type Router interface {
 }
 
 type CustomRouter struct {
-	router *chi.Mux
-	logger *zerolog.Logger
-	cfg    *config.Config
+	router     *chi.Mux
+	logger     *zerolog.Logger
+	cfg        *config.Config
+	decryption *crypto.Decryption
 }
 
 // NewCustomRouter - constructor for CustomRouter.
-func NewCustomRouter(cfg *config.Config, l *zerolog.Logger) *CustomRouter {
-	return &CustomRouter{
-		router: chi.NewRouter(),
-		logger: l,
-		cfg:    cfg,
+func NewCustomRouter(cfg *config.Config, log *zerolog.Logger) *CustomRouter {
+	router := &CustomRouter{
+		router:     chi.NewRouter(),
+		logger:     log,
+		cfg:        cfg,
+		decryption: nil,
 	}
+
+	if cfg.CryptoKey == "" {
+		return router
+	}
+
+	decryption, err := crypto.NewDecryption(cfg.CryptoKey)
+	if err != nil {
+		log.Fatal().Err(err).Msg("could not create decryption")
+	}
+
+	router.decryption = decryption
+
+	return router
 }
 
 // SetRouter Embedding middleware setup in the constructor.
@@ -43,6 +59,9 @@ func (cr *CustomRouter) SetRouter(mh *handlers.MetricHandler, hh *handlers.Healt
 	cr.router.Use(middleware.Recoverer)
 	cr.router.Use(middlewares.GzipMiddleware)
 	cr.router.Use(middlewares.BrotliMiddleware)
+	if cr.decryption != nil {
+		cr.router.Use(middlewares.DecryptMiddleware(cr.decryption, cr.logger))
+	}
 	cr.router.Use(middlewares.GzipDecompressionMiddleware)
 	cr.router.Use(middlewares.SignatureMiddleware(cr.cfg.Key, cr.logger))
 
