@@ -3,12 +3,12 @@ GO ?= go
 
 include Makefile.local
 
-# Default target: formats code, runs the linter, and Builds both agent and server binaries
+# Default target: formats code, runs the linter, and builds both agent and server binaries
 .PHONY: all
-all: fmt lint Build-agent Build-server
+all: fmt lint build-agent build-server
 
-# ----------- Build Commands -----------
-# Build the server binary from Go source files in cmd/server directory
+# ----------- build Commands -----------
+# build the server binary from Go source files in cmd/server directory
 .PHONY: build-server
 
 BUILDINFO_PKG_SERVER=github.com/npavlov/go-metrics-service/internal/server/buildinfo
@@ -19,7 +19,7 @@ BUILD_FLAGS_SERVER=-X '$(BUILDINFO_PKG_SERVER).Version=1.0.0' \
 build-server:
 	$(GO) build -gcflags="all=-N -l" -ldflags="$(BUILD_FLAGS_SERVER)" -o bin/server ${CURDIR}/cmd/server/main.go
 
-# Build the agent binary from Go source files in cmd/agent directory
+# build the agent binary from Go source files in cmd/agent directory
 .PHONY: build-agent
 BUILDINFO_PKG_AGENT=github.com/npavlov/go-metrics-service/internal/agent/buildinfo
 BUILD_FLAGS_AGENT=-X '$(BUILDINFO_PKG_AGENT).Version=1.0.0' \
@@ -29,10 +29,10 @@ BUILD_FLAGS_AGENT=-X '$(BUILDINFO_PKG_AGENT).Version=1.0.0' \
 build-agent:
 	$(GO) build -gcflags="all=-N -l" -ldflags="$(BUILD_FLAGS_AGENT)" -o bin/agent ${CURDIR}/cmd/agent/main.go
 
-# Build multi checker
-.PHONY: Build-checker
-Build-checker:
-	$(GO) Build -gcflags="all=-N -l" -o bin/checker ${CURDIR}/cmd/staticlint/*.go
+# build multi checker
+.PHONY: build-checker
+build-checker:
+	$(GO) build -gcflags="all=-N -l" -o bin/checker ${CURDIR}/cmd/staticlint/*.go
 
 # ----------- Test Commands -----------
 # Run all tests and generate a coverage profile (coverage.out)
