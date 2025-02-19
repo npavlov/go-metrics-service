@@ -64,3 +64,18 @@ func TestFromFlags(t *testing.T) {
 	assert.Equal(t, int64(20), cfg.ReportInterval, "ReportInterval should be set by flag")
 	assert.Equal(t, int64(10), cfg.PollInterval, "PollInterval should be set by flag")
 }
+
+// TestFromFile checks if configuration is properly loaded from a file.
+func TestFromFile(t *testing.T) {
+	t.Parallel()
+
+	l := testutils.GetTLogger()
+	cfg := config.NewConfigBuilder(l).FromObj(&config.Config{
+		Config: "testdata/config.json",
+	}).FromFile().Build()
+
+	// Verify that values were correctly loaded from the file
+	assert.Equal(t, "http://localhost:9090", cfg.Address, "Address should be set by config file")
+	assert.Equal(t, int64(30), cfg.ReportInterval, "ReportInterval should be set by config file")
+	assert.Equal(t, int64(15), cfg.PollInterval, "PollInterval should be set by config file")
+}

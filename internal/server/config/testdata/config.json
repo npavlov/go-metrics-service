@@ -1,0 +1,8 @@
+{
+  "address": "localhost:9090",
+  "restore": true,
+  "store_interval": 1,
+  "store_file": "/path/to/file.db",
+  "database_dsn": "postgres://",
+  "crypto_key": "./private.key"
+}

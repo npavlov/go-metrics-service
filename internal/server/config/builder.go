@@ -1,3 +1,4 @@
+//nolint:tagliatelle
 package config
 
 import (
@@ -6,18 +7,21 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/rs/zerolog"
+
+	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
 type Config struct {
-	Address          string `env:"ADDRESS"        envDefault:"localhost:8080"`
-	StoreInterval    int64  `env:"STORE_INTERVAL" envDefault:"300"`
+	Address          string `env:"ADDRESS"        envDefault:"localhost:8080" json:"address"`
+	StoreInterval    int64  `env:"STORE_INTERVAL" envDefault:"300"            json:"store_interval"`
 	StoreIntervalDur time.Duration
-	File             string `env:"FILE_STORAGE_PATH"     envDefault:"temp.txt"`
-	Database         string `env:"DATABASE_DSN"          envDefault:""`
-	RestoreStorage   bool   `env:"RESTORE"               envDefault:"true"`
-	HealthCheck      int64  `env:"HEALTH_CHECK_INTERVAL" envDefault:"5"`
-	Key              string `env:"KEY"                   envDefault:""`
-	CryptoKey        string `env:"CRYPTO_KEY"            envDefault:""`
+	File             string `env:"FILE_STORAGE_PATH"     envDefault:"temp.txt" json:"store_file"`
+	Database         string `env:"DATABASE_DSN"          envDefault:""         json:"database_dsn"`
+	RestoreStorage   bool   `env:"RESTORE"               envDefault:"true"     json:"restore"`
+	HealthCheck      int64  `env:"HEALTH_CHECK_INTERVAL" envDefault:"5"        json:"health_check_interval"`
+	Key              string `env:"KEY"                   envDefault:""         json:"key"`
+	CryptoKey        string `env:"CRYPTO_KEY"            envDefault:""         json:"crypto_key"`
+	Config           string `env:"CONFIG"                envDefault:""`
 	HealthCheckDur   time.Duration
 }
 
@@ -41,6 +45,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			HealthCheckDur:   0,
 			Key:              "",
 			CryptoKey:        "",
+			Config:           "",
 		},
 		logger: log,
 	}
@@ -64,7 +69,29 @@ func (b *Builder) FromFlags() *Builder {
 	flag.Int64Var(&b.cfg.StoreInterval, "i", b.cfg.StoreInterval, "time flushing mem storage to file (in seconds)")
 	flag.StringVar(&b.cfg.Key, "k", b.cfg.Key, "key to sign request")
 	flag.StringVar(&b.cfg.CryptoKey, "crypto-key", b.cfg.CryptoKey, "crypto key to sign request")
+	flag.StringVar(&b.cfg.Config, "config", b.cfg.Config, "path to config file")
 	flag.Parse()
+
+	return b
+}
+
+// FromObj sets cfg from object.
+func (b *Builder) FromObj(cfg *Config) *Builder {
+	b.cfg = cfg
+
+	return b
+}
+
+// FromFile sets cfg from config file.
+func (b *Builder) FromFile() *Builder {
+	//nolint:exhaustruct
+	newConfig := &Config{}
+	err := utils.ReadFromFile(b.cfg.Config, newConfig, b.logger)
+	if err != nil {
+		b.logger.Error().Err(err).Msg("failed to read config file")
+	}
+
+	utils.ReplaceValues(newConfig, b.cfg)
 
 	return b
 }

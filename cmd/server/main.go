@@ -53,7 +53,8 @@ func loadConfig(log *zerolog.Logger) *config.Config {
 
 	cfg := config.NewConfigBuilder(log).
 		FromEnv().
-		FromFlags().Build()
+		FromFlags().
+		FromFile().Build()
 
 	log.Info().Interface("config", cfg).Msg("Configuration loaded")
 

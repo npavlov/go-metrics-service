@@ -1,3 +1,4 @@
+//nolint:tagliatelle
 package config
 
 import (
@@ -7,16 +8,19 @@ import (
 
 	"github.com/caarlos0/env/v6"
 	"github.com/rs/zerolog"
+
+	"github.com/npavlov/go-metrics-service/internal/utils"
 )
 
 type Config struct {
-	Address           string `env:"ADDRESS"         envDefault:"localhost:8080"`
-	Key               string `env:"KEY"             envDefault:""`
-	CryptoKey         string `env:"CRYPTO_KEY"      envDefault:""`
-	ReportInterval    int64  `env:"REPORT_INTERVAL" envDefault:"10"`
-	PollInterval      int64  `env:"POLL_INTERVAL"   envDefault:"2"`
-	UseBatch          bool   `env:"USE_BATCH"       envDefault:"false"`
-	RateLimit         int    `env:"RATE_LIMIT"      envDefault:"10"`
+	Address           string `env:"ADDRESS"         envDefault:"localhost:8080" json:"address"`
+	Key               string `env:"KEY"             envDefault:""               json:"key"`
+	CryptoKey         string `env:"CRYPTO_KEY"      envDefault:""               json:"crypto_key"`
+	ReportInterval    int64  `env:"REPORT_INTERVAL" envDefault:"10"             json:"report_interval"`
+	PollInterval      int64  `env:"POLL_INTERVAL"   envDefault:"2"              json:"poll_interval"`
+	UseBatch          bool   `env:"USE_BATCH"       envDefault:"false"          json:"use_batch"`
+	RateLimit         int    `env:"RATE_LIMIT"      envDefault:"10"             json:"rate_limit"`
+	Config            string `env:"CONFIG"          envDefault:""`
 	ReportIntervalDur time.Duration
 	PollIntervalDur   time.Duration
 }
@@ -40,6 +44,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			Key:               "",
 			RateLimit:         0,
 			CryptoKey:         "",
+			Config:            "",
 		},
 		logger: log,
 	}
@@ -62,6 +67,7 @@ func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.Key, "k", b.cfg.Key, "key to sign request")
 	flag.StringVar(&b.cfg.CryptoKey, "crypto-key", b.cfg.CryptoKey, "crypto key to sign request")
 	flag.IntVar(&b.cfg.RateLimit, "l", b.cfg.RateLimit, "rate limit for workers")
+	flag.StringVar(&b.cfg.Config, "config", b.cfg.Config, "path to config file")
 	flag.Parse()
 
 	return b
@@ -70,6 +76,20 @@ func (b *Builder) FromFlags() *Builder {
 // FromObj sets cfg from object.
 func (b *Builder) FromObj(cfg *Config) *Builder {
 	b.cfg = cfg
+
+	return b
+}
+
+// FromFile sets cfg from config file.
+func (b *Builder) FromFile() *Builder {
+	//nolint:exhaustruct
+	newConfig := &Config{}
+	err := utils.ReadFromFile(b.cfg.Config, newConfig, b.logger)
+	if err != nil {
+		b.logger.Error().Err(err).Msg("failed to read config file")
+	}
+
+	utils.ReplaceValues(newConfig, b.cfg)
 
 	return b
 }
