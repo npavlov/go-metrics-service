@@ -62,6 +62,24 @@ func TestDecryptMiddleware(t *testing.T) {
 		handler.ServeHTTP(rec, req)
 		assert.Equal(t, http.StatusOK, rec.Code)
 	})
+
+	t.Run("with a broken body", func(t *testing.T) {
+		t.Parallel()
+
+		payload := []byte("non-encrypted data")
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, "http://example.com", bytes.NewBuffer(payload))
+		rec := httptest.NewRecorder()
+		req.Header.Set("X-Encrypted", "true")
+
+		handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusOK)
+		}))
+
+		handler.ServeHTTP(rec, req)
+		assert.Equal(t, http.StatusBadRequest, rec.Code)
+	})
 }
 
 func readBody(r *http.Request) string {
