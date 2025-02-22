@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 )
 
@@ -16,7 +18,7 @@ import (
 func TestWithTx_Success(t *testing.T) {
 	t.Parallel()
 
-	_, mockDB := setupDBStorage(t)
+	_, mockDB := testutils.SetupDBStorage(t)
 
 	mockDB.ExpectBegin()
 
@@ -37,7 +39,7 @@ func TestWithTx_Success(t *testing.T) {
 func TestWithTx_ErrorInTx(t *testing.T) {
 	t.Parallel()
 
-	_, mockDB := setupDBStorage(t)
+	_, mockDB := testutils.SetupDBStorage(t)
 
 	mockDB.ExpectBegin()
 
@@ -59,7 +61,7 @@ func TestWithTx_ErrorInTx(t *testing.T) {
 func TestWithTx_CommitError(t *testing.T) {
 	t.Parallel()
 
-	_, mockDB := setupDBStorage(t)
+	_, mockDB := testutils.SetupDBStorage(t)
 
 	mockDB.ExpectBegin()
 	mockDB.ExpectCommit()

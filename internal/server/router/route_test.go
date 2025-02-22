@@ -9,6 +9,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/server/storage"
+
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 
 	"github.com/npavlov/go-metrics-service/internal/server/config"
@@ -74,12 +76,19 @@ func TestRoutes(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{}
-	logger := zerolog.Nop()
-	customRouter := router.NewCustomRouter(cfg, &logger)
-	mh := &handlers.MetricHandler{}
-	hh := &handlers.HealthHandler{}
+	logger := testutils.GetTLogger()
+	customRouter := router.NewCustomRouter(cfg, logger)
+	dbManager, mock, log := testutils.SetupDBManager(t)
+	mock.ExpectPing().WillReturnError(nil)
+	t.Cleanup(func() {
+		mock.Close()
+	})
 
-	customRouter.SetRouter(mh, hh)
+	healthHandler := handlers.NewHealthHandler(dbManager, logger)
+	memStorage := storage.NewMemStorage(log)
+	mHandlers := handlers.NewMetricsHandler(memStorage, log)
+
+	customRouter.SetRouter(mHandlers, healthHandler)
 	mux := customRouter.GetRouter()
 
 	tests := []struct {
