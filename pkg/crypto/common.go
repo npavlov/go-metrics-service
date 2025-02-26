@@ -78,8 +78,14 @@ func GetPrivateKey(fname string) (*rsa.PrivateKey, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "%s failed with an error", op)
 	}
-	block, _ := pem.Decode(b)
-	if block == nil || block.Type != PrivateKeyTitle {
+
+	pemStr := string(b)
+
+	pemStr = "-----BEGIN RSA PRIVATE KEY-----\n" + pemStr + "\n-----END RSA PRIVATE KEY-----"
+
+	block, _ := pem.Decode([]byte(pemStr))
+
+	if block == nil {
 		return nil, errors.New(op + " failed to decode PEM block containing private key")
 	}
 	key, err := x509.ParsePKCS1PrivateKey(block.Bytes)

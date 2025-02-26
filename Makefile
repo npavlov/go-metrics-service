@@ -17,7 +17,7 @@ BUILD_FLAGS_SERVER=-X '$(BUILDINFO_PKG_SERVER).Version=1.0.0' \
             -X '$(BUILDINFO_PKG_SERVER).Commit=$(shell git rev-parse HEAD)'
 
 build-server:
-	$(GO) build -gcflags="all=-N -l" -ldflags="$(BUILD_FLAGS_SERVER)" -o bin/server ${CURDIR}/cmd/server/main.go
+	$(GO) build -gcflags="all=-N -l" -ldflags="${BUILD_FLAGS_SERVER}" -o bin/server ${CURDIR}/cmd/server/main.go
 
 # build the agent binary from Go source files in cmd/agent directory
 .PHONY: build-agent
@@ -27,7 +27,7 @@ BUILD_FLAGS_AGENT=-X '$(BUILDINFO_PKG_AGENT).Version=1.0.0' \
             -X '$(BUILDINFO_PKG_AGENT).Commit=$(shell git rev-parse HEAD)'
 
 build-agent:
-	$(GO) build -gcflags="all=-N -l" -ldflags="$(BUILD_FLAGS_AGENT)" -o bin/agent ${CURDIR}/cmd/agent/main.go
+	$(GO) build -gcflags="all=-N -l" -ldflags="${BUILD_FLAGS_AGENT}" -o bin/agent ${CURDIR}/cmd/agent/main.go
 
 # build multi checker
 .PHONY: build-checker
@@ -55,12 +55,12 @@ clean:
 # Run the server directly from Go source files in cmd/server directory
 .PHONY: run-server
 run-server:
-	$(GO) run -ldflags="$(BUILD_FLAGS_SERVER)" ${CURDIR}/cmd/server/main.go
+	$(GO) run -ldflags="${BUILD_FLAGS_SERVER}" ${CURDIR}/cmd/server/main.go
 
 # Run the agent directly from Go source files in cmd/agent directory
 .PHONY: run-agent
 run-agent:
-	$(GO) run -ldflags="$(BUILD_FLAGS_AGENT)" ${CURDIR}/cmd/agent/main.go
+	$(GO) run -ldflags="${BUILD_FLAGS_AGENT}" ${CURDIR}/cmd/agent/main.go
 # ----------- Lint and Format Commands -----------
 # Run the linter (golangci-lint) on all Go files in the project
 .PHONY: lint
