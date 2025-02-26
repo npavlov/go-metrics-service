@@ -7,18 +7,29 @@ include Makefile.local
 .PHONY: all
 all: fmt lint build-agent build-server
 
-# ----------- Build Commands -----------
-# Build the server binary from Go source files in cmd/server directory
+# ----------- build Commands -----------
+# build the server binary from Go source files in cmd/server directory
 .PHONY: build-server
+
+BUILDINFO_PKG_SERVER=github.com/npavlov/go-metrics-service/internal/server/buildinfo
+BUILD_FLAGS_SERVER=-X '$(BUILDINFO_PKG_SERVER).Version=1.0.0' \
+            -X '$(BUILDINFO_PKG_SERVER).Date=$(shell date -u +%Y-%m-%d)' \
+            -X '$(BUILDINFO_PKG_SERVER).Commit=$(shell git rev-parse HEAD)'
+
 build-server:
-	$(GO) build -gcflags="all=-N -l" -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" -o bin/server ${CURDIR}/cmd/server/*.go
+	$(GO) build -gcflags="all=-N -l" -ldflags="${BUILD_FLAGS_SERVER}" -o bin/server ${CURDIR}/cmd/server/main.go
 
-# Build the agent binary from Go source files in cmd/agent directory
+# build the agent binary from Go source files in cmd/agent directory
 .PHONY: build-agent
-build-agent:
-	$(GO) build -gcflags="all=-N -l" -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" -o bin/agent ${CURDIR}/cmd/agent/*.go
+BUILDINFO_PKG_AGENT=github.com/npavlov/go-metrics-service/internal/agent/buildinfo
+BUILD_FLAGS_AGENT=-X '$(BUILDINFO_PKG_AGENT).Version=1.0.0' \
+            -X '$(BUILDINFO_PKG_AGENT).Date=$(shell date -u +%Y-%m-%d)' \
+            -X '$(BUILDINFO_PKG_AGENT).Commit=$(shell git rev-parse HEAD)'
 
-# Build multi checker
+build-agent:
+	$(GO) build -gcflags="all=-N -l" -ldflags="${BUILD_FLAGS_AGENT}" -o bin/agent ${CURDIR}/cmd/agent/main.go
+
+# build multi checker
 .PHONY: build-checker
 build-checker:
 	$(GO) build -gcflags="all=-N -l" -o bin/checker ${CURDIR}/cmd/staticlint/*.go
@@ -44,12 +55,12 @@ clean:
 # Run the server directly from Go source files in cmd/server directory
 .PHONY: run-server
 run-server:
-	$(GO) run -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" ${CURDIR}/cmd/server/*.go
+	$(GO) run -ldflags="${BUILD_FLAGS_SERVER}" ${CURDIR}/cmd/server/main.go
 
 # Run the agent directly from Go source files in cmd/agent directory
 .PHONY: run-agent
 run-agent:
-	$(GO) run -ldflags="-X 'main.buildVersion=1.0.0' -X 'main.buildDate=$(shell date -u +%Y-%m-%d)' -X 'main.buildCommit=$(shell git rev-parse --short HEAD)'" ${CURDIR}/cmd/agent/*.go
+	$(GO) run -ldflags="${BUILD_FLAGS_AGENT}" ${CURDIR}/cmd/agent/main.go
 # ----------- Lint and Format Commands -----------
 # Run the linter (golangci-lint) on all Go files in the project
 .PHONY: lint

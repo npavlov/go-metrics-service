@@ -1,7 +1,9 @@
 package watcher_test
 
 import (
+	"bytes"
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -10,6 +12,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/npavlov/go-metrics-service/pkg/crypto"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/utils"
 
@@ -148,6 +152,60 @@ func TestSendMetricsBatchError(t *testing.T) {
 
 	_, err := sender.SendMetricsBatch(ctx, metrics)
 	assert.ErrorIs(t, err, watcher.ErrPostRequestFailed)
+}
+
+func TestSendEncryptedMetric(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	logger := zerolog.Nop()
+	cfg := &config.Config{
+		Address:   "http://localhost",
+		CryptoKey: "testdata/test_public.key",
+	}
+
+	json := jsoniter.ConfigCompatibleWithStandardLibrary
+	decryption, err := crypto.NewDecryption("testdata/test_private.key")
+	require.NoError(t, err)
+
+	metric := db.NewMetric("encrypted_metric", "gauge", nil, float64Ptr(9.81))
+
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		assert.Equal(t, "/update/", request.URL.Path)
+		assert.Equal(t, "true", request.Header.Get("X-Encrypted"))
+
+		// Read and decrypt payload
+		encryptedBody, _ := io.ReadAll(request.Body)
+		decryptedBody, err := decryption.Decrypt(encryptedBody)
+		assert.NoError(t, err)
+		reader := io.NopCloser(bytes.NewBuffer(decryptedBody))
+		body, err := utils.DecompressResult(reader)
+		assert.NoError(t, err)
+
+		var receivedMetric db.Metric
+		err = json.Unmarshal(body, &receivedMetric)
+		assert.NoError(t, err)
+
+		assert.Equal(t, metric, &receivedMetric)
+
+		// Respond with the same encrypted metric
+		payload, _ := json.Marshal(receivedMetric)
+		compressedResponse, _ := utils.Compress(payload)
+		assert.NoError(t, err)
+
+		writer.Header().Set("Content-Encoding", "gzip")
+		writer.Header().Set("X-Encrypted", "true")
+		writer.WriteHeader(http.StatusOK)
+		_, _ = writer.Write(compressedResponse.Bytes())
+	}))
+	defer server.Close()
+
+	cfg.Address = server.URL
+	sender := watcher.NewSender(cfg, &logger)
+
+	result, err := sender.SendMetric(ctx, *metric)
+	require.NoError(t, err)
+	assert.Equal(t, metric, result)
 }
 
 func float64Ptr(f float64) *float64 {

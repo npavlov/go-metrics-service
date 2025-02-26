@@ -34,7 +34,7 @@ issues:
 linters-settings:
   varnamelen:
     min-name-length: 2  # Adjust the minimum length as needed
-    skip-names:
+    ignore-names:
       - wg
   goimports:
     local-prefixes: github.com/npavlov/go-metrics-service
@@ -44,7 +44,6 @@ linters-settings:
       - Standard
       - Default
       - Prefix(github.com/npavlov/go-metrics-service)
-    skip-non-go: true
   depguard:
     rules:
       prevent_unmaintained_packages:

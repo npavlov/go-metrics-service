@@ -54,3 +54,21 @@ func TestFromFlags(t *testing.T) {
 	// Verify that flags were correctly parsed into the config
 	assert.Equal(t, "localhost:8091", cfg.Address, "Address should be set by flag")
 }
+
+// TestFromFile checks if configuration is properly loaded from a file.
+func TestFromFile(t *testing.T) {
+	t.Parallel()
+
+	l := testutils.GetTLogger()
+	cfg := config.NewConfigBuilder(l).FromObj(&config.Config{
+		Config: "testdata/config.json",
+	}).FromFile().Build()
+
+	// Verify that values were correctly loaded from the file
+	assert.Equal(t, "localhost:9090", cfg.Address, "Address should be set by config file")
+	assert.True(t, cfg.RestoreStorage, "RestoreStorage should be set by config file")
+	assert.Equal(t, int64(1), cfg.StoreInterval, "PollInterval should be set by config file")
+	assert.Equal(t, "/path/to/file.db", cfg.File, "File should be set by config file")
+	assert.Equal(t, "postgres://", cfg.Database, "Database should be set by config file")
+	assert.Equal(t, "./private.key", cfg.CryptoKey, "CryptoKey should be set by config file")
+}

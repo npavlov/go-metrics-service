@@ -19,22 +19,10 @@ import (
 
 var errPingError = errors.New("ping error")
 
-func setupDBStorage(t *testing.T) (*storage.DBStorage, pgxmock.PgxPoolIface) {
-	t.Helper()
-
-	mockDB, err := pgxmock.NewPool()
-	require.NoError(t, err)
-
-	log := testutils.GetTLogger()
-	dbStorage := storage.NewDBStorage(mockDB, log)
-
-	return dbStorage, mockDB
-}
-
 func TestDBStorage_GetAll(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -57,7 +45,7 @@ func TestDBStorage_GetAll(t *testing.T) {
 func TestDBStorage_Get(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -80,7 +68,7 @@ func TestDBStorage_Get(t *testing.T) {
 func TestDBStorage_GetNotFound(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -99,7 +87,7 @@ func TestDBStorage_GetNotFound(t *testing.T) {
 func TestDBStorage_Update(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -127,7 +115,7 @@ func TestDBStorage_Update(t *testing.T) {
 func TestDBStorage_CreateGauge(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -152,7 +140,7 @@ func TestDBStorage_CreateGauge(t *testing.T) {
 func TestDBStorage_CreateCounter(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -177,7 +165,7 @@ func TestDBStorage_CreateCounter(t *testing.T) {
 func TestDBStorage_UpdateMany(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -218,7 +206,7 @@ func TestDBStorage_UpdateMany(t *testing.T) {
 func TestDBStorage_Ping(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -233,7 +221,7 @@ func TestDBStorage_Ping(t *testing.T) {
 func TestDBStorage_GetMany_Success(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -257,7 +245,7 @@ func TestDBStorage_GetMany_Success(t *testing.T) {
 func TestDBStorage_GetMany_NoMetricsFound(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -276,7 +264,7 @@ func TestDBStorage_GetMany_NoMetricsFound(t *testing.T) {
 func TestDBStorage_GetMany_PartialMetricsFound(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
@@ -298,7 +286,7 @@ func TestDBStorage_GetMany_PartialMetricsFound(t *testing.T) {
 func TestDBStorage_GetMany_DBError(t *testing.T) {
 	t.Parallel()
 
-	dbStorage, mock := setupDBStorage(t)
+	dbStorage, mock := testutils.SetupDBStorage(t)
 	defer mock.Close()
 
 	ctx := context.Background()
