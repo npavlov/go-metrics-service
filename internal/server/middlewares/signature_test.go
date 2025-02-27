@@ -13,16 +13,18 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
+
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
 )
 
 func TestSignatureMiddleware(t *testing.T) {
 	t.Parallel()
 
-	logger := zerolog.New(io.Discard) // Discard logger output in tests
+	logger := testutils.GetTLogger()
 	signKey := "test_secret_key"
 
-	middleware := middlewares.SignatureMiddleware(signKey, &logger)
+	middleware := middlewares.SignatureMiddleware(signKey, logger)
 
 	// Helper to calculate valid HMAC signature for a payload
 	calculateSignature := func(payload []byte, key string) string {

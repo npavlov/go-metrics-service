@@ -98,6 +98,7 @@ func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interfac
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
+		SetHeader("X-Real-IP", utils.GetLocalIP(rh.l)).
 		SetBody(compressed.Bytes()).
 		SetDoNotParseResponse(true)
 
