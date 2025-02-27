@@ -21,6 +21,7 @@ type Config struct {
 	HealthCheck      int64  `env:"HEALTH_CHECK_INTERVAL" envDefault:"5"        json:"health_check_interval"`
 	Key              string `env:"KEY"                   envDefault:""         json:"key"`
 	CryptoKey        string `env:"CRYPTO_KEY"            envDefault:""         json:"crypto_key"`
+	TrustedSubnet    string `env:"TRUSTED_SUBNET"        envDefault:""         json:"trusted_subnet"`
 	Config           string `env:"CONFIG"                envDefault:""`
 	HealthCheckDur   time.Duration
 }
@@ -46,6 +47,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			Key:              "",
 			CryptoKey:        "",
 			Config:           "",
+			TrustedSubnet:    "",
 		},
 		logger: log,
 	}
@@ -69,6 +71,7 @@ func (b *Builder) FromFlags() *Builder {
 	flag.Int64Var(&b.cfg.StoreInterval, "i", b.cfg.StoreInterval, "time flushing mem storage to file (in seconds)")
 	flag.StringVar(&b.cfg.Key, "k", b.cfg.Key, "key to sign request")
 	flag.StringVar(&b.cfg.CryptoKey, "crypto-key", b.cfg.CryptoKey, "crypto key to sign request")
+	flag.StringVar(&b.cfg.TrustedSubnet, "t", b.cfg.TrustedSubnet, "trusted subnet")
 	flag.StringVar(&b.cfg.Config, "config", b.cfg.Config, "path to config file")
 	flag.Parse()
 

@@ -1,3 +1,4 @@
 {
-  "crypto_key": "./private.key"
+  "crypto_key": "./private.key",
+  "trusted_subnet": "192.168.0.0/24"
 }
