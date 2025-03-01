@@ -3,6 +3,8 @@ name: autotests
 env:
   AGENT_BINARY_PATH: bin/agent
   SERVER_BINARY_PATH: bin/server
+  CONFIG_SERVER: config/server.json
+  CONFIG_AGENT: config/agent.json
 
 on:
   pull_request:

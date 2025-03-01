@@ -22,7 +22,7 @@ type Config struct {
 	UseBatch          bool   `env:"USE_BATCH"       envDefault:"false"          json:"use_batch"`
 	UseGRPC           bool   `env:"USE_GRPC"        envDefault:"false"          json:"use_grpc"`
 	RateLimit         int    `env:"RATE_LIMIT"      envDefault:"10"             json:"rate_limit"`
-	Config            string `env:"CONFIG"          envDefault:""`
+	Config            string `env:"CONFIG_AGENT"          envDefault:""`
 	ReportIntervalDur time.Duration
 	PollIntervalDur   time.Duration
 }

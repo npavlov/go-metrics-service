@@ -14,7 +14,7 @@ import (
 type Config struct {
 	Address          string `env:"ADDRESS"        envDefault:"localhost:8080" json:"address"`
 	GRPCAddress      string `env:"GRPC_ADDRESS"   envDefault:":9090"          json:"grpc_address"`
-	UseGRPC          bool   `env:"USE_GRPC"        envDefault:"false"          json:"use_grpc"`
+	UseGRPC          bool   `env:"USE_GRPC"       envDefault:"false"          json:"use_grpc"`
 	StoreInterval    int64  `env:"STORE_INTERVAL" envDefault:"300"            json:"store_interval"`
 	StoreIntervalDur time.Duration
 	File             string `env:"FILE_STORAGE_PATH"     envDefault:"temp.txt" json:"store_file"`
@@ -24,7 +24,7 @@ type Config struct {
 	Key              string `env:"KEY"                   envDefault:""         json:"key"`
 	CryptoKey        string `env:"CRYPTO_KEY"            envDefault:""         json:"crypto_key"`
 	TrustedSubnet    string `env:"TRUSTED_SUBNET"        envDefault:""         json:"trusted_subnet"`
-	Config           string `env:"CONFIG"                envDefault:""`
+	Config           string `env:"CONFIG_SERVER"                envDefault:""`
 	HealthCheckDur   time.Duration
 }
 
