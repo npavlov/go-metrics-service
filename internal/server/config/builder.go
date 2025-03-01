@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Address          string `env:"ADDRESS"        envDefault:"localhost:8080" json:"address"`
 	GRPCAddress      string `env:"GRPC_ADDRESS"   envDefault:":9090"          json:"grpc_address"`
+	UseGRPC          bool   `env:"USE_GRPC"        envDefault:"false"          json:"use_grpc"`
 	StoreInterval    int64  `env:"STORE_INTERVAL" envDefault:"300"            json:"store_interval"`
 	StoreIntervalDur time.Duration
 	File             string `env:"FILE_STORAGE_PATH"     envDefault:"temp.txt" json:"store_file"`
@@ -50,6 +51,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			CryptoKey:        "",
 			Config:           "",
 			TrustedSubnet:    "",
+			UseGRPC:          false,
 		},
 		logger: log,
 	}
@@ -76,6 +78,7 @@ func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.CryptoKey, "crypto-key", b.cfg.CryptoKey, "crypto key to sign request")
 	flag.StringVar(&b.cfg.TrustedSubnet, "t", b.cfg.TrustedSubnet, "trusted subnet")
 	flag.StringVar(&b.cfg.Config, "config", b.cfg.Config, "path to config file")
+	flag.BoolVar(&b.cfg.UseGRPC, "use-grpc", b.cfg.UseGRPC, "use gRPC for workers")
 	flag.Parse()
 
 	return b
