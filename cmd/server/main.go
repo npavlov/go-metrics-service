@@ -15,6 +15,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/buildinfo"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
+	"github.com/npavlov/go-metrics-service/internal/server/grpc"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
@@ -42,6 +43,9 @@ func main() {
 	} else {
 		metricStorage = storage.NewMemStorage(&log).WithBackup(ctx, cfg)
 	}
+
+	grpcServer := grpc.NewGRPCServer(metricStorage, cfg, &log)
+	grpcServer.Start(ctx)
 
 	startServer(ctx, cfg, metricStorage, dbManager, &log)
 }

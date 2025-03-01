@@ -8,6 +8,7 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
+	"github.com/npavlov/go-metrics-service/internal/agent/model"
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
@@ -19,27 +20,36 @@ type Reporter interface {
 
 // MetricReporter implements the Reporter interface.
 type MetricReporter struct {
-	cfg            *config.Config
-	l              *zerolog.Logger
-	workerCount    int
-	inputStream    chan []db.Metric
-	metricsStream  chan db.Metric
-	batchStream    chan []db.Metric
-	resultStream   chan Result
-	requestHandler *Sender
+	cfg           *config.Config
+	l             *zerolog.Logger
+	workerCount   int
+	inputStream   chan []db.Metric
+	metricsStream chan db.Metric
+	batchStream   chan []db.Metric
+	resultStream  chan Result
+	sender        model.Sender
 }
 
 func NewMetricReporter(inputStream chan []db.Metric, cfg *config.Config, logger *zerolog.Logger) *MetricReporter {
-	return &MetricReporter{
-		cfg:            cfg,
-		l:              logger,
-		workerCount:    cfg.RateLimit,
-		metricsStream:  make(chan db.Metric, domain.ChannelLength),
-		batchStream:    make(chan []db.Metric, domain.ChannelLength),
-		requestHandler: NewSender(cfg, logger),
-		resultStream:   make(chan Result),
-		inputStream:    inputStream,
+	reporter := &MetricReporter{
+		cfg:           cfg,
+		l:             logger,
+		workerCount:   cfg.RateLimit,
+		metricsStream: make(chan db.Metric, domain.ChannelLength),
+		batchStream:   make(chan []db.Metric, domain.ChannelLength),
+		resultStream:  make(chan Result),
+		inputStream:   inputStream,
+		sender:        nil,
 	}
+
+	// choose type of communication
+	if cfg.UseGRPC {
+		reporter.sender = NewGRPCSender(cfg, logger)
+	} else {
+		reporter.sender = NewSender(cfg, logger)
+	}
+
+	return reporter
 }
 
 func (mr *MetricReporter) StartReporter(ctx context.Context, wg *sync.WaitGroup) {
@@ -70,6 +80,7 @@ func (mr *MetricReporter) metricGenerator(ctx context.Context, wg *sync.WaitGrou
 		select {
 		case <-ctx.Done():
 			mr.l.Info().Msg("Stopping metric generator")
+			mr.sender.Close()
 			close(mr.metricsStream)
 			close(mr.batchStream)
 
@@ -135,7 +146,7 @@ func (mr *MetricReporter) worker(ctx context.Context, wg *sync.WaitGroup, worker
 }
 
 func (mr *MetricReporter) handleMetric(ctx context.Context, metric db.Metric) Result {
-	data, err := mr.requestHandler.SendMetric(ctx, metric)
+	data, err := mr.sender.SendMetric(ctx, metric)
 
 	return Result{
 		Metric:  data,
@@ -145,7 +156,7 @@ func (mr *MetricReporter) handleMetric(ctx context.Context, metric db.Metric) Re
 }
 
 func (mr *MetricReporter) handleBatch(ctx context.Context, metrics []db.Metric) Result {
-	data, err := mr.requestHandler.SendMetricsBatch(ctx, metrics)
+	data, err := mr.sender.SendMetricsBatch(ctx, metrics)
 
 	return Result{
 		Metrics: data,

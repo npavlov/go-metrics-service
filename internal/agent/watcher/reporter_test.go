@@ -33,7 +33,7 @@ func TestMetricReporter_SendSingleMetric(t *testing.T) {
 	}
 	json := jsoniter.ConfigCompatibleWithStandardLibrary
 
-	// Mock server to simulate the Sender
+	// Mock server to simulate the JSONSender
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var receivedMetric db.Metric
 		err := json.NewDecoder(request.Body).Decode(&receivedMetric)
@@ -81,7 +81,7 @@ func TestMetricReporter_SendBatchMetrics(t *testing.T) {
 		UseBatch:          true,
 	}
 
-	// Mock server to simulate the Sender
+	// Mock server to simulate the JSONSender
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		var receivedMetrics []db.Metric
 		result, _ := utils.DecompressResult(request.Body)
@@ -132,7 +132,7 @@ func TestMetricReporter_ErrorHandling(t *testing.T) {
 		UseBatch:          false,
 	}
 
-	// Mock server to simulate the Sender
+	// Mock server to simulate the JSONSender
 	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
 		writer.WriteHeader(http.StatusInternalServerError)
 	}))

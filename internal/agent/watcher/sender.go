@@ -2,9 +2,6 @@ package watcher
 
 import (
 	"context"
-	"crypto/hmac"
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
 
 	"github.com/go-resty/resty/v2"
@@ -13,8 +10,9 @@ import (
 	"github.com/rs/zerolog"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/utils"
+	au "github.com/npavlov/go-metrics-service/internal/agent/utils"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
+	"github.com/npavlov/go-metrics-service/internal/utils"
 	"github.com/npavlov/go-metrics-service/pkg/crypto"
 )
 
@@ -26,19 +24,21 @@ type Result struct {
 	Error   error       // Error (if any)
 }
 
-type Sender struct {
+type JSONSender struct {
 	cfg        *config.Config
 	l          *zerolog.Logger
 	json       jsoniter.API
 	encryption *crypto.Encryption
+	ip         string
 }
 
-func NewSender(cfg *config.Config, logger *zerolog.Logger) *Sender {
-	sender := &Sender{
+func NewSender(cfg *config.Config, logger *zerolog.Logger) *JSONSender {
+	sender := &JSONSender{
 		cfg:        cfg,
 		l:          logger,
 		json:       jsoniter.ConfigCompatibleWithStandardLibrary,
 		encryption: nil,
+		ip:         au.GetLocalIP(logger),
 	}
 
 	if cfg.CryptoKey == "" {
@@ -55,7 +55,11 @@ func NewSender(cfg *config.Config, logger *zerolog.Logger) *Sender {
 	return sender
 }
 
-func (rh *Sender) SendMetric(ctx context.Context, metric db.Metric) (*db.Metric, error) {
+func (rh *JSONSender) Close() {
+	// for model consistency
+}
+
+func (rh *JSONSender) SendMetric(ctx context.Context, metric db.Metric) (*db.Metric, error) {
 	url := rh.cfg.Address + "/update/"
 
 	data, err := rh.sendPostRequest(ctx, url, metric)
@@ -66,7 +70,7 @@ func (rh *Sender) SendMetric(ctx context.Context, metric db.Metric) (*db.Metric,
 	return rh.read(data)
 }
 
-func (rh *Sender) SendMetricsBatch(ctx context.Context, metrics []db.Metric) ([]db.Metric, error) {
+func (rh *JSONSender) SendMetricsBatch(ctx context.Context, metrics []db.Metric) ([]db.Metric, error) {
 	url := rh.cfg.Address + "/updates/"
 
 	data, err := rh.sendPostRequest(ctx, url, metrics)
@@ -77,7 +81,7 @@ func (rh *Sender) SendMetricsBatch(ctx context.Context, metrics []db.Metric) ([]
 	return rh.readMany(data)
 }
 
-func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interface{}) ([]byte, error) {
+func (rh *JSONSender) sendPostRequest(ctx context.Context, url string, data interface{}) ([]byte, error) {
 	payload, err := rh.json.Marshal(data)
 	if err != nil {
 		rh.l.Error().Err(err).Msg("Failed to marshal metric")
@@ -85,7 +89,7 @@ func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interfac
 		return nil, errors.Wrap(err, "failed to marshal metric")
 	}
 
-	compressed, err := utils.Compress(payload)
+	compressed, err := au.Compress(payload)
 	if err != nil {
 		rh.l.Error().Err(err).Msg("Failed to compress payload")
 
@@ -98,12 +102,12 @@ func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interfac
 		SetHeader("Content-Type", "application/json").
 		SetHeader("Content-Encoding", "gzip").
 		SetHeader("Accept-Encoding", "gzip").
-		SetHeader("X-Real-IP", utils.GetLocalIP(rh.l)).
+		SetHeader("X-Real-IP", rh.ip).
 		SetBody(compressed.Bytes()).
 		SetDoNotParseResponse(true)
 
 	if rh.cfg.Key != "" {
-		hash := rh.calculateHash(payload)
+		hash := utils.CalculateHash(rh.cfg.Key, payload)
 		request.SetHeader("HashSHA256", hash)
 	}
 
@@ -130,7 +134,7 @@ func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interfac
 	}
 
 	// Handle the response based on whether it is a single metric or an array
-	responseBody, err := utils.DecompressResult(resp.RawBody())
+	responseBody, err := au.DecompressResult(resp.RawBody())
 	if err != nil {
 		rh.l.Error().Err(err).Msg("Failed to decompress response")
 
@@ -140,14 +144,7 @@ func (rh *Sender) sendPostRequest(ctx context.Context, url string, data interfac
 	return responseBody, nil
 }
 
-func (rh *Sender) calculateHash(payload []byte) string {
-	h := hmac.New(sha256.New, []byte(rh.cfg.Key))
-	h.Write(payload)
-
-	return hex.EncodeToString(h.Sum(nil))
-}
-
-func (rh *Sender) read(data []byte) (*db.Metric, error) {
+func (rh *JSONSender) read(data []byte) (*db.Metric, error) {
 	// Unmarshal the decompressed response into a Metric struct
 	var rMetric db.Metric
 	err := rh.json.Unmarshal(data, &rMetric)
@@ -160,7 +157,7 @@ func (rh *Sender) read(data []byte) (*db.Metric, error) {
 	return &rMetric, nil
 }
 
-func (rh *Sender) readMany(data []byte) ([]db.Metric, error) {
+func (rh *JSONSender) readMany(data []byte) ([]db.Metric, error) {
 	// Unmarshal the decompressed response into a Metric struct
 	var rMetrics []db.Metric
 	err := rh.json.Unmarshal(data, &rMetrics)
