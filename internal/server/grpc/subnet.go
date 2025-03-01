@@ -13,17 +13,16 @@ import (
 
 // SubnetInterceptor verifies if the request is from a trusted subnet.
 func SubnetInterceptor(subnet string, log *zerolog.Logger) grpc.UnaryServerInterceptor {
-	_, trustedNet, err := net.ParseCIDR(subnet)
-	if err != nil {
-		log.Fatal().Err(err).Msg("invalid subnet configuration")
-	}
-
 	return func(
 		ctx context.Context,
 		req interface{},
 		_ *grpc.UnaryServerInfo,
 		handler grpc.UnaryHandler,
 	) (interface{}, error) {
+		if subnet == "" {
+			return handler(ctx, req)
+		}
+
 		md, ok := metadata.FromIncomingContext(ctx)
 		if !ok {
 			log.Error().Msg("missing metadata in request")
@@ -43,6 +42,11 @@ func SubnetInterceptor(subnet string, log *zerolog.Logger) grpc.UnaryServerInter
 			log.Error().Str("ip", ipStr[0]).Msg("invalid IP address format")
 
 			return nil, errors.New("invalid IP address format")
+		}
+
+		_, trustedNet, err := net.ParseCIDR(subnet)
+		if err != nil {
+			log.Fatal().Err(err).Msg("invalid subnet configuration")
 		}
 
 		if !trustedNet.Contains(ip) {

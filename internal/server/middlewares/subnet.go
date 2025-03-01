@@ -11,6 +11,10 @@ import (
 func SubnetMiddleware(subnet string, log *zerolog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(response http.ResponseWriter, request *http.Request) {
+			if subnet == "" {
+				next.ServeHTTP(response, request)
+			}
+
 			ipStr := request.Header.Get("X-Real-IP")
 
 			if ipStr == "" {

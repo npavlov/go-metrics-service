@@ -5,7 +5,6 @@ env:
   SERVER_BINARY_PATH: bin/server
   CONFIG_SERVER: config/server.json
   CONFIG_AGENT: config/agent.json
-  TRUSTED_SUBNET: 0.0.0.0/0
 
 on:
   pull_request:
