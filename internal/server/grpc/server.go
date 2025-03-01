@@ -39,12 +39,6 @@ func NewGRPCServer(repo model.Repository, cfg *config.Config, logger *zerolog.Lo
 }
 
 func (gs *Server) Start(ctx context.Context) {
-	if !gs.cfg.UseGRPC {
-		gs.logger.Info().Msg("Skipping gRPC server")
-
-		return
-	}
-
 	go func() {
 		gs.logger.Info().Str("address", gs.cfg.GRPCAddress).Msg("starting gRPC server")
 

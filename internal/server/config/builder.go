@@ -24,7 +24,7 @@ type Config struct {
 	Key              string `env:"KEY"                   envDefault:""         json:"key"`
 	CryptoKey        string `env:"CRYPTO_KEY"            envDefault:""         json:"crypto_key"`
 	TrustedSubnet    string `env:"TRUSTED_SUBNET"        envDefault:""         json:"trusted_subnet"`
-	Config           string `env:"CONFIG_SERVER"                envDefault:""`
+	Config           string `env:"CONFIG_SERVER"         envDefault:""`
 	HealthCheckDur   time.Duration
 }
 
