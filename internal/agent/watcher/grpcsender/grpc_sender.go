@@ -1,4 +1,4 @@
-package watcher
+package grpcsender
 
 import (
 	"context"
@@ -7,12 +7,12 @@ import (
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/metadata"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	au "github.com/npavlov/go-metrics-service/internal/agent/utils"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/utils"
+	"github.com/npavlov/go-metrics-service/pkg/crypto"
 	pb "github.com/npavlov/go-metrics-service/proto/v1"
 )
 
@@ -25,9 +25,23 @@ type GRPCSender struct {
 func NewGRPCSender(cfg *config.Config, logger *zerolog.Logger) *GRPCSender {
 	ip := au.GetLocalIP(logger)
 
-	interceptor := grpc.WithUnaryInterceptor(makeInterceptor(cfg, ip, logger))
+	// interceptor := grpc.WithUnaryInterceptor(HeadersInterceptor(cfg, ip, logger))
 
-	conn, err := grpc.NewClient(cfg.GRPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), interceptor)
+	var encryption *crypto.Encryption
+
+	if key := cfg.CryptoKey; key != "" {
+		var err error
+		if encryption, err = crypto.NewEncryption(key); err != nil {
+			logger.Fatal().Err(err).Msg("failed to create encryption")
+		}
+	}
+
+	interceptors := grpc.WithChainUnaryInterceptor(
+		HeadersInterceptor(cfg, ip, logger),
+		EncodingInterceptor(encryption, logger),
+	)
+
+	conn, err := grpc.NewClient(cfg.GRPCAddress, grpc.WithTransportCredentials(insecure.NewCredentials()), interceptors)
 	if err != nil {
 		logger.Fatal().Err(err).Msg("failed to create grpc connection")
 	}
@@ -41,37 +55,6 @@ func NewGRPCSender(cfg *config.Config, logger *zerolog.Logger) *GRPCSender {
 	}
 }
 
-// makeInterceptor adds X-Real-IP and HashSHA256 metadata.
-func makeInterceptor(cfg *config.Config, ip string, logger *zerolog.Logger) grpc.UnaryClientInterceptor {
-	return func(
-		ctx context.Context,
-		method string, req,
-		reply interface{},
-		cc *grpc.ClientConn,
-		invoker grpc.UnaryInvoker,
-		opts ...grpc.CallOption,
-	) error {
-		md := metadata.New(map[string]string{
-			"X-Real-IP": ip,
-		})
-
-		// Serialize request and calculate hash if key is set
-		if cfg.Key != "" {
-			payload, err := utils.MarshalProtoMessage(req)
-			if err != nil {
-				logger.Error().Err(err).Msg("failed to marshal request for hashing")
-			} else {
-				hash := utils.CalculateHash(cfg.Key, payload)
-				md.Append("HashSHA256", hash)
-			}
-		}
-
-		ctx = metadata.NewOutgoingContext(ctx, md)
-
-		return invoker(ctx, method, req, reply, cc, opts...)
-	}
-}
-
 func (gc *GRPCSender) Close() {
 	if err := gc.conn.Close(); err != nil {
 		gc.logger.Error().Err(err).Msg("failed to close grpc connection")
@@ -79,6 +62,7 @@ func (gc *GRPCSender) Close() {
 }
 
 func (gc *GRPCSender) SendMetricsBatch(ctx context.Context, metrics []db.Metric) ([]db.Metric, error) {
+	//nolint:exhaustruct
 	request := pb.MetricsRequest{
 		Items: make([]*pb.Metric, len(metrics)),
 	}
@@ -103,6 +87,7 @@ func (gc *GRPCSender) SendMetricsBatch(ctx context.Context, metrics []db.Metric)
 }
 
 func (gc *GRPCSender) SendMetric(ctx context.Context, metric db.Metric) (*db.Metric, error) {
+	//nolint:exhaustruct
 	request := pb.MetricRequest{
 		Metric: utils.FromDBModelToGModel(&metric),
 	}

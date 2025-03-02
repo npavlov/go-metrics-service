@@ -23,6 +23,7 @@ service MetricService {
 
 message MetricRequest {
   Metric metric = 1;
+  bytes EncryptedMessage = 2;
 }
 
 message MetricResponse {
@@ -33,6 +34,7 @@ message MetricResponse {
 
 message MetricsRequest {
   repeated Metric items = 1;
+  bytes EncryptedMessage = 2;
 }
 
 message MetricsResponse {

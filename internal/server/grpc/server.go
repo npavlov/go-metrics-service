@@ -13,6 +13,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/utils"
+	"github.com/npavlov/go-metrics-service/pkg/crypto"
 	pb "github.com/npavlov/go-metrics-service/proto/v1"
 )
 
@@ -25,6 +26,15 @@ type Server struct {
 }
 
 func NewGRPCServer(repo model.Repository, cfg *config.Config, logger *zerolog.Logger) *Server {
+	var decryption *crypto.Decryption
+
+	if key := cfg.CryptoKey; key != "" {
+		var err error
+		if decryption, err = crypto.NewDecryption(key); err != nil {
+			logger.Fatal().Err(err).Msg("failed to create decryption")
+		}
+	}
+
 	//nolint:exhaustruct
 	return &Server{
 		repo:   repo,
@@ -33,6 +43,7 @@ func NewGRPCServer(repo model.Repository, cfg *config.Config, logger *zerolog.Lo
 		gServer: grpc.NewServer(grpc.ChainUnaryInterceptor(
 			LoggingServerInterceptor(logger), // Logs all requests/responses
 			SubnetInterceptor(cfg.TrustedSubnet, logger),
+			DecryptInterceptor(decryption, logger),
 			SigInterceptor(cfg.Key, logger),
 		)),
 	}

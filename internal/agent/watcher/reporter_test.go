@@ -207,3 +207,11 @@ func TestMetricReporter_StopOnContextCancel(t *testing.T) {
 
 	assert.NotPanics(t, func() { close(inputStream) }, "inputStream should be safe to close after reporter shutdown")
 }
+
+func float64Ptr(f float64) *float64 {
+	return &f
+}
+
+func int64Ptr(i int64) *int64 {
+	return &i
+}

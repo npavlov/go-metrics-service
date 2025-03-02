@@ -1,4 +1,4 @@
-package watcher
+package jsonsender
 
 import (
 	"context"
@@ -17,12 +17,6 @@ import (
 )
 
 var ErrPostRequestFailed = errors.New("failed to send post request")
-
-type Result struct {
-	Metric  *db.Metric  // Single metric (if applicable)
-	Metrics []db.Metric // Array of stats (if applicable)
-	Error   error       // Error (if any)
-}
 
 type JSONSender struct {
 	cfg        *config.Config

@@ -9,6 +9,8 @@ import (
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	"github.com/npavlov/go-metrics-service/internal/agent/model"
+	"github.com/npavlov/go-metrics-service/internal/agent/watcher/grpcsender"
+	"github.com/npavlov/go-metrics-service/internal/agent/watcher/jsonsender"
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
@@ -44,9 +46,9 @@ func NewMetricReporter(inputStream chan []db.Metric, cfg *config.Config, logger 
 
 	// choose type of communication
 	if cfg.UseGRPC {
-		reporter.sender = NewGRPCSender(cfg, logger)
+		reporter.sender = grpcsender.NewGRPCSender(cfg, logger)
 	} else {
-		reporter.sender = NewSender(cfg, logger)
+		reporter.sender = jsonsender.NewSender(cfg, logger)
 	}
 
 	return reporter
