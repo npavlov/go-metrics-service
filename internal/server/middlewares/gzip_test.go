@@ -118,7 +118,7 @@ func BenchmarkGzipMiddleware(b *testing.B) {
 	w := httptest.NewRecorder()
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		handler.ServeHTTP(w, req)
 	}
 }

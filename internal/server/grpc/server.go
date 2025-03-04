@@ -8,12 +8,12 @@ import (
 
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
-	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
@@ -24,10 +24,11 @@ import (
 
 type Server struct {
 	pb.UnimplementedMetricServiceServer
-	repo    model.Repository // Repository for accessing metric data.
-	logger  *zerolog.Logger  // Logger for logging errors and info.
-	cfg     *config.Config
-	gServer *grpc.Server
+	repo      model.Repository // Repository for accessing metric data.
+	logger    *zerolog.Logger  // Logger for logging errors and info.
+	cfg       *config.Config
+	gServer   *grpc.Server
+	validator protovalidate.Validator
 }
 
 func NewGRPCServer(repo model.Repository, cfg *config.Config, logger *zerolog.Logger) *Server {
@@ -38,6 +39,11 @@ func NewGRPCServer(repo model.Repository, cfg *config.Config, logger *zerolog.Lo
 		if decryption, err = crypto.NewDecryption(key); err != nil {
 			logger.Fatal().Err(err).Msg("failed to create decryption")
 		}
+	}
+
+	validator, err := protovalidate.New()
+	if err != nil {
+		logger.Fatal().Err(err).Msg("failed to create validator")
 	}
 
 	//nolint:exhaustruct
@@ -51,6 +57,7 @@ func NewGRPCServer(repo model.Repository, cfg *config.Config, logger *zerolog.Lo
 			DecryptInterceptor(decryption, logger),
 			SigInterceptor(cfg.Key, logger),
 		)),
+		validator: validator,
 	}
 }
 
@@ -106,12 +113,7 @@ func (gs *Server) SetMetrics(
 	ctx context.Context,
 	in *pb.SetMetricsRequest,
 ) (*pb.SetMetricsResponse, error) {
-	validator, err := protovalidate.New()
-	if err != nil {
-		return nil, errors.Wrap(err, "error initializing validator")
-	}
-
-	if err := validator.Validate(in); err != nil {
+	if err := gs.validator.Validate(in); err != nil {
 		return nil, errors.Wrap(err, "error validating input")
 	}
 
@@ -175,20 +177,15 @@ func (gs *Server) SetMetric(
 ) (*pb.SetMetricResponse, error) {
 	newMetric := in.GetMetric()
 
-	validator, err := protovalidate.New()
-	if err != nil {
-		return nil, errors.Wrap(err, "error initializing validator")
-	}
-
-	if err := validator.Validate(in); err != nil {
+	if err := gs.validator.Validate(in); err != nil {
 		return nil, errors.Wrap(err, "error validating input")
 	}
 
 	existingMetric, found := gs.repo.Get(ctx, domain.MetricName(newMetric.GetId()))
 
 	if found {
-		var delta = newMetric.GetDelta()
-		var val = newMetric.GetValue()
+		delta := newMetric.GetDelta()
+		val := newMetric.GetValue()
 
 		existingMetric.SetValue(&delta, &val)
 
@@ -207,7 +204,7 @@ func (gs *Server) SetMetric(
 
 	dbMetric := utils.FromGModelToDBModel(newMetric)
 
-	err = gs.repo.Create(ctx, dbMetric)
+	err := gs.repo.Create(ctx, dbMetric)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating newMetric")
 	}

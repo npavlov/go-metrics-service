@@ -3,13 +3,13 @@ package grpc
 import (
 	"context"
 
-	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/proto"
 
+	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/npavlov/go-metrics-service/pkg/crypto"
 )
 

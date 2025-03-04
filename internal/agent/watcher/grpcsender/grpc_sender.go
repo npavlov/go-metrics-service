@@ -3,12 +3,12 @@ package grpcsender
 import (
 	"context"
 
-	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
 	au "github.com/npavlov/go-metrics-service/internal/agent/utils"
 	"github.com/npavlov/go-metrics-service/internal/server/db"

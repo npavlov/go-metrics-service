@@ -13,9 +13,8 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"
 
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
-
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 )
 
 func TestSignatureMiddleware(t *testing.T) {
@@ -160,7 +159,7 @@ func BenchmarkSignatureMiddleware(b *testing.B) {
 	request.Header.Set("HashSHA256", expectedSignature)
 
 	// Run the benchmark
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		// Create a new ResponseRecorder for each iteration
 		recorder := httptest.NewRecorder()
 

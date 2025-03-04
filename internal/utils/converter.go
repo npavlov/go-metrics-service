@@ -10,11 +10,11 @@ func FromGModelToDBModel(metric *pb.Metric) *db.Metric {
 	var newMetric *db.Metric
 	switch metric.GetMtype() {
 	case pb.Metric_TYPE_COUNTER:
-		var delta = metric.GetDelta()
+		delta := metric.GetDelta()
 		newMetric = db.NewMetric(domain.MetricName(metric.GetId()), domain.Counter, &delta, nil)
 	case pb.Metric_TYPE_GAUGE:
-		var value = metric.GetValue()
-		newMetric = db.NewMetric(domain.MetricName(metric.GetId()), domain.Gauge, nil, &value)
+		val := metric.GetValue()
+		newMetric = db.NewMetric(domain.MetricName(metric.GetId()), domain.Gauge, nil, &val)
 	case pb.Metric_TYPE_UNSPECIFIED:
 		return nil
 	}
