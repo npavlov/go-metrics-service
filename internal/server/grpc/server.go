@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"time"
 
 	"github.com/bufbuild/protovalidate-go"
 	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
@@ -11,6 +12,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/model"
@@ -71,7 +73,7 @@ func (gs *Server) Start(ctx context.Context) {
 	// Start gRPC-Gateway in another goroutine
 	go func() {
 		mux := runtime.NewServeMux()
-		opts := []grpc.DialOption{grpc.WithInsecure()}
+		opts := []grpc.DialOption{grpc.WithTransportCredentials(insecure.NewCredentials())}
 
 		// Register gRPC-Gateway handlers
 		err := pb.RegisterMetricServiceHandlerFromEndpoint(ctx, mux, gs.cfg.GRPCAddress, opts)
@@ -79,9 +81,16 @@ func (gs *Server) Start(ctx context.Context) {
 			gs.logger.Fatal().Err(err).Msg("failed to register gRPC-Gateway")
 		}
 
-		// Start HTTP server
+		//nolint:exhaustruct
+		server := &http.Server{
+			Addr:         gs.cfg.GRPCGateway,
+			ReadTimeout:  1 * time.Second,
+			WriteTimeout: 1 * time.Second,
+			Handler:      mux,
+		}
+
 		gs.logger.Info().Str("address", gs.cfg.GRPCGateway).Msg("starting gRPC-Gateway")
-		if err := http.ListenAndServe(gs.cfg.GRPCGateway, mux); err != nil {
+		if err := server.ListenAndServe(); err != nil {
 			gs.logger.Fatal().Err(err).Msg("failed to start gRPC-Gateway")
 		}
 	}()
