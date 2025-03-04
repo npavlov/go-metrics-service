@@ -1,6 +1,8 @@
 module github.com/npavlov/go-metrics-service
 
-go 1.23.2
+go 1.22.1
+
+toolchain go1.23.2
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.5-20250130201111-63bb56e20495.1
