@@ -187,7 +187,10 @@ func (gs *Server) SetMetric(
 	existingMetric, found := gs.repo.Get(ctx, domain.MetricName(newMetric.GetId()))
 
 	if found {
-		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
+		var delta = newMetric.GetDelta()
+		var val = newMetric.GetValue()
+
+		existingMetric.SetValue(&delta, &val)
 
 		err := gs.repo.Update(ctx, existingMetric)
 		if err != nil {
