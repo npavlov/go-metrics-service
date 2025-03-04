@@ -3,6 +3,7 @@ package grpcsender
 import (
 	"context"
 
+	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -10,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/npavlov/go-metrics-service/pkg/crypto"
-	pb "github.com/npavlov/go-metrics-service/proto/v1"
 )
 
 // EncodingInterceptor crypts outgoing message.
@@ -55,14 +55,14 @@ func EncodingInterceptor(encryption *crypto.Encryption, logger *zerolog.Logger) 
 		// Append the metadata to the context
 		newCtx := metadata.AppendToOutgoingContext(ctx, kv...)
 
-		if request, ok := req.(*pb.MetricRequest); ok {
+		if request, ok := req.(*pb.SetMetricRequest); ok {
 			request.EncryptedMessage = encryptedPayload
 			request.Metric = nil
 
 			return invoker(newCtx, method, request, reply, cc, opts...)
 		}
 
-		if request, ok := req.(*pb.MetricsRequest); ok {
+		if request, ok := req.(*pb.SetMetricsRequest); ok {
 			request.EncryptedMessage = encryptedPayload
 			request.Items = nil
 

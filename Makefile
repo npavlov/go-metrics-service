@@ -141,9 +141,14 @@ godoc:
 
 # Generate proto contracts
 
-.PHONY: generate-proto
+.PHONY: buf-generate
 
-generate-proto:
-	protoc --go_out=. --go_opt=paths=source_relative \
-      --go-grpc_out=. --go-grpc_opt=paths=source_relative \
-      proto/v1/metrics.proto
+buf-generate:
+	buf generate
+
+# Lint proto contracts
+
+.PHONY: buf-lint
+
+buf-lint:
+	buf lint

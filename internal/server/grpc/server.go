@@ -3,7 +3,11 @@ package grpc
 import (
 	"context"
 	"net"
+	"net/http"
 
+	"github.com/bufbuild/protovalidate-go"
+	"github.com/grpc-ecosystem/grpc-gateway/v2/runtime"
+	"github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -14,11 +18,10 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/utils"
 	"github.com/npavlov/go-metrics-service/pkg/crypto"
-	pb "github.com/npavlov/go-metrics-service/proto/v1"
 )
 
 type Server struct {
-	pb.UnimplementedMetricServiceServer
+	metrics.UnimplementedMetricServiceServer
 	repo    model.Repository // Repository for accessing metric data.
 	logger  *zerolog.Logger  // Logger for logging errors and info.
 	cfg     *config.Config
@@ -50,6 +53,7 @@ func NewGRPCServer(repo model.Repository, cfg *config.Config, logger *zerolog.Lo
 }
 
 func (gs *Server) Start(ctx context.Context) {
+	// Start gRPC-server in goroutine
 	go func() {
 		gs.logger.Info().Str("address", gs.cfg.GRPCAddress).Msg("starting gRPC server")
 
@@ -58,9 +62,27 @@ func (gs *Server) Start(ctx context.Context) {
 			gs.logger.Fatal().Err(err).Str("address", gs.cfg.GRPCAddress).Msg("failed to listen")
 		}
 
-		pb.RegisterMetricServiceServer(gs.gServer, gs)
+		metrics.RegisterMetricServiceServer(gs.gServer, gs)
 		if err := gs.gServer.Serve(tcpListen); err != nil {
 			gs.logger.Fatal().Err(err).Msg("failed to start gRPC server")
+		}
+	}()
+
+	// Start gRPC-Gateway in another goroutine
+	go func() {
+		mux := runtime.NewServeMux()
+		opts := []grpc.DialOption{grpc.WithInsecure()}
+
+		// Register gRPC-Gateway handlers
+		err := metrics.RegisterMetricServiceHandlerFromEndpoint(ctx, mux, gs.cfg.GRPCAddress, opts)
+		if err != nil {
+			gs.logger.Fatal().Err(err).Msg("failed to register gRPC-Gateway")
+		}
+
+		// Start HTTP server
+		gs.logger.Info().Str("address", gs.cfg.GRPCGateway).Msg("starting gRPC-Gateway")
+		if err := http.ListenAndServe(gs.cfg.GRPCGateway, mux); err != nil {
+			gs.logger.Fatal().Err(err).Msg("failed to start gRPC-Gateway")
 		}
 	}()
 
@@ -73,8 +95,17 @@ func (gs *Server) Start(ctx context.Context) {
 
 func (gs *Server) SetMetrics(
 	ctx context.Context,
-	in *pb.MetricsRequest,
-) (*pb.MetricsResponse, error) {
+	in *metrics.SetMetricsRequest,
+) (*metrics.SetMetricsResponse, error) {
+	validator, err := protovalidate.New()
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing validator")
+	}
+
+	if err := validator.Validate(in); err != nil {
+		return nil, errors.Wrap(err, "error validating input")
+	}
+
 	newMetrics := make([]*db.Metric, 0, len(in.GetItems()))
 
 	for _, metric := range in.GetItems() {
@@ -118,12 +149,12 @@ func (gs *Server) SetMetrics(
 		return nil, errors.Wrap(err, "error updating old metrics")
 	}
 
-	newGRPcMetrics := make([]*pb.Metric, 0, len(newDBMetrics))
+	newGRPcMetrics := make([]*metrics.Metric, 0, len(newDBMetrics))
 	for _, metric := range newDBMetrics {
 		newGRPcMetrics = append(newGRPcMetrics, utils.FromDBModelToGModel(&metric))
 	}
 
-	return &pb.MetricsResponse{
+	return &metrics.SetMetricsResponse{
 		Status: true,
 		Items:  newGRPcMetrics,
 	}, nil
@@ -131,14 +162,23 @@ func (gs *Server) SetMetrics(
 
 func (gs *Server) SetMetric(
 	ctx context.Context,
-	in *pb.MetricRequest,
-) (*pb.MetricResponse, error) {
+	in *metrics.SetMetricRequest,
+) (*metrics.SetMetricResponse, error) {
 	newMetric := in.GetMetric()
+
+	validator, err := protovalidate.New()
+	if err != nil {
+		return nil, errors.Wrap(err, "error initializing validator")
+	}
+
+	if err := validator.Validate(in); err != nil {
+		return nil, errors.Wrap(err, "error validating input")
+	}
 
 	existingMetric, found := gs.repo.Get(ctx, domain.MetricName(newMetric.GetId()))
 
 	if found {
-		existingMetric.SetValue(&newMetric.Delta, &newMetric.Value)
+		existingMetric.SetValue(newMetric.Delta, newMetric.Value)
 
 		err := gs.repo.Update(ctx, existingMetric)
 		if err != nil {
@@ -147,7 +187,7 @@ func (gs *Server) SetMetric(
 
 		grpcModel := utils.FromDBModelToGModel(existingMetric)
 
-		return &pb.MetricResponse{
+		return &metrics.SetMetricResponse{
 			Status: true,
 			Metric: grpcModel,
 		}, nil
@@ -155,12 +195,12 @@ func (gs *Server) SetMetric(
 
 	dbMetric := utils.FromGModelToDBModel(newMetric)
 
-	err := gs.repo.Create(ctx, dbMetric)
+	err = gs.repo.Create(ctx, dbMetric)
 	if err != nil {
 		return nil, errors.Wrap(err, "error creating newMetric")
 	}
 
-	return &pb.MetricResponse{
+	return &metrics.SetMetricResponse{
 		Status: true,
 		Metric: newMetric,
 	}, nil

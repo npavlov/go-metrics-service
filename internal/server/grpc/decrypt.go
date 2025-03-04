@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 
+	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -10,7 +11,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"github.com/npavlov/go-metrics-service/pkg/crypto"
-	pb "github.com/npavlov/go-metrics-service/proto/v1"
 )
 
 // DecryptInterceptor checks if the request signature is valid.
@@ -43,7 +43,7 @@ func DecryptInterceptor(decryption *crypto.Decryption, log *zerolog.Logger) grpc
 
 		// Handle different request types using a type switch
 		switch request := req.(type) {
-		case *pb.MetricRequest:
+		case *pb.SetMetricRequest:
 			decrypt, err := decryption.Decrypt(request.GetEncryptedMessage())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to decrypt request")
@@ -54,7 +54,7 @@ func DecryptInterceptor(decryption *crypto.Decryption, log *zerolog.Logger) grpc
 
 			return handler(ctx, request)
 
-		case *pb.MetricsRequest:
+		case *pb.SetMetricsRequest:
 			decrypt, err := decryption.Decrypt(request.GetEncryptedMessage())
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to decrypt request")

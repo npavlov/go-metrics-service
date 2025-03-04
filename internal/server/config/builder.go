@@ -14,6 +14,7 @@ import (
 type Config struct {
 	Address          string `env:"ADDRESS"        envDefault:"localhost:8080" json:"address"`
 	GRPCAddress      string `env:"GRPC_ADDRESS"   envDefault:":9090"          json:"grpc_address"`
+	GRPCGateway      string `env:"GRPC_GATEWAY"   envDefault:":9091"          json:"grpc_gateway"`
 	UseGRPC          bool   `env:"USE_GRPC"       envDefault:"false"          json:"use_grpc"`
 	StoreInterval    int64  `env:"STORE_INTERVAL" envDefault:"300"            json:"store_interval"`
 	StoreIntervalDur time.Duration
@@ -40,6 +41,7 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 		cfg: &Config{
 			Address:          "",
 			GRPCAddress:      "",
+			GRPCGateway:      "",
 			StoreInterval:    0,
 			File:             "",
 			RestoreStorage:   false,
@@ -70,6 +72,7 @@ func (b *Builder) FromEnv() *Builder {
 func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.Address, "a", b.cfg.Address, "address and port to run server")
 	flag.StringVar(&b.cfg.GRPCAddress, "grpca", b.cfg.GRPCAddress, "address and port to run server using gRPC")
+	flag.StringVar(&b.cfg.GRPCGateway, "grpcgw", b.cfg.GRPCGateway, "address and port to run GRPC Gateway")
 	flag.BoolVar(&b.cfg.RestoreStorage, "r", b.cfg.RestoreStorage, "restore previous session")
 	flag.StringVar(&b.cfg.File, "f", b.cfg.File, "file where to store mem storage")
 	flag.StringVar(&b.cfg.Database, "d", b.cfg.Database, "database DSN")

@@ -3,6 +3,7 @@ package grpcsender
 import (
 	"context"
 
+	pb "github.com/npavlov/go-metrics-service/gen/go/proto/metrics/v1"
 	"github.com/pkg/errors"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc"
@@ -13,7 +14,6 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/utils"
 	"github.com/npavlov/go-metrics-service/pkg/crypto"
-	pb "github.com/npavlov/go-metrics-service/proto/v1"
 )
 
 type GRPCSender struct {
@@ -63,11 +63,11 @@ func (gc *GRPCSender) Close() {
 
 func (gc *GRPCSender) SendMetricsBatch(ctx context.Context, metrics []db.Metric) ([]db.Metric, error) {
 	//nolint:exhaustruct
-	request := pb.MetricsRequest{
+	request := pb.SetMetricsRequest{
 		Items: make([]*pb.Metric, len(metrics)),
 	}
-	for _, m := range metrics {
-		request.Items = append(request.Items, utils.FromDBModelToGModel(&m))
+	for idx, m := range metrics {
+		request.Items[idx] = utils.FromDBModelToGModel(&m)
 	}
 
 	resp, err := gc.client.SetMetrics(ctx, &request)
@@ -88,7 +88,7 @@ func (gc *GRPCSender) SendMetricsBatch(ctx context.Context, metrics []db.Metric)
 
 func (gc *GRPCSender) SendMetric(ctx context.Context, metric db.Metric) (*db.Metric, error) {
 	//nolint:exhaustruct
-	request := pb.MetricRequest{
+	request := pb.SetMetricRequest{
 		Metric: utils.FromDBModelToGModel(&metric),
 	}
 
