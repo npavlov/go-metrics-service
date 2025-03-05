@@ -32,7 +32,7 @@ func EncodingInterceptor(encryption *crypto.Encryption, logger *zerolog.Logger) 
 		if !ok {
 			logger.Error().Msg("Failed to convert request to proto.Message")
 
-			return invoker(ctx, method, req, reply, cc, opts...)
+			return errors.New("failed to convert request to proto.Message")
 		}
 
 		reqBytes, err := proto.Marshal(reqProto)
