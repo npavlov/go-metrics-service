@@ -105,3 +105,7 @@ func TestEncodingInterceptor_ErrorHandling(t *testing.T) {
 func float64Ptr(f float64) *float64 {
 	return &f
 }
+
+func int64Ptr(f int64) *int64 {
+	return &f
+}

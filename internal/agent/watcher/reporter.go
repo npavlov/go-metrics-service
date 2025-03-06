@@ -46,7 +46,8 @@ func NewMetricReporter(inputStream chan []db.Metric, cfg *config.Config, logger 
 
 	// choose type of communication
 	if cfg.UseGRPC {
-		reporter.sender = grpcsender.NewGRPCSender(cfg, logger)
+		conn := grpcsender.MakeConnection(cfg, logger)
+		reporter.sender = grpcsender.NewGRPCSender(conn, logger)
 	} else {
 		reporter.sender = jsonsender.NewSender(cfg, logger)
 	}
