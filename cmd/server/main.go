@@ -15,6 +15,7 @@ import (
 	"github.com/npavlov/go-metrics-service/internal/server/buildinfo"
 	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/dbmanager"
+	"github.com/npavlov/go-metrics-service/internal/server/grpc"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
 	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
@@ -42,6 +43,8 @@ func main() {
 	} else {
 		metricStorage = storage.NewMemStorage(&log).WithBackup(ctx, cfg)
 	}
+
+	startGrpcServer(ctx, cfg, metricStorage, &log)
 
 	startServer(ctx, cfg, metricStorage, dbManager, &log)
 }
@@ -97,4 +100,15 @@ func startServer(
 		log.Error().Err(err).Msg("Error starting server")
 	}
 	log.Info().Msg("Server shut down")
+}
+
+func startGrpcServer(ctx context.Context, cfg *config.Config, metricStorage model.Repository, log *zerolog.Logger) {
+	if !cfg.UseGRPC {
+		log.Info().Msg("Skipping gRPC server")
+
+		return
+	}
+
+	grpcServer := grpc.NewGRPCServer(metricStorage, cfg, log)
+	grpcServer.Start(ctx)
 }

@@ -1,4 +1,4 @@
-package watcher_test
+package jsonsender_test
 
 import (
 	"bytes"
@@ -13,12 +13,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/npavlov/go-metrics-service/internal/agent/watcher/jsonsender"
+
 	"github.com/npavlov/go-metrics-service/pkg/crypto"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/utils"
 
 	"github.com/npavlov/go-metrics-service/internal/agent/config"
-	"github.com/npavlov/go-metrics-service/internal/agent/watcher"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 )
 
@@ -55,7 +56,7 @@ func TestSendMetric(t *testing.T) {
 	defer server.Close()
 
 	cfg.Address = server.URL
-	sender := watcher.NewSender(cfg, &logger)
+	sender := jsonsender.NewSender(cfg, &logger)
 
 	result, err := sender.SendMetric(ctx, *metric)
 	require.NoError(t, err)
@@ -98,7 +99,7 @@ func TestSendMetricsBatch(t *testing.T) {
 	defer server.Close()
 
 	cfg.Address = server.URL
-	sender := watcher.NewSender(cfg, &logger)
+	sender := jsonsender.NewSender(cfg, &logger)
 
 	result, err := sender.SendMetricsBatch(ctx, metrics)
 	require.NoError(t, err)
@@ -122,10 +123,10 @@ func TestSendMetricError(t *testing.T) {
 	defer server.Close()
 
 	cfg.Address = server.URL
-	sender := watcher.NewSender(cfg, &logger)
+	sender := jsonsender.NewSender(cfg, &logger)
 
 	_, err := sender.SendMetric(ctx, *metric)
-	assert.ErrorIs(t, err, watcher.ErrPostRequestFailed)
+	assert.ErrorIs(t, err, jsonsender.ErrPostRequestFailed)
 }
 
 func TestSendMetricsBatchError(t *testing.T) {
@@ -148,10 +149,10 @@ func TestSendMetricsBatchError(t *testing.T) {
 	defer server.Close()
 
 	cfg.Address = server.URL
-	sender := watcher.NewSender(cfg, &logger)
+	sender := jsonsender.NewSender(cfg, &logger)
 
 	_, err := sender.SendMetricsBatch(ctx, metrics)
-	assert.ErrorIs(t, err, watcher.ErrPostRequestFailed)
+	assert.ErrorIs(t, err, jsonsender.ErrPostRequestFailed)
 }
 
 func TestSendEncryptedMetric(t *testing.T) {
@@ -201,7 +202,7 @@ func TestSendEncryptedMetric(t *testing.T) {
 	defer server.Close()
 
 	cfg.Address = server.URL
-	sender := watcher.NewSender(cfg, &logger)
+	sender := jsonsender.NewSender(cfg, &logger)
 
 	result, err := sender.SendMetric(ctx, *metric)
 	require.NoError(t, err)

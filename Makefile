@@ -138,3 +138,17 @@ generate-swagger:
 .PHONY: godoc
 godoc:
 	godoc -http=:6060
+
+# Generate proto contracts
+
+.PHONY: buf-generate
+
+buf-generate:
+	buf generate
+
+# Lint proto contracts
+
+.PHONY: buf-lint
+
+buf-lint:
+	buf lint

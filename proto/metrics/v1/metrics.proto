@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package proto.metrics.v1;
+
+import "buf/validate/validate.proto";
+import "google/api/annotations.proto";
+
+option go_package = "github.com/npavlov/go-metrics-service/proto/metrics/v1;metrics";
+
+message Metric {
+  string id = 1 [(buf.validate.field).string.min_len = 1];
+  enum Type {
+    TYPE_UNSPECIFIED = 0;
+    TYPE_COUNTER = 1;
+    TYPE_GAUGE = 2;
+  };
+  Type mtype = 2  [(buf.validate.field).required = true];
+  optional double value = 3;
+  optional int64 delta = 4;
+  option (buf.validate.message).cel = {
+    id: "one_of_value_exists"
+    expression:
+        "!has(this.value) && !has(this.delta)"
+            "? 'metric should have at least one value'"
+            ": ''"
+  };
+}
+
+service MetricService {
+  rpc SetMetrics(SetMetricsRequest) returns (SetMetricsResponse) {
+    option (google.api.http) = {
+      post: "/v1/metrics"
+      body: "*"
+    };
+  }
+  rpc SetMetric(SetMetricRequest) returns (SetMetricResponse) {
+    option (google.api.http) = {
+      post: "/v1/metric"
+      body: "*"
+    };
+  }
+}
+
+message SetMetricRequest {
+  Metric metric = 1 [(buf.validate.field).required = true];
+  bytes encrypted_message = 2;
+}
+
+message SetMetricResponse {
+  bool status = 1;
+  Metric metric = 2;
+}
+
+
+message SetMetricsRequest {
+  repeated Metric items = 1 [(buf.validate.field).repeated = {
+    min_items: 1}];
+  bytes encrypted_message = 2;
+}
+
+message SetMetricsResponse {
+  bool status = 1;
+  repeated Metric items = 2;
+}
+

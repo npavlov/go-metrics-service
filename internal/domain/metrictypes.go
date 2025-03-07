@@ -5,6 +5,7 @@ import "errors"
 // ErrInvalidStr Define a static error.
 var ErrInvalidStr = errors.New("invalid string type")
 
+//nolint:recvcheck
 type MetricType string
 
 const (

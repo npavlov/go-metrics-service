@@ -10,11 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
-
 	"github.com/npavlov/go-metrics-service/internal/domain"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 )
 
 var errPingError = errors.New("ping error")
@@ -327,7 +326,7 @@ func BenchmarkGetAll(b *testing.B) {
 		AddRow(domain.MetricName("metric12"), domain.MetricType("gauge"), nil, float64Ptr(6.77777))
 
 	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		mockDB.ExpectQuery(`SELECT .* FROM mtr_metrics`).WillReturnRows(rows)
 		dbStorage.GetAll(context.Background())
 	}

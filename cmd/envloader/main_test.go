@@ -43,7 +43,7 @@ func TestGetEnvAsMap(t *testing.T) {
 	// Restore old environment
 	for _, e := range oldEnv {
 		pair := splitEnv(e)
-		_ = os.Setenv(pair[0], pair[1])
+		t.Setenv(pair[0], pair[1])
 	}
 
 	// Assertions

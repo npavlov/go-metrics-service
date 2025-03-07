@@ -12,15 +12,11 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/npavlov/go-metrics-service/internal/server/config"
-
 	"github.com/npavlov/go-metrics-service/internal/domain"
-
+	"github.com/npavlov/go-metrics-service/internal/server/config"
 	"github.com/npavlov/go-metrics-service/internal/server/db"
-
-	"github.com/npavlov/go-metrics-service/internal/server/router"
-
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 )
@@ -166,7 +162,7 @@ func BenchmarkRetrieveModel(b *testing.B) {
 	requestBody, _ := json.Marshal(retrieveModel)
 
 	// Benchmark loop
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		// Create a new HTTP request
 		request := httptest.NewRequest(http.MethodPost, "/retrieve", bytes.NewReader(requestBody))
 
