@@ -5,7 +5,7 @@ go 1.22.1
 toolchain go1.23.2
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.5-20250130201111-63bb56e20495.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.5-20250307204501-0409229c3780.1
 	github.com/andybalholm/brotli v1.1.1
 	github.com/bufbuild/protovalidate-go v0.9.2
 	github.com/caarlos0/env/v6 v6.10.1
