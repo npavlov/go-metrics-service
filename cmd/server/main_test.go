@@ -33,7 +33,7 @@ func TestStartServer(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	cfg := &config.Config{Address: "localhost:8080"}
+	cfg := &config.Config{Address: "localhost:63777"}
 	dbManager := &dbmanager.DBManager{IsConnected: false}
 	memStorage := storage.NewMemStorage(log).WithBackup(ctx, cfg)
 

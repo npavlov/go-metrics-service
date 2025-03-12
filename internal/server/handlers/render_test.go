@@ -4,21 +4,17 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	"github.com/go-resty/resty/v2"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/npavlov/go-metrics-service/internal/server/config"
-
-	"github.com/npavlov/go-metrics-service/internal/server/db"
-
-	"github.com/npavlov/go-metrics-service/internal/server/router"
-
 	"github.com/npavlov/go-metrics-service/internal/domain"
+	"github.com/npavlov/go-metrics-service/internal/server/config"
+	"github.com/npavlov/go-metrics-service/internal/server/db"
 	"github.com/npavlov/go-metrics-service/internal/server/handlers"
+	"github.com/npavlov/go-metrics-service/internal/server/router"
 	"github.com/npavlov/go-metrics-service/internal/server/storage"
 	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 )
@@ -61,13 +57,13 @@ func TestGetRenderHandler(t *testing.T) {
 	// Verify that the template was rendered correctly by checking if the response body contains the expected data
 	body := string(res.Body())
 
-	assert.True(t, strings.Contains(body, "GaugeMetric1"))
-	assert.True(t, strings.Contains(body, "123.45"))
-	assert.True(t, strings.Contains(body, "GaugeMetric2"))
-	assert.True(t, strings.Contains(body, "678.9"))
+	assert.Contains(t, body, "GaugeMetric1")
+	assert.Contains(t, body, "123.45")
+	assert.Contains(t, body, "GaugeMetric2")
+	assert.Contains(t, body, "678.9")
 
-	assert.True(t, strings.Contains(body, "CounterMetric1"))
-	assert.True(t, strings.Contains(body, "100"))
-	assert.True(t, strings.Contains(body, "CounterMetric2"))
-	assert.True(t, strings.Contains(body, "200"))
+	assert.Contains(t, body, "CounterMetric1")
+	assert.Contains(t, body, "100")
+	assert.Contains(t, body, "CounterMetric2")
+	assert.Contains(t, body, "200")
 }

@@ -13,6 +13,9 @@ import (
 
 type Config struct {
 	Address          string `env:"ADDRESS"        envDefault:"localhost:8080" json:"address"`
+	GRPCAddress      string `env:"GRPC_ADDRESS"   envDefault:":9090"          json:"grpc_address"`
+	GRPCGateway      string `env:"GRPC_GATEWAY"   envDefault:":9091"          json:"grpc_gateway"`
+	UseGRPC          bool   `env:"USE_GRPC"       envDefault:"false"          json:"use_grpc"`
 	StoreInterval    int64  `env:"STORE_INTERVAL" envDefault:"300"            json:"store_interval"`
 	StoreIntervalDur time.Duration
 	File             string `env:"FILE_STORAGE_PATH"     envDefault:"temp.txt" json:"store_file"`
@@ -21,7 +24,8 @@ type Config struct {
 	HealthCheck      int64  `env:"HEALTH_CHECK_INTERVAL" envDefault:"5"        json:"health_check_interval"`
 	Key              string `env:"KEY"                   envDefault:""         json:"key"`
 	CryptoKey        string `env:"CRYPTO_KEY"            envDefault:""         json:"crypto_key"`
-	Config           string `env:"CONFIG"                envDefault:""`
+	TrustedSubnet    string `env:"TRUSTED_SUBNET"        envDefault:""         json:"trusted_subnet"`
+	Config           string `env:"CONFIG_SERVER"         envDefault:""`
 	HealthCheckDur   time.Duration
 }
 
@@ -36,6 +40,8 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 	return &Builder{
 		cfg: &Config{
 			Address:          "",
+			GRPCAddress:      "",
+			GRPCGateway:      "",
 			StoreInterval:    0,
 			File:             "",
 			RestoreStorage:   false,
@@ -46,6 +52,8 @@ func NewConfigBuilder(log *zerolog.Logger) *Builder {
 			Key:              "",
 			CryptoKey:        "",
 			Config:           "",
+			TrustedSubnet:    "",
+			UseGRPC:          false,
 		},
 		logger: log,
 	}
@@ -63,13 +71,17 @@ func (b *Builder) FromEnv() *Builder {
 // FromFlags parses command line flags into the ConfigBuilder.
 func (b *Builder) FromFlags() *Builder {
 	flag.StringVar(&b.cfg.Address, "a", b.cfg.Address, "address and port to run server")
+	flag.StringVar(&b.cfg.GRPCAddress, "grpca", b.cfg.GRPCAddress, "address and port to run server using gRPC")
+	flag.StringVar(&b.cfg.GRPCGateway, "grpcgw", b.cfg.GRPCGateway, "address and port to run GRPC Gateway")
 	flag.BoolVar(&b.cfg.RestoreStorage, "r", b.cfg.RestoreStorage, "restore previous session")
 	flag.StringVar(&b.cfg.File, "f", b.cfg.File, "file where to store mem storage")
 	flag.StringVar(&b.cfg.Database, "d", b.cfg.Database, "database DSN")
 	flag.Int64Var(&b.cfg.StoreInterval, "i", b.cfg.StoreInterval, "time flushing mem storage to file (in seconds)")
 	flag.StringVar(&b.cfg.Key, "k", b.cfg.Key, "key to sign request")
 	flag.StringVar(&b.cfg.CryptoKey, "crypto-key", b.cfg.CryptoKey, "crypto key to sign request")
+	flag.StringVar(&b.cfg.TrustedSubnet, "t", b.cfg.TrustedSubnet, "trusted subnet")
 	flag.StringVar(&b.cfg.Config, "config", b.cfg.Config, "path to config file")
+	flag.BoolVar(&b.cfg.UseGRPC, "use-grpc", b.cfg.UseGRPC, "use gRPC for workers")
 	flag.Parse()
 
 	return b

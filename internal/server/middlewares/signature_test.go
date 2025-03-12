@@ -14,15 +14,16 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/npavlov/go-metrics-service/internal/server/middlewares"
+	testutils "github.com/npavlov/go-metrics-service/internal/test_utils"
 )
 
 func TestSignatureMiddleware(t *testing.T) {
 	t.Parallel()
 
-	logger := zerolog.New(io.Discard) // Discard logger output in tests
+	logger := testutils.GetTLogger()
 	signKey := "test_secret_key"
 
-	middleware := middlewares.SignatureMiddleware(signKey, &logger)
+	middleware := middlewares.SignatureMiddleware(signKey, logger)
 
 	// Helper to calculate valid HMAC signature for a payload
 	calculateSignature := func(payload []byte, key string) string {
@@ -158,7 +159,7 @@ func BenchmarkSignatureMiddleware(b *testing.B) {
 	request.Header.Set("HashSHA256", expectedSignature)
 
 	// Run the benchmark
-	for i := 0; i < b.N; i++ {
+	for range b.N {
 		// Create a new ResponseRecorder for each iteration
 		recorder := httptest.NewRecorder()
 

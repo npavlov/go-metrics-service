@@ -59,6 +59,9 @@ func (cr *CustomRouter) SetRouter(mh *handlers.MetricHandler, hh *handlers.Healt
 	cr.router.Use(middleware.Recoverer)
 	cr.router.Use(middlewares.GzipMiddleware)
 	cr.router.Use(middlewares.BrotliMiddleware)
+	if cr.cfg.TrustedSubnet != "" {
+		cr.router.Use(middlewares.SubnetMiddleware(cr.cfg.TrustedSubnet, cr.logger))
+	}
 	if cr.decryption != nil {
 		cr.router.Use(middlewares.DecryptMiddleware(cr.decryption, cr.logger))
 	}
