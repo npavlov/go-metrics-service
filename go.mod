@@ -21,7 +21,7 @@ require (
 	github.com/joho/godotenv v1.5.1
 	github.com/json-iterator/go v1.1.12
 	github.com/kisielk/errcheck v1.8.0
-	github.com/pashagolub/pgxmock/v4 v4.4.0
+	github.com/pashagolub/pgxmock/v4 v4.6.0
 	github.com/pkg/errors v0.9.1
 	github.com/pressly/goose v2.7.0+incompatible
 	github.com/rs/zerolog v1.33.0
