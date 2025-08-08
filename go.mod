@@ -5,7 +5,7 @@ go 1.22.1
 toolchain go1.23.2
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.5-20250130201111-63bb56e20495.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.7-20250717185734-6c6e0d3c608e.1
 	github.com/andybalholm/brotli v1.1.1
 	github.com/bufbuild/protovalidate-go v0.9.2
 	github.com/caarlos0/env/v6 v6.10.1
@@ -31,7 +31,7 @@ require (
 	golang.org/x/tools v0.29.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250204164813-702378808489
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.7
 	honnef.co/go/tools v0.5.1
 )
 
