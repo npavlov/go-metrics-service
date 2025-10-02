@@ -1,11 +1,11 @@
 module github.com/npavlov/go-metrics-service
 
-go 1.22.1
+go 1.23
 
 toolchain go1.23.2
 
 require (
-	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.5-20250130201111-63bb56e20495.1
+	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.10-20250912141014-52f32327d4b0.1
 	github.com/andybalholm/brotli v1.1.1
 	github.com/bufbuild/protovalidate-go v0.9.2
 	github.com/caarlos0/env/v6 v6.10.1
@@ -31,7 +31,7 @@ require (
 	golang.org/x/tools v0.29.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20250204164813-702378808489
 	google.golang.org/grpc v1.70.0
-	google.golang.org/protobuf v1.36.5
+	google.golang.org/protobuf v1.36.10
 	honnef.co/go/tools v0.5.1
 )
 
@@ -57,7 +57,7 @@ require (
 	github.com/go-toolsmith/strparse v1.1.0 // indirect
 	github.com/go-toolsmith/typep v1.1.0 // indirect
 	github.com/google/cel-go v0.23.2 // indirect
-	github.com/google/go-cmp v0.6.0 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/jackc/chunkreader/v2 v2.0.1 // indirect
 	github.com/jackc/pgio v1.0.0 // indirect
 	github.com/jackc/pgpassfile v1.0.0 // indirect
